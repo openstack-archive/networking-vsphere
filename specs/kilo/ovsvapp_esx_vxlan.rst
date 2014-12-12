@@ -197,70 +197,7 @@ Alternatives
 NSX-vSphere Neutron plugin
 https://review.openstack.org/#/c/102720/
 
-
-Implementation
-==============
-
-Assignee(s)
------------
-
-Primary assignee:
-  Singh, Gangadhar
-  P,Rashmi
-
-Other contributors:
-  Gupta, Romil
-  Shenoy, Raghuveer
-  Thapar, Vishal
-
-Work Items
-----------
-
-OVSvApp agent implementation
-ML2 - rpc and mechanism driver
-
-
 Dependencies
 ============
 
 Open vSwitch, oslo.vmware, Nova(vmware.VCDriver)
-
-Testing
-=======
-
-Unit tests will be added.
-
-Tempest Tests
--------------
-
-Third party CI will be added.
-
-Functional Tests
-----------------
-
-None
-
-API Tests
----------
-
-None
-
-Documentation Impact
-====================
-
-OVSvApp solution needs a configuration file which has details about
-vCenter server with its internals and Open vSwitch bridges.
-
-User Documentation
-------------------
-User Documentation will be provided, which talks about the details to
-setup the OVSvAPP solution.
-
-Developer Documentation
------------------------
-This will be updated.
-
-References
-==========
-
-None

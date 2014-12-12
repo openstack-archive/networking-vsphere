@@ -127,69 +127,7 @@ The reason to have Integration Bridge is to leverage existing Openstack Open
 vSwitch L2 agent feature to a maximum. The Physical Bridge functionality
 is similar to the one existing in Openstack.
 
-Assignee(s)
------------
-
-Primary assignee:
-  Raghuveer Shenoy <rshenoy>
-
-Other contributors:
-  Romil Gupta <romilg>
-  Gangadhar Singh <gangadhar-singh>
-  Rashmi P <prashmi>
-
-Work Items
-----------
-
-OVSvApp agent implementation
-ML2 - rpc and mechanism driver
-Security Groups
-
-
 Dependencies
 ============
 
 Open vSwitch, oslo.vmware, Nova(vmware.VCDriver)
-
-
-Testing
-=======
-
-Tempest Tests
--------------
-
-Third party CI will be added.
-
-Functional Tests
-----------------
-
-None
-
-API Tests
----------
-
-None
-
-
-Documentation Impact
-====================
-
-OVSvApp solution needs a configuration file which has details about
-vCenter server with its intricacies and Open vSwitch bridges.
-
-User Documentation
-------------------
-
-It  will be provided as part openstack-manuals, which talks about the details to
-setup the OVSvAPP solution.
-
-Developer Documentation
------------------------
-
-This will be updated.
-
-
-References
-==========
-
-None
