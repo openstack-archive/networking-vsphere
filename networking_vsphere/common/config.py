@@ -13,17 +13,19 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-test_networking_vsphere
-----------------------------------
+from oslo.config import cfg
 
-Tests for `networking_vsphere` module.
-"""
+from neutron.openstack.common import log as logging
 
-from networking_vsphere.tests import base
+LOG = logging.getLogger(__name__)
 
 
-class TestNetworking_vsphere(base.TestCase):
+def parse(args):
+    cfg.CONF(args=args, project='neutron',
+             default_config_files=["/etc/neutron/plugins/ovsvapp/"
+                                   "ovsvapp_agent.ini"])
 
-    def test_something(self):
-        pass
+
+def setup_logging():
+    logging.setup("neutron")
+    LOG.debug("Logging setup complete")

@@ -13,17 +13,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-test_networking_vsphere
-----------------------------------
 
-Tests for `networking_vsphere` module.
-"""
+class OVSvAppNeutronAgentError(Exception):
 
-from networking_vsphere.tests import base
+    '''OVSvApp L2 Agent Exception.'''
+    pass
 
 
-class TestNetworking_vsphere(base.TestCase):
+class vCenterConfigurationError(Exception):
 
-    def test_something(self):
-        pass
+    '''vCenter Configuration Exception.'''
+    pass
