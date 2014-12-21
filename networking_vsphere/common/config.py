@@ -1,4 +1,4 @@
-# Copyright 2014 OpenStack Foundation
+# Copyright (c) 2014 Hewlett-Packard Development Company, L.P.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -13,17 +13,25 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-test_networking_vsphere
-----------------------------------
+import shutil
 
-Tests for `networking_vsphere` module.
-"""
+from oslo.config import cfg
 
-from networking_vsphere.tests import base
+from neutron.openstack.common import log as logging
+
+LOG = logging.getLogger(__name__)
 
 
-class TestNetworking_vsphere(base.TestCase):
+def parse(args):
+    cfg.CONF(args=args, project='neutron',
+             default_config_files=["/etc/neutron/plugins/ovsvapp/"
+                                   "ovsvapp.ini"])
 
-    def test_something(self):
-        pass
+
+def remove_config_file(temp_dir):
+    shutil.rmtree(temp_dir)
+
+
+def setup_logging():
+    logging.setup("neutron")
+    LOG.debug("Logging setup complete")
