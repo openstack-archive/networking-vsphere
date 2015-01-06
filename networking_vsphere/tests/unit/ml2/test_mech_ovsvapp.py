@@ -27,6 +27,7 @@ from neutron.tests.unit.ml2 import _test_mech_agent as base
 from neutron.tests.unit.ml2 import test_rpcapi
 # TODO(romilg): Revisit to minimize dependency on ML2 tests.
 
+from networking_vsphere.agent import ovsvapp_agent
 from networking_vsphere.common import constants
 from networking_vsphere.plugins.ml2.drivers.ovsvapp import mech_driver
 from networking_vsphere.plugins.ml2.drivers.ovsvapp import rpc
@@ -210,3 +211,19 @@ class OVSvAppAgentNotifyAPITest(test_rpcapi.RpcApiTestCase):
                            'device_update', rpc_method='cast',
                            fanout=True,
                            device_data='fake_device_data')
+
+    def test_get_ports_for_device(self):
+        rpcapi = ovsvapp_agent.OVSvAppPluginApi(constants.OVSVAPP)
+        self._test_rpc_api(rpcapi, None,
+                           'get_ports_for_device', rpc_method='call',
+                           device={'id': 'fake_id',
+                                   'host': 'fake_host',
+                                   'cluster_id': 'fake_cluster_id'},
+                           agent_id='fake_agent_id')
+
+    def test_update_port_binding(self):
+        rpcapi = ovsvapp_agent.OVSvAppPluginApi(constants.OVSVAPP)
+        self._test_rpc_api(rpcapi, None,
+                           'update_port_binding', rpc_method='call',
+                           port_id='fake_port_id',
+                           host='fake_host', agent_id='fake_agent_id')
