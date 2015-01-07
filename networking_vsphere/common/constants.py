@@ -1,4 +1,5 @@
-# Copyright 2014 OpenStack Foundation
+# Copyright (c) 2015 Hewlett-Packard Development Company, L.P.
+#
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -13,17 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-test_networking_vsphere
-----------------------------------
-
-Tests for `networking_vsphere` module.
-"""
-
-from networking_vsphere.tests import base
-
-
-class TestNetworking_vsphere(base.TestCase):
-
-    def test_something(self):
-        pass
+AGENT_TYPE_OVSVAPP = "OVSvApp L2 Agent"
+OVSVAPP = 'ovsvapp'
+DEVICE = 'device'
