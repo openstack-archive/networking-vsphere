@@ -17,3 +17,16 @@
 AGENT_TYPE_OVSVAPP = "OVSvApp L2 Agent"
 OVSVAPP = 'ovsvapp'
 DEVICE = 'device'
+
+# Network type constants
+VLAN = 'VLAN'
+VXLAN = 'VXLAN'
+
+# Port status constants
+UP = 'UP'
+DOWN = 'DOWN'
+
+# VM Event type constants
+VM_CREATED = 'VM_CREATED'
+VM_UPDATED = 'VM_UPDATED'
+VM_DELETED = 'VM_DELETED'
