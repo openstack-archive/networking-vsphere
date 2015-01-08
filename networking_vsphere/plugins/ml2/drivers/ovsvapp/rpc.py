@@ -17,55 +17,16 @@ import time
 
 from oslo import messaging
 
-from neutron.common import constants as q_const
+from networking_vsphere.common import constants
+
+from neutron.common import constants as n_const
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.openstack.common import log
-from neutron.plugins.ml2 import driver_api as api
-from neutron.plugins.ml2.drivers import mech_agent
 
 LOG = log.getLogger(__name__)
-
-AGENT_TYPE_OVSVAPP = "OVSvApp L2 Agent"
-OVSVAPP = 'ovsvapp'
-DEVICE = 'device'
-
-
-class OVSvAppAgentMechanismDriver(
-        mech_agent.SimpleAgentMechanismDriverBase):
-    """Attach to networks using OVSvApp Agent.
-
-    The OVSvAppAgentMechanismDriver integrates the ml2 plugin with the
-    OVSvApp Agent. Port binding with this driver requires the
-    OVSvApp Agent to be running on the port's host, and that agent
-    to have connectivity to at least one segment of the port's
-    network.
-    """
-    # TODO(romilg): Move this mech_driver to Neutron eventually.
-
-    def __init__(self):
-        super(OVSvAppAgentMechanismDriver, self).__init__(
-            AGENT_TYPE_OVSVAPP,
-            portbindings.VIF_TYPE_OTHER,
-            {portbindings.CAP_PORT_FILTER: True})
-        self._start_rpc_listeners()
-
-    def check_segment_for_agent(self, segment, agent):
-        LOG.debug("Checking segment: %(segment)s ", {'segment': segment})
-        if segment[api.NETWORK_TYPE] in ['vlan', 'vxlan']:
-            return True
-        else:
-            return False
-
-    def _start_rpc_listeners(self):
-        self.notifier = OVSvAppAgentNotifyAPI(topics.AGENT)
-        self.endpoints = [OVSvAppServerRpcCallback(self.notifier)]
-        self.topic = OVSVAPP
-        self.conn = n_rpc.create_connection(new=True)
-        self.conn.create_consumer(self.topic, self.endpoints, fanout=False)
-        return self.conn.consume_in_threads()
 
 
 class OVSvAppServerRpcCallback(object):
@@ -124,9 +85,9 @@ class OVSvAppServerRpcCallback(object):
                          'physical_network':
                          network['provider:physical_network']})
 
-                    new_status = (q_const.PORT_STATUS_BUILD
+                    new_status = (n_const.PORT_STATUS_BUILD
                                   if port['admin_state_up']
-                                  else q_const.PORT_STATUS_DOWN)
+                                  else n_const.PORT_STATUS_DOWN)
                     if port['status'] != new_status:
                         port['status'] = new_status
 
@@ -183,7 +144,7 @@ class OVSvAppAgentNotifyAPI(object):
 
     def _get_device_topic(self, action):
         return topics.get_topic_name(self.topic,
-                                     DEVICE,
+                                     constants.DEVICE,
                                      action)
 
     def device_create(self, context, device, ports, sg_rules):
