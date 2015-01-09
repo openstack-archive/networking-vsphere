@@ -30,3 +30,14 @@ PORT_STATUS_DOWN = 'DOWN'
 VM_CREATED = 'VM_CREATED'
 VM_UPDATED = 'VM_UPDATED'
 VM_DELETED = 'VM_DELETED'
+
+# Driver state constants
+# Driver cannot connect or monitor hypervisor. Driver cannot process
+# ResourceEntity APIs
+DRIVER_IDLE = 'IDLE'
+# Driver is ready for monitoring hypervisor
+DRIVER_READY = 'READY'
+# Driver is monitoring hypervisor
+DRIVER_RUNNING = 'RUNNING'
+# Driver is stopped
+DRIVER_STOPPED = 'STOPPED'
