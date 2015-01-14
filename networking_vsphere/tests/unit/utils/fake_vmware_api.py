@@ -18,3 +18,55 @@ class DataObject(object):
 
     """Data object base class."""
     pass
+
+
+class FakeFactory(object):
+    """Fake factory class with create method."""
+
+    def create(self, obj_name):
+        return DataObject()
+
+
+class FakeDynamicPropObject(object):
+    """Fake Dynamic Property object."""
+
+    def __init__(self):
+        self.name = "name"
+        self.val = "val"
+
+
+class FakeObjectContent(object):
+    """Fake ObjectContent object."""
+
+    def __init__(self):
+        self.propSet = [FakeDynamicPropObject()]
+
+
+class FakeRetrieveResultObject(object):
+    """Fake RetrieveResult object."""
+
+    def __init__(self):
+        self.objects = [FakeObjectContent()]
+        self.token = "1234"
+
+
+class FakeVim(object):
+    """Fake Vim obecject class."""
+
+    def __init__(self):
+        self.client = DataObject()
+        self.client.factory = FakeFactory()
+        service_content = self.client.factory.create('ns0:ServiceContent')
+        service_content.propertyCollector = "PropCollector"
+        self.service_content = service_content
+        self.RetrievePropertiesExCalled = False
+        self.ContinueRetrievePropertiesExCalled = False
+
+    def RetrievePropertiesEx(self, prop_coll, specSet, options):
+        self.RetrievePropertiesExCalled = True
+        res = FakeRetrieveResultObject()
+        return res
+
+    def ContinueRetrievePropertiesEx(self, prop_coll, token=None):
+        self.ContinueRetrievePropertiesExCalled = True
+        return
