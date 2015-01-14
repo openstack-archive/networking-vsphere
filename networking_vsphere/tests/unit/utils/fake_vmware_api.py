@@ -18,3 +18,26 @@ class DataObject(object):
 
     """Data object base class."""
     pass
+
+
+class FakeFactory(object):
+    """Fake factory class with create method."""
+
+    def create(self, obj_name):
+        return DataObject()
+
+
+class FakeVim(object):
+    """Fake Vim obecject class."""
+
+    def __init__(self):
+        self.client = DataObject()
+        self.client.factory = FakeFactory()
+        service_content = self.client.factory.create('ns0:ServiceContent')
+        service_content.propertyCollector = "PropCollector"
+        self.service_content = service_content
+        self.RetrievePropertiesExCalled = False
+
+    def RetrievePropertiesEx(self, prop_coll, specSet, options):
+        self.RetrievePropertiesExCalled = True
+        return
