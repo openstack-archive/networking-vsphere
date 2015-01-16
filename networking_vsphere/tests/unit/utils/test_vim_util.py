@@ -34,19 +34,19 @@ class VimUtilsTestCase(base.TestCase):
             self.assertIn(spec.name, spec_names)
 
     def test_dynamic_property(self):
-        vim = fake_vmware_api.FakeVim()
+        vim = fake_vmware_api.FakeVimUtil()
         mob = {"_type": "vm"}
         vim_util.get_dynamic_property(vim, mob, "VM", "runtime.host")
         self.assertTrue(vim.RetrievePropertiesExCalled)
         self.assertTrue(vim.ContinueRetrievePropertiesExCalled)
 
     def test_dynamic_property_none_object(self):
-        vim = fake_vmware_api.FakeVim()
+        vim = fake_vmware_api.FakeVimUtil()
         vim_util.get_dynamic_property(vim, None, "VM", "runtime.host")
         self.assertFalse(vim.RetrievePropertiesExCalled)
 
     def test_get_property_filter_specs(self):
-        vim = fake_vmware_api.FakeVim()
+        vim = fake_vmware_api.FakeVimUtil()
         property_dict = {"virtualmachine":
                          ["name", "config"]}
         property_filter_spec = vim_util.get_property_filter_specs(
@@ -55,11 +55,11 @@ class VimUtilsTestCase(base.TestCase):
         self.assertEqual(objSpec.obj, vim.service_content.rootFolder)
 
     def test_get_properties_for_a_collection_of_objects(self):
-        vim = fake_vmware_api.FakeVim()
-        obj_list = [fake_vmware_api.FakeManagedObject]
+        vim = fake_vmware_api.FakeVimUtil()
+        obj_list = [fake_vmware_api.FakeDynamicPropertyObject]
         properties = ["name", "config"]
         objs = vim_util.get_properties_for_a_collection_of_objects(
-            vim, "FakeManagedObject", obj_list, properties)
+            vim, "FakeDynamicPropertyObject", obj_list, properties)
         self.assertEqual(len(objs), 1)
         self.assertTrue(vim.RetrievePropertiesExCalled)
         for obj in objs:
@@ -67,15 +67,15 @@ class VimUtilsTestCase(base.TestCase):
                 self.assertIn(prop.name, properties)
 
     def test_get_properties_for_a_collection_empty(self):
-        vim = fake_vmware_api.FakeVim()
+        vim = fake_vmware_api.FakeVimUtil()
         obj_list = []
         properties = ["name", "config"]
         objs = vim_util.get_properties_for_a_collection_of_objects(
-            vim, "FakeManagedObject", obj_list, properties)
+            vim, "FakeDynamicPropertyObject", obj_list, properties)
         self.assertEqual(len(objs), 0)
         self.assertFalse(vim.RetrievePropertiesExCalled)
 
     def test_get_objects(self):
-        vim = fake_vmware_api.FakeVim()
+        vim = fake_vmware_api.FakeVimUtil()
         vim_util.get_objects(vim, "DataCenter")
         self.assertTrue(vim.RetrievePropertiesExCalled)
