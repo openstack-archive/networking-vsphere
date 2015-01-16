@@ -27,7 +27,7 @@ class FakeFactory(object):
         return DataObject()
 
 
-class FakeDynamicPropObject(object):
+class FakeManagedObject(object):
     """Fake Dynamic Property object."""
 
     def __init__(self):
@@ -39,7 +39,7 @@ class FakeObjectContent(object):
     """Fake ObjectContent object."""
 
     def __init__(self):
-        self.propSet = [FakeDynamicPropObject()]
+        self.propSet = [FakeManagedObject()]
 
 
 class FakeRetrieveResultObject(object):
@@ -58,9 +58,13 @@ class FakeVim(object):
         self.client.factory = FakeFactory()
         service_content = self.client.factory.create('ns0:ServiceContent')
         service_content.propertyCollector = "PropCollector"
+        service_content.rootFolder = DataObject()
+        service_content.rootFolder.value = "RootFolder"
         self.service_content = service_content
         self.RetrievePropertiesExCalled = False
         self.ContinueRetrievePropertiesExCalled = False
+        self.CreateFilterCalled = False
+        self.CreatePropertyCollectorCalled = False
 
     def RetrievePropertiesEx(self, prop_coll, specSet, options):
         self.RetrievePropertiesExCalled = True

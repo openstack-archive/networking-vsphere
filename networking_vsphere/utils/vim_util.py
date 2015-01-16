@@ -13,6 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo.vmware import vim_util
+
 
 def build_recursive_traversal_spec(client_factory):
     # Recurse through all ResourcePools
@@ -206,3 +208,160 @@ def retrieve_properties_ex(vim, prop_coll, spec_set, max_count=500):
         else:
             break
     return objcont
+
+
+def get_objects(vim, type, properties_to_collect=None, all=False):
+    """Gets the list of objects of the type specified."""
+    if not properties_to_collect:
+        properties_to_collect = ["name"]
+
+    client_factory = vim.client.factory
+    trav_spec = vim_util.build_recursive_traversal_spec(client_factory)
+    object_spec = vim_util.build_object_spec(client_factory,
+                                             vim.service_content.rootFolder,
+                                             [trav_spec])
+    property_spec = vim_util.build_property_spec(
+        client_factory, type_=type,
+        properties_to_collect=properties_to_collect,
+        all_properties=all)
+    property_filter_spec = vim_util.build_property_filter_spec(client_factory,
+                                                               [property_spec],
+                                                               [object_spec])
+    property_collector = vim.service_content.propertyCollector
+    return retrieve_properties_ex(vim,
+                                  property_collector,
+                                  [property_filter_spec])
+
+
+def get_prop_spec(client_factory, spec_type, properties):
+    """Builds the Property Spec Object."""
+    prop_spec = client_factory.create('ns0:PropertySpec')
+    prop_spec.type = spec_type
+    prop_spec.pathSet = properties
+    return prop_spec
+
+
+def get_obj_spec(client_factory, obj, select_set=None):
+    """Builds the Object Spec object."""
+    obj_spec = client_factory.create('ns0:ObjectSpec')
+    obj_spec.obj = obj
+    obj_spec.skip = False
+    if select_set is not None:
+        obj_spec.selectSet = select_set
+    return obj_spec
+
+
+def get_prop_filter_spec(client_factory, obj_spec, prop_spec):
+    """Builds the Property Filter Spec Object."""
+    prop_filter_spec = client_factory.create('ns0:PropertyFilterSpec')
+    prop_filter_spec.propSet = prop_spec
+    prop_filter_spec.objectSet = obj_spec
+    return prop_filter_spec
+
+
+def get_property_filter_specs(vim, property_dict, objects=None):
+    client_factory = vim.client.factory
+    object_specs = []
+    if not objects:
+        objects = [vim.service_content.rootFolder]
+    for obj in objects:
+        if obj.value == get_root_folder_id(vim):
+            traversal_spec = [
+                vim_util.build_recursive_traversal_spec(client_factory)]
+        else:
+            traversal_spec = build_recursive_traversal_spec(client_factory)
+        object_spec = vim_util.build_object_spec(client_factory,
+                                                 obj,
+                                                 traversal_spec)
+        object_specs.append(object_spec)
+
+    property_specs = []
+    for obj_type in property_dict:
+        props = property_dict[obj_type]
+        property_spec = vim_util.build_property_spec(
+            client_factory, type_=obj_type, properties_to_collect=props)
+        property_specs.append(property_spec)
+
+    property_filter_spec = vim_util.build_property_filter_spec(client_factory,
+                                                               property_specs,
+                                                               object_specs)
+    return property_filter_spec
+
+
+def create_filter(vim, prop_filter_spec, collector=None):
+    if not collector:
+        collector = vim.service_content.propertyCollector
+    return vim.CreateFilter(collector,
+                            spec=prop_filter_spec,
+                            partialUpdates=False)
+
+
+def create_property_collector(vim, collector=None):
+    if not collector:
+        collector = vim.service_content.propertyCollector
+    return vim.CreatePropertyCollector(collector)
+
+
+def destroy_property_collector(vim, collector):
+    if collector:
+        return vim.DestroyPropertyCollector(collector)
+
+
+def wait_for_updates_ex(vim, version, collector=None,
+                        max_wait=85, max_update_count=-1):
+    """Polling mechanism for property collection
+
+        args:
+        :param vim: Vim object
+        :param version: version string
+        :param collector: PropertyCollector MOR
+        :param max_wait: Max time in seconds before the call returns
+                       (Default set to 85 as 90 is the http socket timeout)
+        :param max_update_count: Max num of ObjectUpdates returned
+                               in a single call. Not set if <= 0
+    """
+    client_factory = vim.client.factory
+    waitopts = client_factory.create('ns0:WaitOptions')
+    waitopts.maxWaitSeconds = max_wait
+    if max_update_count > 0:
+        waitopts.maxObjectUpdates = max_update_count
+    if not collector:
+        collector = vim.service_content.propertyCollector
+    return vim.WaitForUpdatesEx(collector,
+                                version=version,
+                                options=waitopts)
+
+
+def cancel_wait_for_updates(vim, collector=None):
+    if not collector:
+        collector = vim.service_content.propertyCollector
+    return vim.CancelWaitForUpdates(collector)
+
+
+def get_properties_for_a_collection_of_objects(vim, type,
+                                               obj_list, properties):
+    """Gets the list of properties for the collection of objects."""
+    client_factory = vim.client.factory
+    if len(obj_list) == 0:
+        return []
+    prop_spec = get_prop_spec(client_factory, type, properties)
+    lst_obj_specs = []
+    for obj in obj_list:
+        lst_obj_specs.append(get_obj_spec(client_factory, obj))
+    prop_filter_spec = get_prop_filter_spec(client_factory,
+                                            lst_obj_specs, [prop_spec])
+    return retrieve_properties_ex(vim,
+                                  vim.service_content.propertyCollector,
+                                  [prop_filter_spec])
+
+
+def get_search_index(vim):
+    return vim.service_content.searchIndex
+
+
+def find_by_inventory_path(vim, search_index, path):
+    return vim.FindByInventoryPath(search_index, inventoryPath=path)
+
+
+def get_root_folder_id(vim):
+    return vim.service_content.rootFolder.value
