@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: Armando Migliaccio <armamig@gmail.com>
+Workflow+1: Armando Migliaccio <armamig@gmail.com>
+Submitted-by: Jenkins
+Submitted-at: Sat, 17 Jan 2015 05:01:22 +0000
+Reviewed-on: https://review.openstack.org/147809
+Project: stackforge/networking-vsphere
+Branch: refs/heads/master
