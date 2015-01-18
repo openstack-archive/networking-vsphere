@@ -142,3 +142,7 @@ class VMWareAPISession(api.VMwareAPISession):
     def _get_vim(self):
         """Gets the VIM object reference."""
         return self.vim
+
+    def _wait_for_task(self, task_ref):
+        """Task is polled until it completes."""
+        return self.wait_for_task(task_ref)
