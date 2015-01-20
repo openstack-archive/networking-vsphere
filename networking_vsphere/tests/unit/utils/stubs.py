@@ -70,7 +70,7 @@ class FakeVMwareSession(object):
             temp_module = getattr(temp_module, method_elem)
             return temp_module(self.vim, *args, **kwargs)
 
-    def _wait_for_task(self, task_ref):
+    def wait_for_task(self, task_ref):
         task_info = self._call_method(vim_util, "get_dynamic_property",
                                       task_ref, "Task", "info")
         if task_info.state == "error":
@@ -88,7 +88,7 @@ class FakeVmware(fixtures.Fixture):
         fake_vmware_api.reset()
         self.useFixture(fixtures.MonkeyPatch(
             'networking_vsphere.utils.vim_session.'
-            'VMWareAPISession._get_vim_object', fake_get_vim_object))
+            'VMWareAPISession._get_vim', fake_get_vim_object))
         self.useFixture(fixtures.MonkeyPatch(
             'networking_vsphere.utils.vim_session.'
             'VMWareAPISession._is_vim_object', fake_is_vim_object))
@@ -99,7 +99,7 @@ class FakeVmware(fixtures.Fixture):
         self.vcenter_username = "user"
         self.vcenter_password = "password"
         self.api_retry_count = 2
-        self.wsdl_loc = "https://www.vmware.com/sdk/fake.wsdl"
+        self.wsdl_loc = "https://www.fake.com/sdk/fake.wsdl"
         vim_session.ConnectionHandler.set_vc_details(self.vcenter_ip,
                                                      self.vcenter_username,
                                                      self.vcenter_password,
