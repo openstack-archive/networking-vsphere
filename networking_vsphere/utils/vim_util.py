@@ -365,3 +365,14 @@ def find_by_inventory_path(vim, search_index, path):
 
 def get_root_folder_id(vim):
     return vim.service_content.rootFolder.value
+
+
+def get_dv_switch_manager(vim):
+    """Get reference of DistributedVirtualSwitchManager."""
+    return vim.service_content.dvSwitchManager
+
+
+def get_dvs_mor_by_uuid(vim, uuid):
+    """Query DVS by UUID."""
+    dvs_mgr = get_dv_switch_manager(vim)
+    return vim.QueryDvsByUuid(dvs_mgr, uuid=uuid)

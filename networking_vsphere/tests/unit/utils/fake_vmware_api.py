@@ -17,7 +17,8 @@
 import uuid
 
 _CLASSES = ['session', 'VirtualMachine', 'HostSystem', 'HostNetworkSystem',
-            'ClusterComputeResource']
+            'ClusterComputeResource', 'Network', 'DistributedVirtualSwitch',
+            'DistributedVirtualPortgroup', 'Task']
 
 _db_content = {}
 
@@ -32,11 +33,13 @@ def reset():
     """Resets the db contents."""
     for c in _CLASSES:
         _db_content[c] = {}
-
+    create_network()
     create_host_network_system()
     create_host()
     create_virtual_machine()
     create_cluster_compute_resource()
+    create_distributed_virtual_portgroup()
+    create_distributed_virtual_switch()
 
 
 def cleanup():
@@ -109,6 +112,15 @@ class DataObject(object):
     pass
 
 
+class Network(ManagedObject):
+
+    """Network class."""
+
+    def __init__(self):
+        super(Network, self).__init__("Network")
+        self.set("summary.name", "vmnet0")
+
+
 class ClusterComputeResource(ManagedObject):
     """ClusterComputeResource class."""
 
@@ -142,6 +154,31 @@ class HostSystem(ManagedObject):
         host_net_sys = _db_content["HostNetworkSystem"][host_net_key].value
         self.set("configManager.networkSystem", host_net_sys)
 
+        if _db_content.get("Network", None) is None:
+            create_network()
+        net_ref = (_db_content["Network"]
+                   [_db_content["Network"].keys()[0]].obj)
+        network_do = DataObject()
+        network_do.ManagedObjectReference = [net_ref]
+        self.set("network", network_do)
+
+
+class VirtualDisk(DataObject):
+    """Virtual Disk class."""
+
+    def __init__(self):
+        super(VirtualDisk, self).__init__()
+        self.key = 0
+        self.unitNumber = 0
+
+
+class VirtualPCNet32(DataObject):
+    """VirtualPCNet32 class."""
+
+    def __init__(self):
+        super(VirtualPCNet32, self).__init__()
+        self.key = 4000
+
 
 class VirtualMachine(ManagedObject):
     """Virtual Machine class."""
@@ -165,6 +202,83 @@ class VirtualMachine(ManagedObject):
         runtime.host = host_ref
         self.set("runtime", runtime)
         self.set("runtime.host", runtime.host)
+        nic = VirtualPCNet32()
+        nic.macAddress = "00:99:88:77:66:ab"
+        devices = DataObject()
+        devices.VirtualDevice = [nic, VirtualDisk()]
+        self.set("config.hardware.device", devices)
+
+
+class DistributedVirtualPortgroup(ManagedObject):
+    """DistributedVirtualPortgroup class."""
+
+    def __init__(self):
+        super(DistributedVirtualPortgroup, self).__init__(
+            "DistributedVirtualPortgroup")
+        self.set("summary.name", "fake_pg")
+
+        vm_ref = _db_content["VirtualMachine"].values()[0]
+        vm_object = DataObject()
+        vm_object.ManagedObjectReference = [vm_ref]
+        self.set("vm", vm_object)
+        self.set("tag", None)
+        config = DataObject()
+        config.key = self.value
+        config.name = "fake_pg"
+        defaultPortConfig = DataObject()
+        vlan = DataObject()
+        vlan.vlanId = 100
+        defaultPortConfig.vlan = vlan
+        config.defaultPortConfig = defaultPortConfig
+        self.set("config", config)
+        self.set("portKeys", ["18001",
+                              "18002",
+                              "18003",
+                              "18004"])
+
+
+class DistributedVirtualSwitch(ManagedObject):
+    """DistributedVirtualSwitch class."""
+
+    def __init__(self):
+        super(DistributedVirtualSwitch, self).__init__(
+            "DistributedVirtualSwitch")
+        self.set("name", "test_dvs")
+        host_ref = _db_content["HostSystem"].values()[0]
+        dvs_host_member_config_info = DataObject()
+        dvs_host_member_config_info.host = host_ref
+        dvs_host_member = DataObject()
+        dvs_host_member.config = dvs_host_member_config_info
+        self.set("config.host", [[dvs_host_member]])
+        self.set("uuid", "fake_dvs")
+        pg = _db_content["DistributedVirtualPortgroup"].values()[0]
+        pg_config = pg.config
+        pg_config.distributedVirtualSwitch = self
+        pg_object = DataObject()
+        pg_object.ManagedObjectReference = [pg]
+        self.set("portgroup", pg_object)
+
+
+class Task(ManagedObject):
+    """Task class."""
+
+    def __init__(self, task_name, state="running"):
+        super(Task, self).__init__("Task")
+        info = DataObject
+        info.name = task_name
+        info.state = state
+        info.key = self.value
+        if state == "error":
+            error_do = DataObject
+            error_do.localizedMessage = "fake_error"
+            info.error = error_do
+        self.set("info", info)
+
+
+def create_network():
+    network = Network()
+    _create_object('Network', network)
+    return network
 
 
 def create_host_network_system():
@@ -189,6 +303,24 @@ def create_virtual_machine():
     virtual_machine = VirtualMachine()
     _create_object('VirtualMachine', virtual_machine)
     return virtual_machine
+
+
+def create_distributed_virtual_portgroup():
+    pg = DistributedVirtualPortgroup()
+    _create_object("DistributedVirtualPortgroup", pg)
+    return pg
+
+
+def create_distributed_virtual_switch():
+    dvs = DistributedVirtualSwitch()
+    _create_object("DistributedVirtualSwitch", dvs)
+    return dvs
+
+
+def create_task(task_name, state="running"):
+    task = Task(task_name, state)
+    _create_object("Task", task)
+    return task
 
 
 class FakeFactory(object):
@@ -216,6 +348,8 @@ class FakeVim(object):
         service_content.sessionManager = "SessionManager"
         service_content.rootFolder = DataObject()
         service_content.rootFolder.value = "RootFolder"
+        service_content.rootFolder._type = "Folder"
+        service_content.dvSwitchManager = "DistributedVirtualSwitchManager"
         self.service_content = service_content
 
     def get_service_content(self):
@@ -264,12 +398,42 @@ class FakeVim(object):
         else:
             return lst_ret_objs
 
+    def _delete_port_group(self, method, *args, **kwargs):
+        """Deletes a portgroup."""
+        pg_key = _db_content["DistributedVirtualPortgroup"].keys()[0]
+        del _db_content["DistributedVirtualPortgroup"][pg_key]
+        task_mdo = create_task(method, "success")
+        return task_mdo.obj
+
+    def _just_return_task(self, method):
+        """Fakes a task return."""
+        task_mdo = create_task(method, "success")
+        return task_mdo.obj
+
+    def _query_dvs_by_uuid(self, method, *args, **kwargs):
+        """Query DVS by uuid."""
+        uuid = kwargs.get("uuid")
+        for dvs in _db_content["DistributedVirtualSwitch"].values():
+            if dvs.uuid == uuid:
+                return dvs
+        return None
+
     def __getattr__(self, attr_name):
         if attr_name == "Login":
             return lambda *args, **kwargs: self._login()
         elif attr_name == "RetrievePropertiesEx":
             return (lambda *args, **kwargs:
                     self._retrieve_properties(attr_name, *args, **kwargs))
+        elif attr_name == "Destroy_Task":
+            return (lambda *args, **kwargs:
+                    self._delete_port_group(attr_name, *args, **kwargs))
+        elif attr_name == "AddDVPortgroup_Task":
+            return lambda *args, **kwargs: self._just_return_task(attr_name)
+        elif attr_name == "ReconfigureDVPort_Task":
+            return lambda *args, **kwargs: self._just_return_task(attr_name)
+        elif attr_name == "QueryDvsByUuid":
+            return (lambda *args, **kwargs:
+                    self._query_dvs_by_uuid(attr_name, *args, **kwargs))
 
 
 class FakeDynamicPropertyObject(object):
