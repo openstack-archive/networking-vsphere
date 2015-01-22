@@ -18,7 +18,7 @@ from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.extensions import portbindings
 from neutron.openstack.common import log
-from neutron.plugins.ml2 import driver_api as api
+from neutron.plugins.common import constants as p_constants
 from neutron.plugins.ml2.drivers import mech_agent
 
 from networking_vsphere.common import constants
@@ -45,12 +45,12 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             {portbindings.CAP_PORT_FILTER: True})
         self._start_rpc_listeners()
 
-    def check_segment_for_agent(self, segment, agent):
-        LOG.debug("Checking segment: %(segment)s ", {'segment': segment})
-        if segment[api.NETWORK_TYPE] in ['vlan', 'vxlan']:
-            return True
-        else:
-            return False
+    def get_allowed_network_types(self, agent):
+        return (agent['configurations'].get('tunnel_types', []) +
+                [p_constants.TYPE_VLAN])
+
+    def get_mappings(self, agent):
+        return agent['configurations'].get('bridge_mappings', {})
 
     def _start_rpc_listeners(self):
         self.notifier = rpc.OVSvAppAgentNotifyAPI(topics.AGENT)

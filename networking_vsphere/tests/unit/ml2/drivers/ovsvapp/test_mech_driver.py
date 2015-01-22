@@ -29,11 +29,28 @@ class OVSvAppAgentMechanismBaseTestCase(base.AgentMechanismBaseTestCase):
     CAP_PORT_FILTER = True
     AGENT_TYPE = constants.AGENT_TYPE_OVSVAPP
 
-    GOOD_CONFIGS = {}
+    GOOD_MAPPINGS = {'fake_physical_network': 'fake_bridge'}
+    GOOD_TUNNEL_TYPES = ['vxlan']
+    GOOD_CONFIGS = {'bridge_mappings': GOOD_MAPPINGS,
+                    'tunnel_types': GOOD_TUNNEL_TYPES}
+
+    BAD_MAPPINGS = {'wrong_physical_network': 'wrong_bridge'}
+    BAD_TUNNEL_TYPES = ['bad_tunnel_type']
+    BAD_CONFIGS = {'bridge_mappings': BAD_MAPPINGS,
+                   'tunnel_types': BAD_TUNNEL_TYPES}
+
     AGENTS = [{'alive': True,
-               'configurations': GOOD_CONFIGS}]
+               'configurations': GOOD_CONFIGS,
+               'host': 'host'}]
+    AGENTS_DEAD = [{'alive': False,
+                    'configurations': GOOD_CONFIGS,
+                    'host': 'dead_host'}]
     AGENTS_BAD = [{'alive': False,
-                   'configurations': GOOD_CONFIGS}]
+                   'configurations': GOOD_CONFIGS,
+                   'host': 'bad_host_1'},
+                  {'alive': True,
+                   'configurations': BAD_CONFIGS,
+                   'host': 'bad_host_2'}]
 
     def setUp(self):
         super(OVSvAppAgentMechanismBaseTestCase, self).setUp()
