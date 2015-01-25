@@ -27,6 +27,7 @@ class Constants:
     VM_UUID = "1111-2222-3333-4444"
     VM_NAME = "TEST_VIRTUAL_MACHINE"
     HOST_NAME = "TEST_HOST"
+    PORTGROUP_NAME = "6d382cca-d8c6-42df-897d-9b6a99d4c04d"
 
 
 def reset():
@@ -350,6 +351,7 @@ class FakeVim(object):
         service_content.rootFolder.value = "RootFolder"
         service_content.rootFolder._type = "Folder"
         service_content.dvSwitchManager = "DistributedVirtualSwitchManager"
+        service_content.searchIndex = "SearchIndex"
         self.service_content = service_content
 
     def get_service_content(self):
@@ -410,6 +412,10 @@ class FakeVim(object):
         task_mdo = create_task(method, "success")
         return task_mdo.obj
 
+    def _just_return(self):
+        """Fakes a return."""
+        return
+
     def _query_dvs_by_uuid(self, method, *args, **kwargs):
         """Query DVS by uuid."""
         uuid = kwargs.get("uuid")
@@ -417,6 +423,13 @@ class FakeVim(object):
             if dvs.uuid == uuid:
                 return dvs
         return None
+
+    def _find_by_inventory_path(self, method, *args, **kwargs):
+        path = kwargs.get("inventoryPath")
+        try:
+            return _db_content[path].values()[0]
+        except KeyError:
+            return None
 
     def __getattr__(self, attr_name):
         if attr_name == "Login":
@@ -434,6 +447,13 @@ class FakeVim(object):
         elif attr_name == "QueryDvsByUuid":
             return (lambda *args, **kwargs:
                     self._query_dvs_by_uuid(attr_name, *args, **kwargs))
+        elif attr_name == "CreateFilter":
+            return lambda *args, **kwargs: "Filter"
+        elif attr_name == "FindByInventoryPath":
+            return (lambda *args, **kwargs:
+                    self._find_by_inventory_path(attr_name, *args, **kwargs))
+        elif attr_name == "DestroyPropertyFilter":
+            return lambda *args, **kwargs: self._just_return()
 
 
 class FakeDynamicPropertyObject(object):
