@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-
+import time
 import uuid
 
 _CLASSES = ['session', 'VirtualMachine', 'HostSystem', 'HostNetworkSystem',
@@ -26,6 +26,7 @@ _db_content = {}
 class Constants:
     VM_UUID = "1111-2222-3333-4444"
     VM_NAME = "TEST_VIRTUAL_MACHINE"
+    VM_MAC = "11:22:33:44:55:ef"
     HOST_NAME = "TEST_HOST"
     PORTGROUP_NAME = "6d382cca-d8c6-42df-897d-9b6a99d4c04d"
 
@@ -216,7 +217,7 @@ class DistributedVirtualPortgroup(ManagedObject):
     def __init__(self):
         super(DistributedVirtualPortgroup, self).__init__(
             "DistributedVirtualPortgroup")
-        self.set("summary.name", "fake_pg")
+        self.set("summary.name", Constants.PORTGROUP_NAME)
 
         vm_ref = _db_content["VirtualMachine"].values()[0]
         vm_object = DataObject()
@@ -225,7 +226,7 @@ class DistributedVirtualPortgroup(ManagedObject):
         self.set("tag", None)
         config = DataObject()
         config.key = self.value
-        config.name = "fake_pg"
+        config.name = Constants.PORTGROUP_NAME
         defaultPortConfig = DataObject()
         vlan = DataObject()
         vlan.vlanId = 100
@@ -258,6 +259,16 @@ class DistributedVirtualSwitch(ManagedObject):
         pg_object = DataObject()
         pg_object.ManagedObjectReference = [pg]
         self.set("portgroup", pg_object)
+        nic = VirtualPCNet32()
+        backing = DataObject()
+        backing.port = DataObject()
+        backing.port.portgroupKey = pg.value
+        backing.port.portKey = pg.portKeys[0]
+        backing.port.switchUuid = self.uuid
+        nic.macAddress = Constants.VM_MAC
+        nic.backing = backing
+        vm = pg = _db_content["VirtualMachine"].values()[0]
+        vm.get("config.hardware.device").VirtualDevice.append(nic)
 
 
 class Task(ManagedObject):
@@ -322,6 +333,13 @@ def create_task(task_name, state="running"):
     task = Task(task_name, state)
     _create_object("Task", task)
     return task
+
+
+def is_task_done(task_name):
+    for task in _db_content["Task"].values():
+        if task.info.name == task_name:
+            return True
+    return False
 
 
 class FakeFactory(object):
@@ -431,6 +449,47 @@ class FakeVim(object):
         except KeyError:
             return None
 
+    def _reconfigure_dv_port_task(self, method, *args, **kwargs):
+        vds_ref = _db_content["DistributedVirtualSwitch"].values()[0]
+        specs = kwargs.get("port")
+        for spec in specs:
+            found = False
+            portKey = spec.key
+            for pg in vds_ref.portgroup.ManagedObjectReference:
+                if portKey in pg.portKeys:
+                    found = True
+                    break
+            if not found:
+                raise Exception("The object or item referred"
+                                " to could not be found.")
+        task_mdo = create_task(method, "success")
+        return task_mdo.obj
+
+    def _wait_for_updates(self, method, *args, **kwargs):
+        version = kwargs.get("version")
+        if not version:
+            updateSet = DataObject()
+            updateSet.version = 1
+            filterSet = []
+            updateSet.filterSet = filterSet
+            propFilterUpdate = DataObject()
+            filterSet.append(propFilterUpdate)
+            objectSet = []
+            propFilterUpdate.objectSet = objectSet
+            for vm in _db_content["VirtualMachine"].values():
+                objectUpdate = DataObject()
+                objectUpdate.obj = vm
+                objectUpdate.kind = "enter"
+                changeSet = []
+                objectUpdate.changeSet = changeSet
+                for prop in vm.propSet:
+                    changeSet.append(prop)
+                objectSet.append(objectUpdate)
+            return updateSet
+        else:
+            time.sleep(0)
+            return None
+
     def __getattr__(self, attr_name):
         if attr_name == "Login":
             return lambda *args, **kwargs: self._login()
@@ -443,16 +502,24 @@ class FakeVim(object):
         elif attr_name == "AddDVPortgroup_Task":
             return lambda *args, **kwargs: self._just_return_task(attr_name)
         elif attr_name == "ReconfigureDVPort_Task":
-            return lambda *args, **kwargs: self._just_return_task(attr_name)
+            return (lambda *args, **kwargs:
+                    self._reconfigure_dv_port_task(attr_name, *args, **kwargs))
         elif attr_name == "QueryDvsByUuid":
             return (lambda *args, **kwargs:
                     self._query_dvs_by_uuid(attr_name, *args, **kwargs))
         elif attr_name == "CreateFilter":
             return lambda *args, **kwargs: "Filter"
+        elif attr_name == "DestroyPropertyFilter":
+            return lambda *args, **kwargs: self._just_return()
         elif attr_name == "FindByInventoryPath":
             return (lambda *args, **kwargs:
                     self._find_by_inventory_path(attr_name, *args, **kwargs))
-        elif attr_name == "DestroyPropertyFilter":
+        elif attr_name == "WaitForUpdatesEx":
+            return (lambda *args, **kwargs:
+                    self._wait_for_updates(attr_name, *args, **kwargs))
+        elif attr_name == "CreatePropertyCollector":
+            return lambda *args, **kwargs: "PropertyCollector"
+        elif attr_name == "DestroyPropertyCollector":
             return lambda *args, **kwargs: self._just_return()
 
 
