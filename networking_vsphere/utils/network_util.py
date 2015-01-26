@@ -24,14 +24,9 @@ from networking_vsphere.utils import error_util
 from networking_vsphere.utils import resource_util
 from networking_vsphere.utils import vim_util
 
+cfg.CONF.import_group('VMWARE', 'networking_vsphere.common.config')
+
 LOG = logging.getLogger(__name__)
-
-VMWARE_OPTS = [
-    cfg.StrOpt('esx_hostname', default="default",
-               help=_('ESX host name where this OVSvApp is hosted')),
-]
-
-cfg.CONF.register_opts(VMWARE_OPTS, "VMWARE")
 
 
 def get_dvs_mor_by_uuid(session, uuid):

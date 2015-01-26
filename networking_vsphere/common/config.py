@@ -21,6 +21,31 @@ from neutron.openstack.common import log as logging
 
 LOG = logging.getLogger(__name__)
 
+agent_opts = [
+    cfg.StrOpt('agent_driver',
+               help=_("OVSvApp Agent implementation"),
+               default=_("networking_vsphere.agent.ovsvapp_agent"
+                         ".OVSvAppL2Agent")),
+    cfg.StrOpt('network_manager',
+               help=_("DriverManager implementation for "
+                      "NetworkDriver"),
+               default=_("networking_vsphere.drivers.manager."
+                         "VcenterManager")),
+    cfg.StrOpt('firewall_driver',
+               help=_("DriverManager implementation for "
+                      "OVS based Firewall"),
+               default=_("networking_sphere.drivers.ovs_firewall."
+                         "OVSFirewallDriver"))
+]
+
+vmware_opts = [
+    cfg.StrOpt('esx_hostname', default="default",
+               help=_('ESX host name where this OVSvApp is hosted')),
+]
+
+cfg.CONF.register_opts(agent_opts, "OVSVAPPAGENT")
+cfg.CONF.register_opts(vmware_opts, "VMWARE")
+
 
 def parse(args):
     cfg.CONF(args=args, project='neutron',
@@ -30,8 +55,3 @@ def parse(args):
 
 def remove_config_file(temp_dir):
     shutil.rmtree(temp_dir)
-
-
-def setup_logging():
-    logging.setup("neutron")
-    LOG.debug("Logging setup complete")
