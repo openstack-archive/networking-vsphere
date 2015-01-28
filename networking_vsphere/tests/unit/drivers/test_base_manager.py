@@ -30,10 +30,6 @@ class DriverManagerTestCase(base.TestCase):
     def test_get_driver(self):
         self.assertIsNone(self.base_manager.get_driver())
 
-    def test_handle_conf_update(self):
-        self.assertRaises(NotImplementedError,
-                          self.base_manager.handle_conf_update)
-
     def test_start(self):
         self.assertIsNone(self.base_manager.start())
 

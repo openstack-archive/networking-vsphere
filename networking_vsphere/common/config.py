@@ -83,6 +83,27 @@ VMWARE_OPTS = [
                 help=_('Enable SSL certificate check for vCenter')),
     cfg.StrOpt('cert_path', default='/etc/ssl/certs/certs.pem',
                help=_('Certificate chain path containing cacert of vCenters')),
+    cfg.StrOpt('vcenter_ip',
+               help=_("vmware vCenter IP"),
+               default=None),
+    cfg.IntOpt('https_port',
+               help=_('Customized https_port for vCenter communication'),
+               default=443),
+    cfg.StrOpt('vcenter_username',
+               help=_("vmware vCenter user name"),
+               default=None),
+    cfg.StrOpt('vcenter_password',
+               help=_("vmware vCenter user password"),
+               default=None),
+    cfg.StrOpt('vcenter_api_retry_count',
+               help=_("Number of retries while connecting to vcenter"),
+               default=5),
+    cfg.StrOpt('wsdl_location',
+               help=_("vmware wsdl location"),
+               default=None),
+    cfg.MultiStrOpt('cluster_dvs_mapping',
+                    help=_("vCenter cluster to DVS mapping"),
+                    default=[])
 ]
 
 # security bridge related config read from ovsvapp_agent.ini
