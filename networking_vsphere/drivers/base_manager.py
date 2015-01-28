@@ -28,10 +28,6 @@ class DriverManager(object):
         '''Initialize the driver managed by this manager.'''
         raise NotImplementedError()
 
-    def handle_conf_update(self):
-        '''Handle configuration changes applicable to the managed driver.'''
-        raise NotImplementedError()
-
     def start(self):
         '''Start driver action when node is up.'''
         pass

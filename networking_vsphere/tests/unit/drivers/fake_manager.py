@@ -30,9 +30,6 @@ class MockNetworkManager(base_manager.DriverManager):
     def initialize_driver(self):
         self.driver = fake_driver.MockNetworkDriver()
 
-    def handle_conf_update(self):
-        self.methods["handle_conf_update"] = {}
-
     def start(self):
         self.methods["start"] = {}
 
