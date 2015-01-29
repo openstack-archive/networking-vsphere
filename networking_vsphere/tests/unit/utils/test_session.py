@@ -31,7 +31,7 @@ class TestVmwareApiSession(base.TestCase):
         self.host_username = "user"
         self.host_password = "password"
         self.api_retry_count = 2
-        self.wsdl_url = "fake_url"
+        self.wsdl_url = "https://192.168.1.3/sdk/fake.wsdl"
         self.vm_session = vim_session.VMWareAPISession(self.host_ip,
                                                        self.host_username,
                                                        self.host_password,
@@ -80,7 +80,7 @@ class TestConnectionHandler(base.TestCase):
         self.host_username = "user"
         self.host_password = "password"
         self.api_retry_count = 2
-        self.wsdl_url = "fake_url"
+        self.wsdl_url = "https://192.168.1.3/sdk/fake.wsdl"
 
     def test_create_connection(self):
         vim_session.ConnectionHandler.set_vc_details(self.host_ip,
