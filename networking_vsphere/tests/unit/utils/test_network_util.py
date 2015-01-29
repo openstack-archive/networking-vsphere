@@ -19,7 +19,7 @@ import mock
 
 from networking_vsphere.common import constants
 from networking_vsphere.tests import base
-from networking_vsphere.tests.unit.utils import fake_vmware_api
+from networking_vsphere.tests.unit.utils import fake_vmware_api as fake_api
 from networking_vsphere.tests.unit.utils import stubs
 from networking_vsphere.utils import error_util
 from networking_vsphere.utils import network_util
@@ -53,14 +53,14 @@ class TestVmwareNetworkUtil(base.TestCase):
 
     def test_get_portgroup_mor_by_name(self):
         dvs_name = "test_dvs"
-        port_group_name = "fake_pg"
-        dvs = fake_vmware_api.DataObject()
-        dvs_config = fake_vmware_api.DataObject()
+        port_group_name = fake_api.Constants.PORTGROUP_NAME
+        dvs = fake_api.DataObject()
+        dvs_config = fake_api.DataObject()
         port_group_mors = []
-        pg1 = fake_vmware_api.create_network()
+        pg1 = fake_api.create_network()
         pg1.set("summary.name", "pg1")
         port_group_mors.append(pg1)
-        pg2 = fake_vmware_api.create_network()
+        pg2 = fake_api.create_network()
         pg2.set("summary.name", port_group_name)
         port_group_mors.append(pg2)
         dvs_config.ManagedObjectReference = port_group_mors
@@ -78,7 +78,7 @@ class TestVmwareNetworkUtil(base.TestCase):
 
     def test_get_portgroup_mor_by_name_no_dvs(self):
         dvs_name = "non_existent_dvs"
-        port_group_name = "fake_pg"
+        port_group_name = fake_api.Constants.PORTGROUP_NAME
         with mock.patch.object(network_util, "get_dvs_mor_by_name",
                                return_value=None):
             port_group = network_util.get_portgroup_mor_by_name(
@@ -87,11 +87,11 @@ class TestVmwareNetworkUtil(base.TestCase):
 
     def test_get_portgroup_mor_by_name_not_found(self):
         dvs_name = "test_dvs"
-        port_group_name = "fake_pg"
-        dvs = fake_vmware_api.DataObject()
-        dvs_config = fake_vmware_api.DataObject()
+        port_group_name = fake_api.Constants.PORTGROUP_NAME
+        dvs = fake_api.DataObject()
+        dvs_config = fake_api.DataObject()
         port_group_mors = []
-        pg1 = fake_vmware_api.create_network()
+        pg1 = fake_api.create_network()
         pg1.set("summary.name", "pg1")
         port_group_mors.append(pg1)
         dvs_config.ManagedObjectReference = port_group_mors
@@ -122,7 +122,7 @@ class TestVmwareNetworkUtil(base.TestCase):
 
     def test_get_unused_portgroup_names(self):
         dvp = 'DistributedVirtualPortgroup'
-        fake_vmware_api._db_content[dvp].values()[0].propSet[1].val = None
+        fake_api._db_content[dvp].values()[0].propSet[1].val = None
         self.assertTrue(network_util.get_unused_portgroup_names(self.session,
                                                                 "test_dvs"))
 
@@ -131,9 +131,11 @@ class TestVmwareNetworkUtil(base.TestCase):
                                                                  "test_dvs"))
 
     def test_get_portgroup_details(self):
-        self.assertEqual(network_util.get_portgroup_details(self.session,
-                                                            "test_dvs",
-                                                            "fake_pg"), 100)
+        res = network_util.get_portgroup_details(self.session,
+                                                 "test_dvs",
+                                                 fake_api.Constants.
+                                                 PORTGROUP_NAME)
+        self.assertEqual(100, res)
 
     def test_get_portgroup_details_not_found(self):
         with mock.patch.object(network_util, "get_portgroup_mor_by_name",
@@ -141,18 +143,18 @@ class TestVmwareNetworkUtil(base.TestCase):
             self.assertEqual(network_util.get_portgroup_details(
                 self.session,
                 "test_invalid_dvs",
-                "fake_pg"), constants.DEAD_VLAN)
+                fake_api.Constants.PORTGROUP_NAME), constants.DEAD_VLAN)
 
     def test_create_port_group_existing(self):
         dvs_name = "test_dvs"
-        pg_name = "fake_pg"
+        pg_name = fake_api.Constants.PORTGROUP_NAME
         vlanid = "100"
-        pg = fake_vmware_api.DataObject()
-        defaultPortConfig = fake_vmware_api.DataObject()
-        vlan = fake_vmware_api.DataObject()
+        pg = fake_api.DataObject()
+        defaultPortConfig = fake_api.DataObject()
+        vlan = fake_api.DataObject()
         vlan.vlanId = vlanid
         defaultPortConfig.vlan = vlan
-        port_group_config = fake_vmware_api.DataObject()
+        port_group_config = fake_api.DataObject()
         port_group_config.defaultPortConfig = defaultPortConfig
         with contextlib.nested(
             mock.patch.object(network_util, "get_portgroup_mor_by_name",
@@ -166,14 +168,14 @@ class TestVmwareNetworkUtil(base.TestCase):
 
     def test_create_port_group_with_invalid_vlanid(self):
         dvs_name = "test_dvs"
-        pg_name = "fake_pg"
+        pg_name = fake_api.Constants.PORTGROUP_NAME
         vlanid = "100"
-        pg = fake_vmware_api.DataObject()
-        defaultPortConfig = fake_vmware_api.DataObject()
-        vlan = fake_vmware_api.DataObject()
+        pg = fake_api.DataObject()
+        defaultPortConfig = fake_api.DataObject()
+        vlan = fake_api.DataObject()
         vlan.vlanId = "200"
         defaultPortConfig.vlan = vlan
-        port_group_config = fake_vmware_api.DataObject()
+        port_group_config = fake_api.DataObject()
         port_group_config.defaultPortConfig = defaultPortConfig
         with contextlib.nested(
             mock.patch.object(network_util, "get_portgroup_mor_by_name",
@@ -188,13 +190,13 @@ class TestVmwareNetworkUtil(base.TestCase):
 
     def test_create_port_group_err_status(self):
         dvs_name = "test_dvs"
-        pg_name = "fake_pg"
+        pg_name = fake_api.Constants.PORTGROUP_NAME
         vlanid = "5001"
-        task_info = fake_vmware_api.DataObject()
+        task_info = fake_api.DataObject()
         task_info.name = "AddDVPortgroup_Task"
         task_info.key = "task-1234"
         task_info.state = "error"
-        task_info.error = fake_vmware_api.DataObject()
+        task_info.error = fake_api.DataObject()
         with contextlib.nested(
             mock.patch.object(network_util, "get_portgroup_mor_by_name",
                               return_value=None),
@@ -207,34 +209,34 @@ class TestVmwareNetworkUtil(base.TestCase):
                 self.assertTrue(raised)
 
     def test_wait_until_dvs_portgroup_available(self):
-        vm_ref = fake_vmware_api._db_content["VirtualMachine"].values()[0].obj
-        hs_key = fake_vmware_api._db_content["HostSystem"].keys()[0]
-        dvs_key = fake_vmware_api._db_content[
+        vm_ref = fake_api._db_content["VirtualMachine"].values()[0].obj
+        hs_key = fake_api._db_content["HostSystem"].keys()[0]
+        dvs_key = fake_api._db_content[
             "DistributedVirtualPortgroup"].keys()[0]
-        dvs_obj = fake_vmware_api._db_content[
+        dvs_obj = fake_api._db_content[
             "DistributedVirtualPortgroup"][dvs_key].obj
-        network_obj = fake_vmware_api.DataObject()
-        network_obj.name = "fake_pg"
+        network_obj = fake_api.DataObject()
+        network_obj.name = fake_api.Constants.PORTGROUP_NAME
         network_obj.ManagedObjectReference = [dvs_obj]
-        fake_vmware_api._db_content["HostSystem"][
+        fake_api._db_content["HostSystem"][
             hs_key].propSet[2].val = network_obj
         self.assertTrue(network_util.wait_until_dvs_portgroup_available(
             self.session,
             vm_ref,
-            "fake_pg",
+            fake_api.Constants.PORTGROUP_NAME,
             3))
 
     def test_wait_until_dvs_portgroup_unavailable(self):
-        vm_ref = fake_vmware_api._db_content["VirtualMachine"].values()[0].obj
-        hs_key = fake_vmware_api._db_content["HostSystem"].keys()[0]
-        dvs_key = fake_vmware_api._db_content[
+        vm_ref = fake_api._db_content["VirtualMachine"].values()[0].obj
+        hs_key = fake_api._db_content["HostSystem"].keys()[0]
+        dvs_key = fake_api._db_content[
             "DistributedVirtualPortgroup"].keys()[0]
-        dvs_obj = fake_vmware_api._db_content["DistributedVirtualPortgroup"][
+        dvs_obj = fake_api._db_content["DistributedVirtualPortgroup"][
             dvs_key].obj
-        network_obj = fake_vmware_api.DataObject()
-        network_obj.name = "fake_pg"
+        network_obj = fake_api.DataObject()
+        network_obj.name = fake_api.Constants.PORTGROUP_NAME
         network_obj.ManagedObjectReference = [dvs_obj]
-        fake_vmware_api._db_content["HostSystem"][
+        fake_api._db_content["HostSystem"][
             hs_key].propSet[2].val = network_obj
         self.assertFalse(network_util.wait_until_dvs_portgroup_available(
             self.session,
@@ -244,25 +246,28 @@ class TestVmwareNetworkUtil(base.TestCase):
 
     def test_delete_port_group(self):
         self.assertTrue(network_util.get_portgroup_mor_by_name(
-            self.session, "test_dvs", "fake_pg"))
-        network_util.delete_port_group(self.session, "test_dvs", "fake_pg")
+            self.session, "test_dvs",
+            fake_api.Constants.PORTGROUP_NAME))
+        network_util.delete_port_group(self.session, "test_dvs",
+                                       fake_api.Constants.PORTGROUP_NAME)
         self.assertFalse(network_util.get_portgroup_mor_by_name(
-            self.session, "test_dvs", "fake_pg"))
+            self.session, "test_dvs", fake_api.Constants.PORTGROUP_NAME))
 
     def test_delete_port_group_invalid_dvs(self):
         with mock.patch.object(self.session, "wait_for_task") as task_wait:
             network_util.delete_port_group(self.session,
-                                           "test_invalid_dvs", "fake_pg")
+                                           "test_invalid_dvs",
+                                           fake_api.Constants.PORTGROUP_NAME)
             self.assertFalse(task_wait.called)
 
     def test_delete_port_group_exc(self):
         dvs_name = "test_dvs"
-        pg_name = "fake_pg"
-        task_info = fake_vmware_api.DataObject()
+        pg_name = fake_api.Constants.PORTGROUP_NAME
+        task_info = fake_api.DataObject()
         task_info.name = "Destroy_Task"
         task_info.key = "task-777"
         task_info.state = "error"
-        task_info.error = fake_vmware_api.DataObject()
+        task_info.error = fake_api.DataObject()
         with contextlib.nested(
             mock.patch.object(network_util, "get_portgroup_mor_by_name",
                               return_value=True),
@@ -275,58 +280,58 @@ class TestVmwareNetworkUtil(base.TestCase):
                 self.assertTrue(raised)
 
     def test_enable_disable_port_of_vm_existing(self):
-        pg = fake_vmware_api._db_content[
+        pg = fake_api._db_content[
             "DistributedVirtualPortgroup"].values()[0]
-        backing = fake_vmware_api.DataObject()
-        backing.port = fake_vmware_api.DataObject()
+        backing = fake_api.DataObject()
+        backing.port = fake_api.DataObject()
         backing.port.portgroupKey = pg.value
         backing.port.portKey = pg.portKeys[0]
-        backing.port.switchUuid = fake_vmware_api._db_content[
+        backing.port.switchUuid = fake_api._db_content[
             "DistributedVirtualPortgroup"].keys()[0]
-        vm_key = fake_vmware_api._db_content["VirtualMachine"].keys()[0]
-        fake_vmware_api._db_content["VirtualMachine"][vm_key].propSet[
+        vm_key = fake_api._db_content["VirtualMachine"].keys()[0]
+        fake_api._db_content["VirtualMachine"][vm_key].propSet[
             6].val.VirtualDevice[0].backing = backing
         self.assertTrue(network_util.enable_disable_port_of_vm(
             self.session,
-            fake_vmware_api._db_content["VirtualMachine"].values()[0],
+            fake_api._db_content["VirtualMachine"].values()[0],
             "00:99:88:77:66:ab",
             True))
 
     def test_enable_disable_port_of_vm_non_existing(self):
-        pg = fake_vmware_api._db_content[
+        pg = fake_api._db_content[
             "DistributedVirtualPortgroup"].values()[0]
-        backing = fake_vmware_api.DataObject()
-        backing.port = fake_vmware_api.DataObject()
+        backing = fake_api.DataObject()
+        backing.port = fake_api.DataObject()
         backing.port.portgroupKey = pg.value
         backing.port.portKey = pg.portKeys[0]
-        backing.port.switchUuid = fake_vmware_api._db_content[
+        backing.port.switchUuid = fake_api._db_content[
             "DistributedVirtualPortgroup"].keys()[0]
-        vm_key = fake_vmware_api._db_content["VirtualMachine"].keys()[0]
-        fake_vmware_api._db_content["VirtualMachine"][vm_key].propSet[
+        vm_key = fake_api._db_content["VirtualMachine"].keys()[0]
+        fake_api._db_content["VirtualMachine"][vm_key].propSet[
             6].val.VirtualDevice[0].backing = backing
         self.assertFalse(network_util.enable_disable_port_of_vm(
             self.session,
-            fake_vmware_api._db_content["VirtualMachine"].values()[0],
+            fake_api._db_content["VirtualMachine"].values()[0],
             "11:99:88:77:66:ab",
             True))
 
     def test_is_valid_dvswitch(self):
         cluster_mor = resource_util.get_cluster_mor_for_vm(
-            self.session, fake_vmware_api.Constants.VM_UUID)
+            self.session, fake_api.Constants.VM_UUID)
         self.assertTrue(network_util.is_valid_dvswitch(self.session,
                                                        cluster_mor,
                                                        "test_dvs"))
 
     def test_is_valid_dvswitch_no_dvs(self):
         cluster_mor = resource_util.get_cluster_mor_for_vm(
-            self.session, fake_vmware_api.Constants.VM_UUID)
+            self.session, fake_api.Constants.VM_UUID)
         self.assertFalse(network_util.is_valid_dvswitch(self.session,
                                                         cluster_mor,
                                                         "invalid_dvs"))
 
     def test_is_valid_dvswitch_no_host(self):
         cluster_mor = resource_util.get_cluster_mor_for_vm(
-            self.session, fake_vmware_api.Constants.VM_UUID)
+            self.session, fake_api.Constants.VM_UUID)
         with mock.patch.object(resource_util, "get_host_mors_for_cluster",
                                return_value=None):
             self.assertFalse(network_util.is_valid_dvswitch(self.session,
