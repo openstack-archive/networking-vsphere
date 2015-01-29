@@ -57,10 +57,13 @@ class TestVmwareApiSession(base.TestCase):
         with contextlib.nested(
             mock.patch.object(api.VMwareAPISession,
                               "invoke_api"),
+            mock.patch.object(api.VMwareAPISession,
+                              "vim",
+                              return_value=vim.Vim),
             mock.patch.object(self.vm_session,
                               "_is_vim_object",
                               return_value=False)
-            ) as (invoke_ob, is_vim_ob):
+            ) as (invoke_ob, vim_prop, is_vim_ob):
             self.vm_session._call_method("fake_module",
                                          "get_objects",
                                          "HostSystem", ['name'])
@@ -68,8 +71,12 @@ class TestVmwareApiSession(base.TestCase):
 
     def test_get_vim(self):
         vim.Vim = mock.Mock(return_value="fake_vim")
-        new_vim = self.vm_session._get_vim()
-        self.assertEqual(new_vim, self.vm_session.vim)
+        with contextlib.nested(
+            mock.patch.object(api.VMwareAPISession,
+                              "vim",
+                              return_value=vim.Vim)):
+            new_vim = self.vm_session._get_vim()
+            self.assertEqual(new_vim, self.vm_session.vim)
 
 
 class TestConnectionHandler(base.TestCase):
