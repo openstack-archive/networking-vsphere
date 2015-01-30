@@ -45,7 +45,7 @@ fake_port = {'security_group_source_groups': 'abc',
 class TestOVSFirewallDriver(base.BaseTestCase):
     def setUp(self):
         super(TestOVSFirewallDriver, self).setUp()
-        cfg.CONF.set_override('security_bridge',
+        cfg.CONF.set_override('security_bridge_mapping',
                               "br-fake:fake_if", 'SECURITYGROUP')
         with contextlib.nested(
             # mock.patch('networking_vsphere.agent.portCache'),

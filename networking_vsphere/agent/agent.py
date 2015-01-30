@@ -22,7 +22,7 @@ from networking_vsphere.common import utils
 from networking_vsphere.drivers import base_manager as manager
 from networking_vsphere.drivers import driver
 
-cfg.CONF.import_group('OVSVAPPAGENT', 'networking_vsphere.common.config')
+cfg.CONF.import_group('OVSVAPP', 'networking_vsphere.common.config')
 
 LOG = logging.getLogger(__name__)
 
@@ -50,8 +50,8 @@ class Agent(driver.NetworkDriverCallback):
     def _initialize_managers(self):
         self.state = constants.AGENT_INITIALIZING
         LOG.info(_("Loading network driver manager %s"),
-                 cfg.CONF.OVSVAPPAGENT.network_manager)
-        self.net_mgr = utils.load_object(cfg.CONF.OVSVAPPAGENT.network_manager,
+                 cfg.CONF.OVSVAPP.network_manager)
+        self.net_mgr = utils.load_object(cfg.CONF.OVSVAPP.network_manager,
                                          manager.DriverManager,
                                          self)
         self.net_mgr.initialize_driver()
