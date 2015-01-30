@@ -65,10 +65,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         # self.root_helper = cfg.CONF.AGENT.root_helper
         # For now initializing root helper to sudo
         self.root_helper = None
-        if sg_conf.security_bridge is None:
-            LOG.debug("Security_bridge not configured")
+        if sg_conf.security_bridge_mapping is None:
+            LOG.debug("Security_bridge_mapping not configured")
             return
-        secbr_list = (sg_conf.security_bridge).split(':')
+        secbr_list = (sg_conf.security_bridge_mapping).split(':')
         secbr_name = secbr_list[0]
         secbr_phyname = secbr_list[1]
         self.sg_br = ovs_lib.OVSBridge(secbr_name, self.root_helper)
@@ -79,7 +79,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         #    ovsvapp_agent.SEC_TO_INT_PATCH)
         # self.portCache = ovsvapp_agent.portCache()
         self._defer_apply = False
-        if not cfg.CONF.OVSVAPPAGENT.agent_maintenance:
+        if not cfg.CONF.OVSVAPP.agent_maintenance:
             self.setup_base_flows()
         self.locks = {}
 
