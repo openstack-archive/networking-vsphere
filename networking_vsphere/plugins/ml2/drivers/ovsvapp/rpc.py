@@ -133,9 +133,7 @@ class OVSvAppServerRpcCallback(object):
 
 class OVSvAppAgentNotifyAPI(object):
 
-    """Agent side of the OVSvApp rpc API.
-
-    """
+    """Agent side of the OVSvApp rpc API."""
 
     def __init__(self, topic=topics.AGENT):
         target = messaging.Target(topic=topic, version='1.0')
