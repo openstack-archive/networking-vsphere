@@ -25,7 +25,7 @@ from networking_vsphere.agent import agent
 from networking_vsphere.common import config
 from networking_vsphere.common import utils
 
-cfg.CONF.import_group('OVSVAPPAGENT', 'networking_vsphere.common.config')
+cfg.CONF.import_group('OVSVAPP', 'networking_vsphere.common.config')
 
 LOG = logging.getLogger(__name__)
 
@@ -42,8 +42,8 @@ def main():
     try:
         logging.setup("neutron")
         LOG.debug("Logging setup complete")
-        LOG.info(_("Loading agent %s"), cfg.CONF.OVSVAPPAGENT.agent_driver)
-        agent_obj = utils.load_object(cfg.CONF.OVSVAPPAGENT.agent_driver,
+        LOG.info(_("Loading agent %s"), cfg.CONF.OVSVAPP.agent_driver)
+        agent_obj = utils.load_object(cfg.CONF.OVSVAPP.agent_driver,
                                       agent.Agent)
         agent_obj.start()
     except Exception as e:
