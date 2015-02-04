@@ -57,6 +57,11 @@ class MockNetworkDriver(network_driver.NetworkDriver):
         kwargs["virtual_switch"] = virtual_switch
         self.methods["delete_network"] = kwargs
 
+    def post_delete_vm(self, vm):
+        kwargs = {}
+        kwargs["vm"] = vm
+        self.methods["post_delete_vm"] = kwargs
+
     def process_delete_vm(self, vm):
         kwargs = {}
         kwargs["vm"] = vm
