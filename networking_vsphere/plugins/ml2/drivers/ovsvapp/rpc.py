@@ -17,7 +17,7 @@ import time
 
 from oslo import messaging
 
-from networking_vsphere.common import constants
+from networking_vsphere.common import constants as ovsvapp_const
 
 from neutron.common import constants as n_const
 from neutron.common import rpc as n_rpc
@@ -142,7 +142,7 @@ class OVSvAppAgentNotifyAPI(object):
 
     def _get_device_topic(self, action):
         return topics.get_topic_name(self.topic,
-                                     constants.DEVICE,
+                                     ovsvapp_const.DEVICE,
                                      action)
 
     def device_create(self, context, device, ports, sg_rules):
