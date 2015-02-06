@@ -74,6 +74,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.devices_to_filter = set()
         self.cluster_host_ports = set()
         self.cluster_other_ports = set()
+        self.update_port_bindings = []
         self.refresh_firewall_required = False
         self.use_call = True
         self.hostname = cfg.CONF.host
@@ -372,6 +373,216 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                         if self.tenant_network_type == p_const.TYPE_VLAN:
                             self._process_delete_vlan_portgroup(host, vm,
                                                                 del_port)
+
+    def _build_port_info(self, port):
+        return PortInfo(port['id'],
+                        port['segmentation_id'],
+                        port['mac_address'],
+                        port['security_groups'],
+                        port['fixed_ips'],
+                        port['admin_state_up'],
+                        port['network_id'],
+                        port['device_id'])
+
+    def _map_port_to_common_model(self, port_info):
+        """Map the port and network objects to vCenter objects."""
+
+        port_id = port_info.get('id')
+        segmentation_id = port_info.get('segmentation_id')
+        if self.tenant_network_type == p_const.TYPE_VLAN:
+            network_id = port_info.get('network_id')
+        device_id = port_info.get('device_id')
+        fixed_ips = port_info.get('fixed_ips')
+        mac_address = port_info.get('mac_address')
+        port_status = (ovsvapp_const.PORT_STATUS_UP
+                       if port_info.get('admin_state_up')
+                       else ovsvapp_const.PORT_STATUS_DOWN)
+
+        # Create Common Model Network Object
+        if self.tenant_network_type == p_const.TYPE_VLAN:
+            vlan = model.Vlan(vlanIds=[segmentation_id])
+        network = model.Network(name=network_id,
+                                network_type=ovsvapp_const.NETWORK_VLAN,
+                                config=model.NetworkConfig(vlan))
+
+        # Create Common Model Port Object
+        port = model.Port(uuid=port_id,
+                          name=None,
+                          mac_address=mac_address,
+                          vm_id=device_id,
+                          network_uuid=network_id,
+                          ipaddresses=fixed_ips,
+                          port_status=port_status)
+        return network, port
+
+    def _create_portgroup(self, port_info, host):
+        """Create port group based on port information."""
+        if host == self.esx_hostname:
+            network, port = self._map_port_to_common_model(port_info)
+            retry_count = 3
+            LOG.debug("Trying to create port group for network %s",
+                      network.name)
+            while retry_count > 0:
+                try:
+                    self.net_mgr.get_driver().create_port(network, port, None)
+                    break
+                except Exception as e:
+                    LOG.error(_("Failed to create port group for network %s "),
+                              network.name)
+                    retry_count -= 1
+                    if retry_count == 0:
+                        LOG.exception(_("Failed to create port group for "
+                                      "network %s "), network.name)
+                        raise error.OVSvAppNeutronAgentError(e)
+                    time.sleep(2)
+        LOG.debug("Finished creating port group for network %s", network.name)
+
+    def _process_create_portgroup_vlan(self, context, ports_list, host):
+        ovsvapplock.acquire()
+        try:
+            # TODO(romilg): Uncomment the line below once
+            # OVSVAppSecurityGroupAgent is added.
+            # self.sg_agent.add_devices_to_filter(ports_list)
+
+            for element in ports_list:
+                self.ports_dict[element['id']] = self._build_port_info(element)
+                if element['network_id'] not in self.network_port_count.keys():
+                    self.network_port_count[element['network_id']] = 1
+                else:
+                    self.network_port_count[element['network_id']] += 1
+        finally:
+            LOG.debug("Port count per network details after VM creation: %s",
+                      self.network_port_count)
+            ovsvapplock.release()
+
+        if host == self.esx_hostname:
+            for element in ports_list:
+                # Create a portgroup at vCenter and set it in enabled state
+                self._create_portgroup(element, host)
+                LOG.debug("Invoking update_device_up for port %s",
+                          element['id'])
+                try:
+                    # set admin_state to True
+                    self.plugin_rpc.update_device_up(
+                        self.context,
+                        element['id'],
+                        self.agent_id,
+                        self.agent_state['host'])
+                except Exception as e:
+                    LOG.exception(_("update_device_up failed for port: %s"),
+                                  element['id'])
+                    raise error.OVSvAppNeutronAgentError(e)
+                self.update_port_bindings.append(element['id'])
+                # TODO(romilg): Revisit for VXLAN, update_port_bindings must
+                # be done much before update_device_up
+
+    def device_create(self, context, **kwargs):
+        """Gets the port details from plugin using RPC call."""
+
+        LOG.info(_("OVSvApp Agent - device create RPC received"))
+        device = kwargs.get('device')
+        device_id = device['id']
+        cluster_id = device['cluster_id']
+        LOG.debug("device_create notification for VM %s", device_id)
+        if cluster_id != self.cluster_id:
+            LOG.debug("Cluster mismatch ..ignoring device_create rpc")
+            return
+        ports_list = kwargs.get('ports')
+        # TODO(romilg): Uncomment the line below once
+        # OVSVAppSecurityGroupAgent is added.
+        # sg_rules = kwargs.get("sg_rules")
+        host = device['host']
+        LOG.debug("Received Port list: %s", ports_list)
+        port_ids = [port['id'] for port in ports_list]
+        if host == self.esx_hostname:
+            self._add_ports_to_host_ports(port_ids)
+        else:
+            self._add_ports_to_host_ports(port_ids, False)
+            ovsvapplock.acquire()
+            try:
+                self.devices_to_filter = self.devices_to_filter | set(
+                    port_ids)
+            finally:
+                ovsvapplock.release()
+            self.refresh_firewall_required = True
+        if self.tenant_network_type == p_const.TYPE_VLAN:
+            self._process_create_portgroup_vlan(context, ports_list, host)
+        # TODO(romilg): Uncomment the code below once
+        # OVSVAppSecurityGroupAgent is added.
+        # if host == self.esx_hostname:
+        #    if sg_rules:
+        #        self.sg_agent.ovsvapp_sg_update(sg_rules[device_id])
+
+    def _port_update_status_change(self, network_model, port_model):
+        retry_count = 3
+        while retry_count > 0:
+            try:
+                self.net_mgr.get_driver().update_port(network_model,
+                                                      port_model,
+                                                      None)
+                break
+            except Exception as e:
+                LOG.exception(_("Failed to update port %s"),
+                              port_model.uuid)
+                retry_count -= 1
+                if retry_count == 0:
+                    raise error.OVSvAppNeutronAgentError(e)
+                time.sleep(2)
+
+    def port_update(self, context, **kwargs):
+        """Update the port details from plugin using RPC call."""
+
+        LOG.info(_("OVSvApp Agent - port update RPC received"))
+        LOG.debug("port_update arguments : %s", kwargs)
+        new_port = kwargs.get('port')
+        ovsvapplock.acquire()
+        old_port_object = None
+        new_port_object = None
+        try:
+            if new_port['id'] not in self.ports_dict.keys():
+                return
+            else:
+                old_port_object = self.ports_dict[new_port['id']]
+                self.ports_dict[new_port['id']] = self._build_port_info(
+                    new_port)
+                new_port_object = self.ports_dict[new_port['id']]
+                # TODO(romilg): With the introduction of following feature
+                # 'port mac-address modification', When the mac-address gets
+                # changed for a port we will need to rewrite the rules in
+                # OVS-Firewall.
+        finally:
+            ovsvapplock.release()
+
+        if old_port_object and new_port_object:
+            if cmp(old_port_object.admin_state_up,
+                   new_port_object.admin_state_up) != 0:
+                LOG.debug("Updating admin_state_up status for %s",
+                          new_port['id'])
+                network, port = self._map_port_to_common_model(new_port)
+                self._port_update_status_change(network, port)
+            # TODO(romilg): Uncomment the code below once
+            # OVSVAppSecurityGroupAgent is added.
+            # self.sg_agent.devices_to_refilter.add(new_port['id'])
+            try:
+                if new_port['admin_state_up']:
+                    LOG.debug("Invoking update_device_up for %s",
+                              new_port['id'])
+                    self.plugin_rpc.update_device_up(self.context,
+                                                     new_port['id'],
+                                                     self.agent_id,
+                                                     self.hostname)
+                else:
+                    LOG.debug("Invoking update_device_down for %s",
+                              new_port['id'])
+                    self.plugin_rpc.update_device_down(self.context,
+                                                       new_port['id'],
+                                                       self.agent_id,
+                                                       self.hostname)
+            except Exception as e:
+                LOG.exception(_("update device up/down failed for port: %s"),
+                              new_port['id'])
+                raise error.OVSvAppNeutronAgentError(e)
+            LOG.info(_("OVSvApp Agent - port update finished"))
 
 
 class RpcPluginApi(agent_rpc.PluginApi,
