@@ -31,13 +31,20 @@ from networking_vsphere.tests.unit.drivers import fake_manager
 from neutron.plugins.common import constants as p_const
 
 VNIC_ADDED = 'VNIC_ADDED'
+FAKE_DEVICE_ID = 'fake_device_id'
 FAKE_VM = 'fake_vm'
 FAKE_HOST_1 = 'fake_host_1'
 FAKE_HOST_2 = 'fake_host_2'
-FAKE_CLUSTER = 'fake_cluster'
+FAKE_CLUSTER_1 = 'fake_cluster_1'
+FAKE_CLUSTER_2 = 'fake_cluster_2'
 FAKE_PORT_1 = 'fake_port_1'
 FAKE_PORT_2 = 'fake_port_2'
 MAC_ADDRESS = '01:02:03:04:05:06'
+FAKE_CONTEXT = 'fake_context'
+FAKE_SG = {'fake_sg': 'fake_sg_rule'}
+DEVICE = {'id': FAKE_DEVICE_ID,
+          'cluster_id': FAKE_CLUSTER_1,
+          'host': FAKE_HOST_1}
 
 
 class SampleEvent(object):
@@ -87,6 +94,23 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.agent = ovsvapp_agent.OVSvAppL2Agent()
         self.LOG = ovsvapp_agent.LOG
 
+    def _build_port(self):
+        port = {'admin_state_up': True,
+                'id': FAKE_PORT_1,
+                'device': DEVICE,
+                'network_id': 'net_uuid',
+                'physical_network': 'physnet1',
+                'segmentation_id': '1001',
+                'network_type': 'vlan',
+                'fixed_ips': [{'subnet_id': 'subnet_uuid',
+                               'ip_address': '1.1.1.1'}],
+                'device_owner': 'compute:None',
+                'security_groups': FAKE_SG,
+                'mac_address': MAC_ADDRESS,
+                'device_id': FAKE_DEVICE_ID,
+                }
+        return port
+
     def test_report_state(self):
         with mock.patch.object(self.agent.state_rpc,
                                "report_state") as report_st:
@@ -115,7 +139,7 @@ class TestOVSvAppL2Agent(base.TestCase):
     def test_process_event_ignore_event(self):
         vm = VM(FAKE_VM, [])
         event = SampleEvent(VNIC_ADDED, FAKE_HOST_1,
-                            FAKE_CLUSTER, vm)
+                            FAKE_CLUSTER_1, vm)
         with contextlib.nested(
             mock.patch.object(self.agent,
                               "_notify_device_added"),
@@ -134,7 +158,7 @@ class TestOVSvAppL2Agent(base.TestCase):
     def test_process_event_exception(self):
         vm = VM(FAKE_VM, [])
         event = SampleEvent(ovsvapp_const.VM_CREATED,
-                            FAKE_HOST_1, FAKE_CLUSTER, vm)
+                            FAKE_HOST_1, FAKE_CLUSTER_1, vm)
         with contextlib.nested(
             mock.patch.object(self.agent,
                               "_notify_device_added",
@@ -150,9 +174,9 @@ class TestOVSvAppL2Agent(base.TestCase):
     def test_process_event_vm_create_nonics_non_host_non_cluster(self):
         self.agent.esx_hostname = FAKE_HOST_2
         vm = VM(FAKE_VM, [])
-        self.agent.cluster_id = FAKE_CLUSTER
+        self.agent.cluster_id = FAKE_CLUSTER_1
         event = SampleEvent(ovsvapp_const.VM_CREATED,
-                            FAKE_HOST_1, FAKE_CLUSTER, vm)
+                            FAKE_HOST_1, FAKE_CLUSTER_1, vm)
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         with mock.patch.object(self.agent,
                                "_notify_device_added") as device_added:
@@ -163,13 +187,13 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.esx_hostname = FAKE_HOST_2
         vm = VM(FAKE_VM, [])
         event = SampleEvent(ovsvapp_const.VM_CREATED,
-                            FAKE_HOST_1, FAKE_CLUSTER, vm)
+                            FAKE_HOST_1, FAKE_CLUSTER_1, vm)
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         with mock.patch.object(self.agent,
                                "_notify_device_added") as device_added:
             self.agent.process_event(event)
             self.assertTrue(device_added.called)
-            self.assertEqual(FAKE_CLUSTER, self.agent.cluster_id)
+            self.assertEqual(FAKE_CLUSTER_1, self.agent.cluster_id)
 
     def test_process_event_vm_create_nics_non_host(self):
         self.agent.esx_hostname = FAKE_HOST_2
@@ -177,7 +201,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         vm_port2 = SamplePort(FAKE_PORT_2)
         vm = VM(FAKE_VM, ([vm_port1, vm_port2]))
         event = SampleEvent(ovsvapp_const.VM_CREATED,
-                            FAKE_HOST_1, FAKE_CLUSTER, vm)
+                            FAKE_HOST_1, FAKE_CLUSTER_1, vm)
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         self.agent.process_event(event)
         for vnic in vm.vnics:
@@ -191,7 +215,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         vm_port2 = SamplePort(FAKE_PORT_2)
         vm = VM(FAKE_VM, ([vm_port1, vm_port2]))
         event = SampleEvent(ovsvapp_const.VM_CREATED,
-                            FAKE_HOST_1, FAKE_CLUSTER, vm)
+                            FAKE_HOST_1, FAKE_CLUSTER_1, vm)
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         self.agent.process_event(event)
         for vnic in vm.vnics:
@@ -204,38 +228,10 @@ class TestOVSvAppL2Agent(base.TestCase):
         vm_port1 = SamplePort(FAKE_PORT_1)
         vm = VM(FAKE_VM, [vm_port1])
         event = SampleEvent(ovsvapp_const.VM_UPDATED,
-                            FAKE_HOST_1, FAKE_CLUSTER, vm)
+                            FAKE_HOST_1, FAKE_CLUSTER_1, vm)
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         self.agent.process_event(event)
         self.assertIn(FAKE_PORT_1, self.agent.cluster_other_ports)
-
-    def _build_port(self):
-        port = {'admin_state_up': False,
-                'id': FAKE_PORT_1,
-                'device': 'fake_device',
-                'network_id': 'net_uuid',
-                'physical_network': 'physnet1',
-                'segmentation_id': '1001',
-                'network_type': 'vlan',
-                'fixed_ips': [{'subnet_id': 'subnet_uuid',
-                               'ip_address': '1.1.1.1'}],
-                'device_owner': 'compute:None',
-                'security_groups': ['fake_sg'],
-                'mac_address': MAC_ADDRESS,
-                'device_id': 'fake_device_id',
-                }
-        return port
-
-    def _build_port_info(self, port):
-        return ovsvapp_agent.PortInfo(
-            port['id'],
-            port['segmentation_id'],
-            port['mac_address'],
-            port['security_groups'],
-            port['fixed_ips'],
-            port['admin_state_up'],
-            port['network_id'],
-            port['device_id'])
 
     def test_process_event_vm_delete_hosted_vm(self):
         self.agent.esx_hostname = FAKE_HOST_1
@@ -243,12 +239,13 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.network_port_count['net_uuid'] = 1
         port = self._build_port()
-        self.agent.ports_dict[port['id']] = self._build_port_info(port)
+        self.agent.ports_dict[port['id']] = self.agent._build_port_info(
+            port)
         del_port = self.agent.ports_dict[port['id']]
         vm_port = SamplePortUIDMac(FAKE_PORT_1, MAC_ADDRESS)
         vm = VM(FAKE_VM, ([vm_port]))
         event = SampleEvent(ovsvapp_const.VM_DELETED,
-                            FAKE_HOST_1, FAKE_CLUSTER, vm)
+                            FAKE_HOST_1, FAKE_CLUSTER_1, vm)
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
         self.agent.net_mgr.initialize_driver()
@@ -273,12 +270,13 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.network_port_count['net_uuid'] = 1
         port = self._build_port()
-        self.agent.ports_dict[port['id']] = self._build_port_info(port)
+        self.agent.ports_dict[port['id']] = self.agent._build_port_info(
+            port)
         del_port = self.agent.ports_dict[port['id']]
         vm_port = SamplePortUIDMac(FAKE_PORT_1, MAC_ADDRESS)
         vm = VM(FAKE_VM, ([vm_port]))
         event = SampleEvent(ovsvapp_const.VM_DELETED,
-                            FAKE_HOST_1, FAKE_CLUSTER, vm)
+                            FAKE_HOST_1, FAKE_CLUSTER_1, vm)
         self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
         self.agent.net_mgr.initialize_driver()
         self.agent.state = ovsvapp_const.AGENT_RUNNING
@@ -385,3 +383,174 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertTrue(update_port_binding.called)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertTrue(log_exception.called)
+
+    def test_map_port_to_common_model_vlan(self):
+        exp_port = self._build_port()
+        self.agent.tenant_network_type = p_const.TYPE_VLAN
+        network, port = self.agent._map_port_to_common_model(exp_port)
+        self.assertEqual(exp_port['network_id'], network.name)
+        self.assertEqual(exp_port['id'], port.uuid)
+
+    def test_device_create_cluster_mismatch(self):
+        self.agent.cluster_id = FAKE_CLUSTER_2
+        with contextlib.nested(
+            mock.patch.object(self.agent,
+                              '_process_create_portgroup_vlan',
+                              return_value=True),
+            mock.patch.object(self.LOG, 'debug')
+        ) as (create_pg_vlan, logger_debug):
+            self.agent.device_create(FAKE_CONTEXT,
+                                     device=DEVICE)
+            self.assertTrue(logger_debug.called)
+            self.assertFalse(create_pg_vlan.called)
+
+    def test_device_create_non_hosted_vm(self):
+        ports = [self._build_port()]
+        self.agent.cluster_id = FAKE_CLUSTER_1
+        self.agent.esx_hostname = FAKE_HOST_2
+        self.agent.tenant_network_type = p_const.TYPE_VLAN
+        with contextlib.nested(
+            mock.patch.object(self.agent.plugin_rpc,
+                              'update_device_up',
+                              return_value=True),
+            mock.patch.object(self.LOG, 'debug')
+        ) as (update_device_up, logger_debug):
+            self.agent.device_create(FAKE_CONTEXT,
+                                     device=DEVICE,
+                                     ports=ports,
+                                     sg_rules=FAKE_SG)
+            self.assertTrue(logger_debug.called)
+            self.assertIn(FAKE_PORT_1, self.agent.cluster_other_ports)
+            self.assertNotIn(FAKE_PORT_1, self.agent.cluster_host_ports)
+            self.assertFalse(update_device_up.called)
+
+    def test_device_create_hosted_vm_vlan(self):
+        ports = [self._build_port()]
+        self.agent.cluster_id = FAKE_CLUSTER_1
+        self.agent.esx_hostname = FAKE_HOST_1
+        self.agent.tenant_network_type = p_const.TYPE_VLAN
+        self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
+        self.agent.net_mgr.initialize_driver()
+        with contextlib.nested(
+            mock.patch.object(self.agent.plugin_rpc,
+                              'update_device_up',
+                              return_value=True),
+            mock.patch.object(self.LOG, 'debug')
+        ) as (update_device_up, logger_debug):
+            self.agent.device_create(FAKE_CONTEXT,
+                                     device=DEVICE,
+                                     ports=ports,
+                                     sg_rules=FAKE_SG)
+            self.assertTrue(logger_debug.called)
+            self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
+            self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
+            self.assertTrue(update_device_up.called)
+
+    def test_device_create_hosted_vm_create_port_exception(self):
+        ports = [self._build_port()]
+        self.agent.cluster_id = FAKE_CLUSTER_1
+        self.agent.esx_hostname = FAKE_HOST_1
+        self.agent.tenant_network_type = p_const.TYPE_VLAN
+        self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
+        self.agent.net_mgr.initialize_driver()
+        self.agent.net_mgr.get_driver().create_port = mock.Mock(
+            side_effect=Exception())
+        with contextlib.nested(
+            mock.patch.object(self.agent.plugin_rpc,
+                              'update_device_up'),
+            mock.patch.object(self.LOG, 'debug'),
+            mock.patch.object(self.LOG, 'exception'),
+        ) as (update_device, logger_debug, log_excep):
+            self.assertRaises(
+                error.OVSvAppNeutronAgentError,
+                self.agent.device_create,
+                FAKE_CONTEXT,
+                device=DEVICE,
+                ports=ports,
+                sg_rules=FAKE_SG)
+            self.assertTrue(logger_debug.called)
+            self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
+            self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
+            self.assertFalse(update_device.called)
+            self.assertTrue(log_excep.called)
+
+    def test_device_create_hosted_vm_update_device_exception(self):
+        ports = [self._build_port()]
+        self.agent.cluster_id = FAKE_CLUSTER_1
+        self.agent.esx_hostname = FAKE_HOST_1
+        self.agent.tenant_network_type = p_const.TYPE_VLAN
+        self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
+        self.agent.net_mgr.initialize_driver()
+        with contextlib.nested(
+            mock.patch.object(self.agent.plugin_rpc,
+                              'update_device_up',
+                              side_effect=Exception()),
+            mock.patch.object(self.LOG, 'debug'),
+            mock.patch.object(self.LOG, 'exception'),
+        ) as (update_device, logger_debug, log_excep):
+            self.assertRaises(
+                error.OVSvAppNeutronAgentError,
+                self.agent.device_create,
+                FAKE_CONTEXT,
+                device=DEVICE,
+                ports=ports,
+                sg_rules=FAKE_SG)
+            self.assertTrue(logger_debug.called)
+            self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
+            self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
+            self.assertTrue(update_device.called)
+            self.assertTrue(log_excep.called)
+
+    def test_port_update_admin_state_up(self):
+        port = self._build_port()
+        self.agent.ports_dict[port['id']] = self.agent._build_port_info(
+            port)
+        self.agent.tenant_network_type = p_const.TYPE_VLAN
+        self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
+        self.agent.net_mgr.initialize_driver()
+        neutron_port = {'port': port}
+        with contextlib.nested(
+            mock.patch.object(self.agent.plugin_rpc,
+                              "update_device_up"),
+            mock.patch.object(self.agent.plugin_rpc,
+                              "update_device_down"),
+            mock.patch.object(self.LOG, 'exception'),
+            mock.patch.object(self.LOG, 'debug')
+        ) as (device_up, device_down,
+              log_exception, log_debug):
+            self.agent.port_update(FAKE_CONTEXT, **neutron_port)
+            self.assertEqual(neutron_port['port']['admin_state_up'],
+                             self.agent.ports_dict[port['id']].
+                             admin_state_up)
+            self.assertTrue(device_up.called)
+            self.assertFalse(device_down.called)
+            self.assertFalse(log_exception.called)
+
+    def test_port_update_rpc_exception(self):
+        port = self._build_port()
+        self.agent.ports_dict[port['id']] = self.agent._build_port_info(
+            port)
+        self.agent.tenant_network_type = p_const.TYPE_VLAN
+        self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
+        self.agent.net_mgr.initialize_driver()
+        neutron_port = {'port': port}
+        with contextlib.nested(
+            mock.patch.object(self.agent.plugin_rpc,
+                              "update_device_up",
+                              side_effect=Exception()),
+            mock.patch.object(self.agent.plugin_rpc,
+                              "update_device_down"),
+            mock.patch.object(self.LOG, 'exception'),
+            mock.patch.object(self.LOG, 'debug')
+        ) as (device_up, device_down,
+              log_exception, log_debug):
+            self.assertRaises(
+                error.OVSvAppNeutronAgentError,
+                self.agent.port_update, FAKE_CONTEXT, **neutron_port)
+            self.assertEqual(neutron_port['port']['admin_state_up'],
+                             self.agent.ports_dict[port['id']].
+                             admin_state_up)
+            self.assertTrue(device_up.called)
+            self.assertFalse(device_down.called)
+            self.assertTrue(log_exception.called)
+            self.assertTrue(device_up.called)
