@@ -23,7 +23,7 @@ from neutron.extensions import portbindings
 from neutron.tests.unit.ml2 import test_rpcapi
 
 from networking_vsphere.agent import ovsvapp_agent
-from networking_vsphere.common import constants
+from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.plugins.ml2.drivers.ovsvapp import rpc
 
 
@@ -135,7 +135,7 @@ class OVSvAppAgentNotifyAPITest(test_rpcapi.RpcApiTestCase):
         rpcapi = rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
         self._test_rpc_api(rpcapi,
                            topics.get_topic_name(topics.AGENT,
-                                                 constants.DEVICE,
+                                                 ovsvapp_const.DEVICE,
                                                  topics.CREATE),
                            'device_create', rpc_method='cast',
                            fanout=True,
@@ -147,14 +147,14 @@ class OVSvAppAgentNotifyAPITest(test_rpcapi.RpcApiTestCase):
         rpcapi = rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
         self._test_rpc_api(rpcapi,
                            topics.get_topic_name(topics.AGENT,
-                                                 constants.DEVICE,
+                                                 ovsvapp_const.DEVICE,
                                                  topics.UPDATE),
                            'device_update', rpc_method='cast',
                            fanout=True,
                            device_data='fake_device_data')
 
     def test_get_ports_for_device(self):
-        rpcapi = ovsvapp_agent.OVSvAppPluginApi(constants.OVSVAPP)
+        rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
         self._test_rpc_api(rpcapi, None,
                            'get_ports_for_device', rpc_method='call',
                            device={'id': 'fake_id',
@@ -163,7 +163,7 @@ class OVSvAppAgentNotifyAPITest(test_rpcapi.RpcApiTestCase):
                            agent_id='fake_agent_id')
 
     def test_update_port_binding(self):
-        rpcapi = ovsvapp_agent.OVSvAppPluginApi(constants.OVSVAPP)
+        rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
         self._test_rpc_api(rpcapi, None,
                            'update_port_binding', rpc_method='call',
                            port_id='fake_port_id',
