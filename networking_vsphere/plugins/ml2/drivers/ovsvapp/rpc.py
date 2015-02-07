@@ -115,7 +115,7 @@ class OVSvAppServerRpcCallback(object):
                     return True
         except Exception:
             LOG.exception(_("Failed to retrieve port details for "
-                            "device %s") % device_id)
+                            "device %s"), device_id)
         LOG.debug("Failed to retrieve ports for device %s", device_id)
         return False
 

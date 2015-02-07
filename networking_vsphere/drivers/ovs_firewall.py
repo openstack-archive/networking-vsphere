@@ -358,7 +358,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
         vlan = self._get_port_vlan(port['id'])
         if not vlan:
-            LOG.error(_('Missing VLAN for port %s') % port['id'])
+            LOG.error(_('Missing VLAN for port %s'), port['id'])
             return
         for rule in rules:
             direction = rule.get('direction')
