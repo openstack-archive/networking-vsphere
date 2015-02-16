@@ -17,6 +17,7 @@ import sys
 import threading
 import time
 
+import eventlet
 from oslo.config import cfg
 from oslo import messaging
 
@@ -80,7 +81,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.cluster_other_ports = set()
         self.update_port_bindings = []
         self.refresh_firewall_required = False
-        self.run_refresh_firewall_loop = True
+        self.run_check_for_updates = True
         self.use_call = True
         self.hostname = cfg.CONF.host
         self.bridge_mappings = CONF.OVSVAPP.bridge_mappings
@@ -127,6 +128,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                       {'bridge': CONF.OVSVAPP.integration_bridge})
             raise SystemExit(1)
 
+    # TODO(sudhakar-gariganti) Refactor setup/recover security bridges
+    # by merging into one method with internal if blocks
     def setup_security_br(self):
         """Setup the security bridge.
 
@@ -291,25 +294,26 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.int_ofports[phys_net] = int_ofport
             self.phys_ofports[phys_net] = phys_ofport
 
+    # TODO(sudhakar-gariganti) Check if this method is required
+    # if we have update_port_bindings called within get_ports_for_device RPC
     def _update_port_bindings(self):
-        if self.update_port_bindings:
-            for element in self.update_port_bindings:
-                try:
-                    # Update port binding with the host as OVSvApp
-                    # VM's hostname
-                    LOG.debug("Updating port binding for port %s", element)
-                    self.ovsvapp_rpc.update_port_binding(
-                        self.context,
-                        agent_id=self.agent_id,
-                        port_id=element,
-                        host=self.hostname)
-                    self.update_port_bindings.remove(element)
-                except Exception as e:
-                    LOG.exception(_("Port binding update failed "
-                                    "for port: %s"), element)
-                    raise error.OVSvAppNeutronAgentError(e)
-                LOG.debug("update_port_binding RPC finished for port"
-                          " %s", element)
+        for element in self.update_port_bindings:
+            try:
+                # Update port binding with the host as OVSvApp
+                # VM's hostname
+                LOG.debug("Updating port binding for port %s", element)
+                self.ovsvapp_rpc.update_port_binding(
+                    self.context,
+                    agent_id=self.agent_id,
+                    port_id=element,
+                    host=self.hostname)
+                self.update_port_bindings.remove(element)
+            except Exception as e:
+                LOG.exception(_("Port binding update failed "
+                                "for port: %s"), element)
+                raise error.OVSvAppNeutronAgentError(e)
+            LOG.debug("update_port_binding RPC finished for port"
+                      " %s", element)
 
     def mitigate_ovs_restart(self):
         """Mitigates OpenvSwitch process restarts.
@@ -345,13 +349,103 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.exception(_("Exception encountered while mitigating the ovs"
                             " restart."))
 
+    def _update_port_dict(self, port):
+        ovsvapplock.acquire()
+        try:
+            self.ports_dict[port['id']] = PortInfo(port['id'],
+                                                   port['segmentation_id'],
+                                                   None, None, None,
+                                                   port['admin_state_up'],
+                                                   port['network_id'],
+                                                   port['device'])
+            if port['network_id'] not in self.network_port_count.keys():
+                self.network_port_count[port['network_id']] = 1
+            else:
+                self.network_port_count[port['network_id']] += 1
+            self.sg_agent.add_devices_to_filter([port])
+            return True
+        finally:
+            ovsvapplock.release()
+
+    def _update_firewall(self):
+        """Helper method to monitor devices added.
+
+        If devices_to_filter is not empty, we update the OVS firewall
+        for those devices
+        """
+        devices_to_filter = self.devices_to_filter
+        self.devices_to_filter = set()
+        self.refresh_firewall_required = False
+        device_list = set()
+        for device in devices_to_filter:
+            if device in self.ports_dict:
+                device_list.add(device)
+        devices_to_filter = devices_to_filter - device_list
+        ports = []
+        if devices_to_filter:
+            try:
+                ports = self.plugin_rpc.get_devices_details_list(
+                    self.context, devices_to_filter, self.agent_id)
+                for port in ports:
+                    if port and 'port_id' in port:
+                        port['id'] = port['port_id']
+                        status = self._update_port_dict(port)
+                        if status:
+                            device_list.add(port['id'])
+            except Exception:
+                LOG.exception(_("get_devices_details_list rpc failed"))
+                # Process the ports again in the next iteration
+                self.devices_to_filter |= devices_to_filter
+                self.refresh_firewall_required = True
+            if device_list:
+                LOG.info(_("Going to update firewall for ports:"
+                           " %s"), device_list)
+                self.sg_agent.refresh_firewall(device_list)
+
+    def _check_for_updates(self):
+        """Method to handle any updates related to the agent.
+
+        This method is forked as an eventlet thread. The thread will be
+        alive as long as run_check_for_updates flag is True.
+
+        Basic purpose of this thread is to handle the cases where
+        devices_to_filter, devices_to_refilter and global_refresh_firewall
+        are not empty, which inturn mandate a firewall update.
+
+        We also check if there are any port bindings to be updated.
+
+        OpenvSwitch process restart is also handled through this thread.
+        """
+        ovs_restarted = self.check_ovs_status()
+        if ovs_restarted == ovs_const.OVS_RESTARTED:
+            LOG.info(_("OpenvSwitch restarted..going to mitigate"))
+            self.mitigate_ovs_restart()
+        # Case where devices_to_filter is having some entries
+        if self.refresh_firewall_required:
+            self._update_firewall()
+        # Case where sgagent's devices_to_refilter is having some
+        # entries or global_refresh_firewall flag is set to True
+        if self.sg_agent.firewall_refresh_needed():
+            self.sg_agent.refresh_port_filters(
+                self.cluster_host_ports, self.cluster_other_ports)
+        # Check if there are any pending port bindings to be made
+        if self.update_port_bindings:
+            self._update_port_bindings()
+
+    def check_for_updates(self):
+        while self.run_check_for_updates:
+            self._check_for_updates()
+            time.sleep(2)
+
     def start(self):
         LOG.info(_("Starting OVSvApp L2 Agent"))
         self.set_node_state(True)
+        eventlet.spawn(self.check_for_updates)
 
     def stop(self):
         LOG.info(_("Stopping OVSvApp L2 Agent"))
         self.set_node_state(False)
+        self.run_check_for_updates = False
         if self.connection:
             self.connection.close()
 

@@ -77,7 +77,7 @@ class TestOVSFirewallDriver(base.BaseTestCase):
                         'security_groups': "abc",
                         'segmentation_id': "100"}
         res = self.ovs_firewall._get_compact_port(fake_port)
-        self.assertEqual(res, compact_port)
+        self.assertEqual(compact_port, res)
 
     def test_add_ovs_flow(self):
         with contextlib.nested(
@@ -155,7 +155,7 @@ class TestOVSFirewallDriver(base.BaseTestCase):
                     'device': "123"}
         self.assertIsNotNone(self.ovs_firewall.filtered_ports)
         ret_port = self.ovs_firewall.filtered_ports["123"]
-        self.assertEqual(ret_port, res_port)
+        self.assertEqual(res_port, ret_port)
 
     def test_setup_aap_flows(self):
         port_with_app = copy.deepcopy(fake_port)
@@ -172,7 +172,7 @@ class TestOVSFirewallDriver(base.BaseTestCase):
             mock.patch.object(self.mock_br, 'add_flow')
         ) as (get_vlan, deferred_fn, mock_add_flow):
             self.ovs_firewall._setup_aap_flows(self.mock_br, port_with_app)
-            self.assertEqual(mock_add_flow.call_count, 2)
+            self.assertEqual(2, mock_add_flow.call_count)
 
     def test_setup_aap_flows_invalid_call(self):
         port_with_app = copy.deepcopy(fake_port)
@@ -189,33 +189,33 @@ class TestOVSFirewallDriver(base.BaseTestCase):
     def test_get_net_prefix_len(self):
         ip_addr = "150.1.1.0/22"
         length = self.ovs_firewall._get_net_prefix_len(ip_addr)
-        self.assertNotEqual(length, 0)
+        self.assertNotEqual(0, length)
 
         ip_addr = None
         length = self.ovs_firewall._get_net_prefix_len(ip_addr)
-        self.assertEqual(length, 0)
+        self.assertEqual(0, length)
 
     def test_get_protocol(self):
         proto = self.ovs_firewall._get_protocol("IPv4", None)
-        self.assertEqual(proto, ['ip'])
+        self.assertEqual(['ip'], proto)
 
         proto = self.ovs_firewall._get_protocol("IPv6", None)
-        self.assertEqual(proto, ['ipv6'])
+        self.assertEqual(['ipv6'], proto)
 
         proto = self.ovs_firewall._get_protocol("IPv6", 'icmp')
-        self.assertEqual(proto, ['icmp6'])
+        self.assertEqual(['icmp6'], proto)
 
         proto = self.ovs_firewall._get_protocol("IPv4", 'icmp')
-        self.assertEqual(proto, ['icmp'])
+        self.assertEqual(['icmp'], proto)
 
         proto = self.ovs_firewall._get_protocol("IPv4", 'udp')
-        self.assertEqual(proto, ['udp'])
+        self.assertEqual(['udp'], proto)
 
         proto = self.ovs_firewall._get_protocol("IPv6", 'tcp')
-        self.assertEqual(proto, ['tcp'])
+        self.assertEqual(['tcp'], proto)
 
         proto = self.ovs_firewall._get_protocol("IPv6", 'unknown')
-        self.assertEqual(proto, ['ipv6', 'unknown'])
+        self.assertEqual(['ipv6', 'unknown'], proto)
 
     def test_add_flow_with_range(self):
         flow = {"priority": 1}
@@ -230,7 +230,7 @@ class TestOVSFirewallDriver(base.BaseTestCase):
             self.ovs_firewall._add_flow_with_range(self.mock_br, flow,
                                                    1, 2, 1, 2)
             mock_add_flow.called_with(res_flow)
-            self.assertEqual(mock_add_flow.call_count, 4)
+            self.assertEqual(4, mock_add_flow.call_count)
 
     def test_add_flow_with_multiple_range(self):
         flow = {"priority": 1}
@@ -241,7 +241,7 @@ class TestOVSFirewallDriver(base.BaseTestCase):
         ) as (deferred_fn, mock_add_flow):
             self.ovs_firewall._add_flow_with_range(self.mock_br, flow,
                                                    1, 3, 1, 2)
-            self.assertEqual(mock_add_flow.call_count, 6)
+            self.assertEqual(6, mock_add_flow.call_count)
 
     def test_add_flows_call_no_vlan(self):
         port_with_app = copy.deepcopy(fake_port)
@@ -314,7 +314,7 @@ class TestOVSFirewallDriver(base.BaseTestCase):
             aap_flow_fn.assertCalledWith(self.mock_br, fake_port)
             add_flow_fn.assertCalledWith(self.mock_br, fake_port)
             ret_port = self.ovs_firewall.filtered_ports['123']
-            self.assertEqual(ret_port, res_port)
+            self.assertEqual(res_port, ret_port)
 
     def test_prepare_port_filter_exception(self):
         with contextlib.nested(
@@ -349,7 +349,7 @@ class TestOVSFirewallDriver(base.BaseTestCase):
         ) as (get_vlan, deferred_fn, mock_del_flows):
             self.ovs_firewall._remove_flows(self.mock_br, "123")
             self.assertTrue(get_vlan.called)
-            self.assertEqual(mock_del_flows.call_count, 5)
+            self.assertEqual(5, mock_del_flows.call_count)
 
     def test_remove_flows_invalid_port(self):
         res_port = {'security_group_source_groups': 'abc',
@@ -369,8 +369,8 @@ class TestOVSFirewallDriver(base.BaseTestCase):
         ) as (get_vlan, deferred_fn, mock_del_flows, debug_log):
             self.ovs_firewall._remove_flows(self.mock_br, "123")
             self.assertTrue(get_vlan.called)
-            self.assertEqual(mock_del_flows.call_count, 1)
-            self.assertTrue(debug_log.call_count, 2)
+            self.assertEqual(1, mock_del_flows.call_count)
+            self.assertEqual(2, debug_log.call_count)
 
     def test_clean_port_filters(self):
         res_port = {'security_group_source_groups': 'abc',

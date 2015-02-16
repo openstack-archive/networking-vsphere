@@ -284,7 +284,9 @@ class OVSFirewallDriver(firewall.FirewallDriver):
     def _get_port_vlan(self, port_id):
         port = self.filtered_ports.get(port_id)
         if port:
-            return self.portCache.getPortVlan(port_id)
+            # TODO(sudhakar-gariganti) Update this code to
+            # be compatible for vxlan
+            return port['segmentation_id']
 
     def _setup_aap_flows(self, sec_br, port):
         """Method to help setup rules for allowed address pairs."""
