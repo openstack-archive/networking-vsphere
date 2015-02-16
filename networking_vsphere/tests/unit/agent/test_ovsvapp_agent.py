@@ -281,6 +281,185 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertFalse(self.agent.refresh_firewall_required)
             self.assertEqual(len(self.agent.devices_to_filter), 0)
 
+    def _get_fake_port(self, port_id):
+        return {'id': port_id,
+                'port_id': port_id,
+                'segmentation_id': 1232,
+                'network_id': 'fake_network',
+                'device': port_id,
+                'admin_state_up': True}
+
+    def test_update_port_dict(self):
+        fakeport = self._get_fake_port('fakeId')
+        self.agent.ports_dict = {}
+        self.agent.network_port_count = {}
+        with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
+                               ) as mock_add_devices:
+            status = self.agent._update_port_dict(fakeport)
+            self.assertIn('fakeId', self.agent.ports_dict)
+            self.assertTrue(status)
+            self.assertEqual(self.agent.network_port_count['fake_network'], 1)
+            mock_add_devices.assert_called_with([fakeport])
+
+    def test_update_port_dict_existing_network(self):
+        fakeport = self._get_fake_port('fakeId')
+        self.agent.ports_dict = {}
+        self.agent.network_port_count = {'fake_network': 6}
+        with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
+                               ) as mock_add_devices:
+            status = self.agent._update_port_dict(fakeport)
+            self.assertIn('fakeId', self.agent.ports_dict)
+            self.assertTrue(status)
+            self.assertEqual(self.agent.network_port_count['fake_network'], 7)
+            mock_add_devices.assert_called_with([fakeport])
+
+    def test_update_firewall(self):
+        fakeport_1 = self._get_fake_port(FAKE_PORT_1)
+        fakeport_2 = self._get_fake_port(FAKE_PORT_2)
+        self.agent.devices_to_filter = set([FAKE_PORT_1,
+                                            FAKE_PORT_2])
+        self.agent.ports_dict = {FAKE_PORT_1: fakeport_1}
+        self.agent.refresh_firewall_required = True
+        with contextlib.nested(
+            mock.patch.object(self.agent.plugin_rpc,
+                              'get_devices_details_list',
+                              return_value=[fakeport_2]),
+            mock.patch.object(self.agent.sg_agent, 'refresh_firewall'),
+        ) as (mock_get_device_details, mock_refresh_firewall):
+            self.agent._update_firewall()
+            self.assertFalse(self.agent.refresh_firewall_required)
+            self.assertFalse(self.agent.devices_to_filter)
+            self.assertIn(FAKE_PORT_2, self.agent.ports_dict)
+            mock_get_device_details.assert_called_with(self.agent.context,
+                                                       set([FAKE_PORT_2]),
+                                                       self.agent.agent_id)
+            mock_refresh_firewall.assert_called_with(set([FAKE_PORT_1,
+                                                          FAKE_PORT_2]))
+
+    def test_update_firewall_get_ports_exception(self):
+        fakeport_1 = self._get_fake_port(FAKE_PORT_1)
+        self.agent.devices_to_filter = set([FAKE_PORT_1,
+                                            FAKE_PORT_2])
+        self.agent.ports_dict = {FAKE_PORT_1: fakeport_1}
+        self.agent.refresh_firewall_required = True
+        with contextlib.nested(
+            mock.patch.object(self.agent.plugin_rpc,
+                              'get_devices_details_list',
+                              side_effect=Exception()),
+            mock.patch.object(self.agent.sg_agent, 'refresh_firewall'),
+        ) as (mock_get_device_details, mock_refresh_firewall):
+            self.agent._update_firewall()
+            self.assertTrue(self.agent.refresh_firewall_required)
+            self.assertEqual(self.agent.devices_to_filter, set([FAKE_PORT_2]))
+            self.assertNotIn(FAKE_PORT_2, self.agent.ports_dict)
+            mock_get_device_details.assert_called_with(self.agent.context,
+                                                       set([FAKE_PORT_2]),
+                                                       self.agent.agent_id)
+            mock_refresh_firewall.assert_called_with(set([FAKE_PORT_1]))
+
+    def test_check_for_updates_no_updates(self):
+        self.agent.refresh_firewall_required = False
+        self.agent.update_port_bindings = []
+        with contextlib.nested(
+            mock.patch.object(self.agent, 'check_ovs_status',
+                              return_value=4),
+            mock.patch.object(self.agent, '_update_firewall'),
+            mock.patch.object(self.agent.sg_agent,
+                              'firewall_refresh_needed',
+                              return_value=False),
+            mock.patch.object(self.agent.sg_agent, 'refresh_port_filters'),
+            mock.patch.object(self.agent, '_update_port_bindings')
+        ) as (mock_check_ovs, mock_update_firewall, mock_firewall_refresh,
+              mock_refresh_port_filters, mock_update_port_bindings):
+            self.agent._check_for_updates()
+            self.assertTrue(mock_check_ovs.called)
+            self.assertFalse(mock_update_firewall.called)
+            self.assertTrue(mock_firewall_refresh.called)
+            self.assertFalse(mock_refresh_port_filters.called)
+            self.assertFalse(mock_update_port_bindings.called)
+
+    def test_check_for_updates_ovs_restarted(self):
+        self.agent.refresh_firewall_required = False
+        self.agent.update_port_bindings = []
+        with contextlib.nested(
+            mock.patch.object(self.agent, 'check_ovs_status',
+                              return_value=0),
+            mock.patch.object(self.agent, 'mitigate_ovs_restart'),
+            mock.patch.object(self.agent, '_update_firewall'),
+            mock.patch.object(self.agent.sg_agent,
+                              'firewall_refresh_needed',
+                              return_value=False),
+            mock.patch.object(self.agent, '_update_port_bindings')
+        ) as (mock_check_ovs, mock_mitigate, mock_update_firewall,
+              mock_firewall_refresh, mock_update_port_bindings):
+            self.agent._check_for_updates()
+            self.assertTrue(mock_check_ovs.called)
+            self.assertTrue(mock_mitigate.called)
+            self.assertFalse(mock_update_firewall.called)
+            self.assertTrue(mock_firewall_refresh.called)
+            self.assertFalse(mock_update_port_bindings.called)
+
+    def test_check_for_updates_devices_to_filter(self):
+        self.agent.refresh_firewall_required = True
+        self.agent.update_port_bindings = []
+        with contextlib.nested(
+            mock.patch.object(self.agent, 'check_ovs_status',
+                              return_value=4),
+            mock.patch.object(self.agent, 'mitigate_ovs_restart'),
+            mock.patch.object(self.agent, '_update_firewall'),
+            mock.patch.object(self.agent.sg_agent,
+                              'firewall_refresh_needed',
+                              return_value=False),
+            mock.patch.object(self.agent, '_update_port_bindings')
+        ) as (mock_check_ovs, mock_mitigate, mock_update_firewall,
+              mock_firewall_refresh, mock_update_port_bindings):
+            self.agent._check_for_updates()
+            self.assertTrue(mock_check_ovs.called)
+            self.assertFalse(mock_mitigate.called)
+            self.assertTrue(mock_update_firewall.called)
+            self.assertTrue(mock_firewall_refresh.called)
+            self.assertFalse(mock_update_port_bindings.called)
+
+    def test_check_for_updates_firewall_refresh(self):
+        self.agent.refresh_firewall_required = False
+        self.agent.update_port_bindings = []
+        with contextlib.nested(
+            mock.patch.object(self.agent, 'check_ovs_status',
+                              return_value=4),
+            mock.patch.object(self.agent, '_update_firewall'),
+            mock.patch.object(self.agent.sg_agent,
+                              'firewall_refresh_needed',
+                              return_value=True),
+            mock.patch.object(self.agent.sg_agent, 'refresh_port_filters'),
+            mock.patch.object(self.agent, '_update_port_bindings')
+        ) as (mock_check_ovs, mock_update_firewall, mock_firewall_refresh,
+              mock_refresh_port_filters, mock_update_port_bindings):
+            self.agent._check_for_updates()
+            self.assertTrue(mock_check_ovs.called)
+            self.assertFalse(mock_update_firewall.called)
+            self.assertTrue(mock_firewall_refresh.called)
+            self.assertTrue(mock_refresh_port_filters.called)
+            self.assertFalse(mock_update_port_bindings.called)
+
+    def test_check_for_updates_port_bindings(self):
+        self.agent.refresh_firewall_required = False
+        self.agent.update_port_bindings = ['fake_port']
+        with contextlib.nested(
+            mock.patch.object(self.agent, 'check_ovs_status',
+                              return_value=4),
+            mock.patch.object(self.agent, '_update_firewall'),
+            mock.patch.object(self.agent.sg_agent,
+                              'firewall_refresh_needed',
+                              return_value=False),
+            mock.patch.object(self.agent, '_update_port_bindings')
+        ) as (mock_check_ovs, mock_update_firewall, mock_firewall_refresh,
+              mock_update_port_bindings):
+            self.agent._check_for_updates()
+            self.assertTrue(mock_check_ovs.called)
+            self.assertFalse(mock_update_firewall.called)
+            self.assertTrue(mock_firewall_refresh.called)
+            self.assertTrue(mock_update_port_bindings.called)
+
     def test_report_state(self):
         with mock.patch.object(self.agent.state_rpc,
                                "report_state") as report_st:
