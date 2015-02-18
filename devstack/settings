@@ -1,0 +1,65 @@
+# Devstack settings
+
+# Each service you enable has the following meaning:
+#
+# ovsvapp-server - Add this config flag for ML2 changes in OpenStack
+#                  Controller for Neutron.
+#
+# ovsvapp-compute - Add this config flag for Nova VCDriver changes in
+#                   OpenStack ComputeNode for OVSvApp.
+#
+# ovsvapp-agent - Add this config flag for OVSvApp L2 Agent in OVSvApp VM.
+
+# An example of enabling all-in-one OVSvApp solution is below.
+# enable_service ovsvapp-server ovsvapp-compute ovsvapp-agent
+
+# This can be overridden in the localrc file
+OVSVAPP_MODE=${OVSVAPP_MODE:-allinone}
+
+# OVSVAPP_MODE is used to configure how devstack works with OVSvApp solution.
+# You can configure this in following ways:
+#
+# OVSVAPP_MODE=allinone
+# Use this mode if you want to run OVSvApp solution in Single Node deployment.
+#
+# OVSVAPP_MODE=server
+# Use this mode for the controller node of a multi-node devstack install.
+#
+# OVSVAPP_MODE=compute
+# Use this mode for the compute node of a multi-node devstack install.
+#
+# OVSVAPP_MODE=agent
+# Use this mode for the OVSvApp VM of a multi-node devstack install.
+#
+# OVSVAPP_MODE=manual
+# You're on your own here, and are enabling services outside the scope of
+# the OVSVAPP_MODE variable.
+
+# Set a few things up for Neutron here.
+# We are explicitly enabling the OVSvApp ML2 MechanismDriver here.
+# Note we are also enabling the logger driver, which is helpful for
+# debugging things on the Neutron side.
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovsvapp,logger
+
+# We have to disable the Neutron L2 agent. OVSvApp solution does not use the
+# Neutron L2 agent, instead uses a OVSvApp L2 Agent to program OVS on each
+# ESX host.
+disable_service q-agt
+
+case $OVSVAPP_MODE in
+    allinone)
+        enable_service ovsvapp-server ovsvapp-compute ovsvapp-agent
+        ;;
+    server)
+        enable_service ovsvapp-server
+        ;;
+    compute)
+        enable_service ovsvapp-compute
+        ;;
+    agent)
+        enable_service ovsvapp-agent
+        ;;
+    manual)
+        echo "Manual mode: Enabling services explicitly."
+        ;;
+esac
