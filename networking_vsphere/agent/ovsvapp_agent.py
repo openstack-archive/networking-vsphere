@@ -96,10 +96,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.veth_mtu = CONF.OVSVAPP.veth_mtu
         self.use_veth_interconnection = False
         self.agent_under_maintenance = CONF.OVSVAPP.agent_maintenance
-        self.root_helper = cfg.CONF.AGENT.root_helper
         self.enable_tunneling = False
-        self.int_br = ovs_lib.OVSBridge(CONF.OVSVAPP.integration_bridge,
-                                        self.root_helper)
+        self.int_br = ovs_lib.OVSBridge(CONF.OVSVAPP.integration_bridge)
         self.firewall_driver = CONF.OVSVAPP.firewall_driver
         if not self.agent_under_maintenance:
             self.setup_integration_br()
@@ -115,7 +113,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         defer_apply = CONF.SECURITYGROUP.defer_apply
         self.sg_agent = sgagent.OVSVAppSecurityGroupAgent(self.context,
                                                           self.plugin_rpc,
-                                                          self.root_helper,
                                                           defer_apply)
         self.setup_report_states()
 
@@ -138,7 +135,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         secbr_list = (CONF.SECURITYGROUP.security_bridge_mapping).split(':')
         secbr_name = secbr_list[0]
         secbr_phyname = secbr_list[1]
-        self.sec_br = ovs_lib.OVSBridge(secbr_name, self.root_helper)
+        self.sec_br = ovs_lib.OVSBridge(secbr_name)
         if not self.sec_br.bridge_exists(secbr_name):
             LOG.error(_("Security bridge does not exist. Terminating the"
                         " agent!"))
@@ -181,7 +178,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         secbr_list = (CONF.SECURITYGROUP.security_bridge_mapping).split(':')
         secbr_name = secbr_list[0]
         secbr_phyname = secbr_list[1]
-        self.sec_br = ovs_lib.OVSBridge(secbr_name, self.root_helper)
+        self.sec_br = ovs_lib.OVSBridge(secbr_name)
         if not self.sec_br.bridge_exists(secbr_name):
             LOG.error(_("Security bridge does not exist. Terminating the"
                         " agent!"))
@@ -220,7 +217,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                  in_port=self.patch_sec_ofport,
                                  actions="output:%s"
                                  % self.int_ofports[phys_net])
-            br = ovs_lib.OVSBridge(bridge, self.root_helper)
+            br = ovs_lib.OVSBridge(bridge)
             eth_name = bridge.split('-').pop()
             eth_ofport = br.get_port_ofport(eth_name)
             br.delete_flows(in_port=self.phys_ofports[phys_net])
@@ -260,7 +257,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.phys_brs = {}
         self.int_ofports = {}
         self.phys_ofports = {}
-        ovs_bridges = ovs_lib.get_bridges(self.root_helper)
+        ovs_bridges = ovs_lib.get_bridges()
         for phys_net, bridge in bridge_mappings.iteritems():
             LOG.info(_("Mapping physical network %(phys_net)s to "
                        "bridge %(bridge)s"), {'phys_net': phys_net,
@@ -272,7 +269,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             "the agent!"), {'phys_net': phys_net,
                                             'bridge': bridge})
                 raise SystemExit(1)
-            br = ovs_lib.OVSBridge(bridge, self.root_helper)
+            br = ovs_lib.OVSBridge(bridge)
             self.phys_brs[phys_net] = br
             # interconnect physical and integration bridges using veth/patch
             # ports

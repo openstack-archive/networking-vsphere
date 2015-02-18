@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.openstack.common import log as logging
 import time
@@ -26,10 +25,9 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
 
     This class is to override the default behavior of some methods.
     """
-    def __init__(self, context, plugin_rpc, root_helper, defer_apply):
+    def __init__(self, context, plugin_rpc, defer_apply):
         self.context = context
         self.plugin_rpc = plugin_rpc
-        self.root_helper = root_helper
         self.init_firewall(defer_apply)
         LOG.info(_("OVSVAppSecurityGroupAgent initialized"))
 

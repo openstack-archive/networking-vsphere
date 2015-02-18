@@ -58,7 +58,6 @@ class TestOVSVAppSecurityGroupAgent(base.TestCase):
             'firewall_driver',
             'networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver',
             group='SECURITYGROUP')
-        cfg.CONF.set_default('root_helper', 'sudo', 'AGENT')
         cfg.CONF.set_override('security_bridge_mapping',
                               "br-fake:fake_if", 'SECURITYGROUP')
         super(TestOVSVAppSecurityGroupAgent, self).setUp()
@@ -74,7 +73,7 @@ class TestOVSVAppSecurityGroupAgent(base.TestCase):
                            'get_port_ofport',
                            return_value=5)):
             self.agent = ovsvapp_sg_agent.OVSVAppSecurityGroupAgent(
-                self.context, self.plugin, 'sudo', True)
+                self.context, self.plugin, True)
         self.LOG = ovsvapp_sg_agent.LOG
 
     def test_add_devices_to_filter(self):

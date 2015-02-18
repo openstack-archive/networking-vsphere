@@ -18,7 +18,6 @@ import itertools
 import netaddr
 from oslo.config import cfg
 
-from neutron.agent.common import config
 from neutron.agent import firewall
 from neutron.agent.linux import ovs_lib
 from neutron.common import constants
@@ -61,14 +60,13 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
     def __init__(self):
         self.filtered_ports = {}
-        self.root_helper = config.get_root_helper(cfg.CONF)
         if sg_conf.security_bridge_mapping is None:
             LOG.debug("Security_bridge_mapping not configured")
             return
         secbr_list = (sg_conf.security_bridge_mapping).split(':')
         secbr_name = secbr_list[0]
         secbr_phyname = secbr_list[1]
-        self.sg_br = ovs_lib.OVSBridge(secbr_name, self.root_helper)
+        self.sg_br = ovs_lib.OVSBridge(secbr_name)
         self.phy_ofport = self.sg_br.get_port_ofport(secbr_phyname)
         self.patch_ofport = self.sg_br.get_port_ofport(
             l_consts.SEC_TO_INT_PATCH)

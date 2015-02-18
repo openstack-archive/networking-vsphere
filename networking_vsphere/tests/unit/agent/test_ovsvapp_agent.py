@@ -19,8 +19,6 @@ import time
 import mock
 
 import contextlib
-from neutron.agent.common import config
-from neutron.agent.linux import ovs_lib
 
 from oslo.config import cfg
 
@@ -30,6 +28,7 @@ from networking_vsphere.common import error
 from networking_vsphere.tests import base
 from networking_vsphere.tests.unit.drivers import fake_manager
 
+from neutron.agent.linux import ovs_lib
 from neutron.plugins.common import constants as p_const
 
 VNIC_ADDED = 'VNIC_ADDED'
@@ -82,7 +81,6 @@ class TestOVSvAppL2Agent(base.TestCase):
 
     def setUp(self):
         super(TestOVSvAppL2Agent, self).setUp()
-        config.register_root_helper(cfg.CONF)
         cfg.CONF.set_override('security_bridge_mapping',
                               "br-fake:fake_if", 'SECURITYGROUP')
         cfg.CONF.set_default(
