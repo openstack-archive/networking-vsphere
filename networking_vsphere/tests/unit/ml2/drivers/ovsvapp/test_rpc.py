@@ -17,6 +17,7 @@ import collections
 import contextlib
 
 import mock
+from oslo_config import cfg
 
 from neutron.common import topics
 from neutron.extensions import portbindings
@@ -25,6 +26,8 @@ from neutron.tests.unit.ml2 import test_rpcapi
 from networking_vsphere.agent import ovsvapp_agent
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.plugins.ml2.drivers.ovsvapp import rpc
+
+cfg.CONF.import_group('ml2', 'neutron.plugins.ml2.config')
 
 
 class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
