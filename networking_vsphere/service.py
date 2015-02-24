@@ -37,6 +37,7 @@ def main():
         logging.setup("neutron")
         LOG.debug("Logging setup complete")
         LOG.info(_("Loading agent %s"), cfg.CONF.OVSVAPP.agent_driver)
+        global agent_obj
         agent_obj = utils.load_object(cfg.CONF.OVSVAPP.agent_driver,
                                       agent.Agent)
         agent_obj.start()
