@@ -15,8 +15,8 @@
 
 import time
 
-from oslo.vmware import api
-from oslo.vmware import vim
+from oslo_vmware import api
+from oslo_vmware import vim
 
 from neutron.openstack.common import log as logging
 

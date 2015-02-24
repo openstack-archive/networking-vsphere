@@ -16,7 +16,7 @@
 import os
 import tempfile
 
-from oslo.config import cfg
+from oslo_config import cfg
 
 from networking_vsphere.common import config
 from networking_vsphere.tests import base

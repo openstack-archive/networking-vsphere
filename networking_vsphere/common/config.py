@@ -15,7 +15,7 @@
 
 import shutil
 
-from oslo.config import cfg
+from oslo_config import cfg
 
 # vCenter server and ESX host related config read from ovsvapp_agent.ini
 VMWARE_OPTS = [

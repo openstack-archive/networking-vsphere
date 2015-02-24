@@ -16,7 +16,7 @@
 import copy
 
 import mock
-from oslo.config import cfg
+from oslo_config import cfg
 
 import contextlib
 from neutron.agent.common import config

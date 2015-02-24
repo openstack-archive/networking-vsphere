@@ -16,7 +16,7 @@
 import itertools
 
 import netaddr
-from oslo.config import cfg
+from oslo_config import cfg
 
 from neutron.agent import firewall
 from neutron.agent.linux import ovs_lib
