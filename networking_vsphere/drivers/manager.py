@@ -25,8 +25,6 @@ from networking_vsphere.utils import vim_session
 
 LOG = logging.getLogger(__name__)
 
-cfg.CONF.import_group('VMWARE', 'networking_vsphere.common.config')
-
 
 class VcenterManager(base_manager.DriverManager):
 
