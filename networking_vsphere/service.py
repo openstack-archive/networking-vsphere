@@ -22,10 +22,7 @@ from oslo_config import cfg
 from neutron.openstack.common import log as logging
 
 from networking_vsphere.agent import agent
-from networking_vsphere.common import config
 from networking_vsphere.common import utils
-
-cfg.CONF.import_group('OVSVAPP', 'networking_vsphere.common.config')
 
 LOG = logging.getLogger(__name__)
 
@@ -36,9 +33,6 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     eventlet.monkey_patch()
-    config.parse(sys.argv[1:])
-    if not cfg.CONF.config_file:
-        sys.exit(_("ERROR: Unable to find configuration file"))
     try:
         logging.setup("neutron")
         LOG.debug("Logging setup complete")
