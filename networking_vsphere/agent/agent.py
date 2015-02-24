@@ -22,8 +22,6 @@ from networking_vsphere.common import utils
 from networking_vsphere.drivers import base_manager as manager
 from networking_vsphere.drivers import driver
 
-cfg.CONF.import_group('OVSVAPP', 'networking_vsphere.common.config')
-
 LOG = logging.getLogger(__name__)
 
 
