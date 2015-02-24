@@ -16,8 +16,8 @@
 import contextlib
 
 import mock
-from oslo.vmware import api
-from oslo.vmware import vim
+from oslo_vmware import api
+from oslo_vmware import vim
 
 from networking_vsphere.tests import base
 from networking_vsphere.utils import vim_session

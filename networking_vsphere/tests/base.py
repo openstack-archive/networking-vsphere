@@ -18,7 +18,7 @@ import logging
 import eventlet
 import fixtures
 import mock
-from oslo.config import cfg
+from oslo_config import cfg
 from oslotest import base
 
 CONF = cfg.CONF

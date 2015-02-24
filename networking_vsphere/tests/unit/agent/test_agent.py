@@ -16,7 +16,7 @@
 import contextlib
 
 import mock
-from oslo.config import cfg
+from oslo_config import cfg
 
 from networking_vsphere.agent import agent
 from networking_vsphere.common import constants

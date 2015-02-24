@@ -20,7 +20,7 @@ import mock
 
 import contextlib
 
-from oslo.config import cfg
+from oslo_config import cfg
 
 from networking_vsphere.agent import ovsvapp_agent
 from networking_vsphere.common import constants as ovsvapp_const

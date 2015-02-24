@@ -15,7 +15,7 @@
 
 import time
 
-from oslo import messaging
+import oslo_messaging
 
 from networking_vsphere.common import constants as ovsvapp_const
 
@@ -36,7 +36,7 @@ class OVSvAppServerRpcCallback(object):
     This class contains extra rpc callbacks to be served for use by the
     OVSvApp Agent.
     """
-    target = messaging.Target(version='1.0')
+    target = oslo_messaging.Target(version='1.0')
 
     def __init__(self, notifier=None):
         super(OVSvAppServerRpcCallback, self).__init__()
@@ -136,7 +136,7 @@ class OVSvAppAgentNotifyAPI(object):
     """Agent side of the OVSvApp rpc API."""
 
     def __init__(self, topic=topics.AGENT):
-        target = messaging.Target(topic=topic, version='1.0')
+        target = oslo_messaging.Target(topic=topic, version='1.0')
         self.client = n_rpc.get_client(target)
         self.topic = topic
 

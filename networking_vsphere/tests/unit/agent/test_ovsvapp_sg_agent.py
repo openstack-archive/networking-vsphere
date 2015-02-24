@@ -16,7 +16,7 @@
 import contextlib
 
 import mock
-from oslo.config import cfg
+from oslo_config import cfg
 
 from neutron.agent import securitygroups_rpc
 from neutron.openstack.common import uuidutils

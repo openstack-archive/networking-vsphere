@@ -18,8 +18,8 @@ import threading
 import time
 
 import eventlet
-from oslo.config import cfg
-from oslo import messaging
+from oslo_config import cfg
+import oslo_messaging
 
 from neutron.agent.linux import ovs_lib
 from neutron.agent import rpc as agent_rpc
@@ -925,7 +925,7 @@ class RpcPluginApi(agent_rpc.PluginApi,
 class OVSvAppPluginApi(object):
 
     def __init__(self, topic):
-        target = messaging.Target(topic=topic, version='1.0')
+        target = oslo_messaging.Target(topic=topic, version='1.0')
         self.client = n_rpc.get_client(target)
 
     def get_ports_for_device(self, context, device, agent_id):

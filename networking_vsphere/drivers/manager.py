@@ -15,7 +15,7 @@
 
 import eventlet
 import greenlet
-from oslo.config import cfg
+from oslo_config import cfg
 
 from neutron.openstack.common import log as logging
 

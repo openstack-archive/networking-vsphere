@@ -14,7 +14,7 @@
 #    under the License.
 
 from eventlet import greenthread
-from oslo.config import cfg
+from oslo_config import cfg
 
 from neutron.openstack.common import log as logging
 
