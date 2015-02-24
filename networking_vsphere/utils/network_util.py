@@ -24,8 +24,6 @@ from networking_vsphere.utils import error_util
 from networking_vsphere.utils import resource_util
 from networking_vsphere.utils import vim_util
 
-cfg.CONF.import_group('VMWARE', 'networking_vsphere.common.config')
-
 LOG = logging.getLogger(__name__)
 
 
