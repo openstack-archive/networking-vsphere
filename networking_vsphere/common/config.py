@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import shutil
-
 from oslo_config import cfg
 
 # vCenter server and ESX host related config read from ovsvapp_agent.ini
@@ -94,17 +92,8 @@ SECURITYGROUP_OPTS = [
                 help=_('Enable defer_apply on security bridge')),
 ]
 
-cfg.CONF.register_opts(VMWARE_OPTS, "VMWARE")
-cfg.CONF.register_opts(OVSVAPP_OPTS, "OVSVAPP")
-cfg.CONF.register_opts(SECURITYGROUP_OPTS, "SECURITYGROUP")
-CONF = cfg.CONF
 
-
-def parse(args):
-    cfg.CONF(args=args, project='neutron',
-             default_config_files=["/etc/neutron/plugins/ovsvapp/"
-                                   "ovsvapp_agent.ini"])
-
-
-def remove_config_file(temp_dir):
-    shutil.rmtree(temp_dir)
+def register_options():
+    cfg.CONF.register_opts(VMWARE_OPTS, "VMWARE")
+    cfg.CONF.register_opts(OVSVAPP_OPTS, "OVSVAPP")
+    cfg.CONF.register_opts(SECURITYGROUP_OPTS, "SECURITYGROUP")

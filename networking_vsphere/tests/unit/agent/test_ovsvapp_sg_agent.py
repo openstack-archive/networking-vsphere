@@ -52,6 +52,7 @@ class FakePlugin(securitygroups_rpc.SecurityGroupServerRpcApi):
 class TestOVSVAppSecurityGroupAgent(base.TestCase):
 
     def setUp(self):
+        super(TestOVSVAppSecurityGroupAgent, self).setUp()
         self.context = mock.Mock()
         self.plugin = FakePlugin('fake_topic')
         cfg.CONF.set_default(
@@ -60,7 +61,6 @@ class TestOVSVAppSecurityGroupAgent(base.TestCase):
             group='SECURITYGROUP')
         cfg.CONF.set_override('security_bridge_mapping',
                               "br-fake:fake_if", 'SECURITYGROUP')
-        super(TestOVSVAppSecurityGroupAgent, self).setUp()
         with contextlib.nested(
                 mock.patch('networking_vsphere.drivers.'
                            'ovs_firewall.OVSFirewallDriver.'

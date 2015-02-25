@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import sys
 import threading
 import time
 
@@ -24,7 +23,6 @@ import oslo_messaging
 from neutron.agent.linux import ovs_lib
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
-from neutron.common import config as neutron_config
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.common import utils as n_utils
@@ -70,8 +68,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def __init__(self):
         agent.Agent.__init__(self)
-        neutron_config.init(sys.argv[1:])
-        neutron_config.setup_logging()
         self.esx_hostname = CONF.VMWARE.esx_hostname
         self.cluster_id = None
         self.ports_dict = {}
