@@ -28,6 +28,10 @@ LOG = logging.getLogger(__name__)
 
 agent_obj = None
 
+cfg.CONF.import_group('OVSVAPP', 'networking_vsphere.common.config')
+cfg.CONF.import_group('VMWARE', 'networking_vsphere.common.config')
+cfg.CONF.import_group('SECURITYGROUP', 'networking_vsphere.common.config')
+
 
 def main():
     signal.signal(signal.SIGTERM, signal_handler)
