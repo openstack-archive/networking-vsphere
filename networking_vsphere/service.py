@@ -19,9 +19,11 @@ import sys
 import eventlet
 from oslo_config import cfg
 
+from neutron.common import config as neutron_config
 from neutron.openstack.common import log as logging
 
 from networking_vsphere.agent import agent
+from networking_vsphere.common import config as ovsvapp_config
 from networking_vsphere.common import utils
 
 LOG = logging.getLogger(__name__)
@@ -34,10 +36,12 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     eventlet.monkey_patch()
     try:
-        logging.setup("neutron")
-        LOG.debug("Logging setup complete")
-        LOG.info(_("Loading agent %s"), cfg.CONF.OVSVAPP.agent_driver)
         global agent_obj
+        neutron_config.init(sys.argv[1:])
+        neutron_config.setup_logging()
+        LOG.debug("Logging setup complete")
+        ovsvapp_config.register_options()
+        LOG.info(_("Loading agent %s"), cfg.CONF.OVSVAPP.agent_driver)
         agent_obj = utils.load_object(cfg.CONF.OVSVAPP.agent_driver,
                                       agent.Agent)
         agent_obj.start()

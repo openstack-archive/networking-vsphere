@@ -21,6 +21,8 @@ import mock
 from oslo_config import cfg
 from oslotest import base
 
+from networking_vsphere.common import config as ovsvapp_config
+
 CONF = cfg.CONF
 eventlet.monkey_patch()
 
@@ -32,6 +34,7 @@ class TestCase(base.BaseTestCase):
     def setUp(self):
         """Run before each test method to initialize test environment."""
         super(base.BaseTestCase, self).setUp()
+        ovsvapp_config.register_options()
         self.mock = mock.Mock()
         self.logger = self.useFixture(fixtures.FakeLogger(name="neutron",
                                                           level=logging.INFO
