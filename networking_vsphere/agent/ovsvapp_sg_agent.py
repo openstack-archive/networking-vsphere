@@ -13,6 +13,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_config import cfg
+from oslo_utils import importutils
+
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.openstack.common import log as logging
 import time
@@ -30,6 +33,22 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self.plugin_rpc = plugin_rpc
         self.init_firewall(defer_apply)
         LOG.info(_("OVSVAppSecurityGroupAgent initialized"))
+
+    def init_firewall(self, defer_refresh_firewall=False):
+        firewall_driver = cfg.CONF.SECURITYGROUP.ovsvapp_firewall_driver
+        LOG.debug("Init firewall settings (driver=%s)", firewall_driver)
+        if not firewall_driver:
+            firewall_driver = 'neutron.agent.firewall.NoopFirewallDriver'
+        self.firewall = importutils.import_object(firewall_driver)
+        # The following flag will be set to true if port filter must not be
+        # applied as soon as a rule or membership notification is received
+        self.defer_refresh_firewall = defer_refresh_firewall
+        # Stores devices for which firewall should be refreshed when
+        # deferred refresh is enabled.
+        self.devices_to_refilter = set()
+        # Flag raised when a global refresh is needed
+        self.global_refresh_firewall = False
+        self._use_enhanced_rpc = None
 
     def add_devices_to_filter(self, devices):
         if not devices:

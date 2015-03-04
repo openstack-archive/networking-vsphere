@@ -51,7 +51,7 @@ class TestOVSFirewallDriver(base.TestCase):
         cfg.CONF.set_override('security_bridge_mapping',
                               "br-fake:fake_if", 'SECURITYGROUP')
         with contextlib.nested(
-            # mock.patch('networking_vsphere.agent.portCache'),
+                mock.patch('networking_vsphere.agent.ovsvapp_agent.portCache'),
                 mock.patch('networking_vsphere.drivers.'
                            'ovs_firewall.OVSFirewallDriver.'
                            'setup_base_flows'),

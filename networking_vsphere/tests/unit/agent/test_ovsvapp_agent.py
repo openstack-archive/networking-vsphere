@@ -84,7 +84,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         cfg.CONF.set_override('security_bridge_mapping',
                               "br-fake:fake_if", 'SECURITYGROUP')
         cfg.CONF.set_default(
-            'firewall_driver',
+            'ovsvapp_firewall_driver',
             'networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver',
             group='SECURITYGROUP')
         with contextlib.nested(

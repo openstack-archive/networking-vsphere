@@ -23,10 +23,9 @@ from neutron.agent.linux import ovs_lib
 from neutron.common import constants
 from neutron.openstack.common import log as logging
 
-# TODO(sudhakar-gariganti) un-comment the below code when
-# the dependent code is added
-# from networking_vsphere.agent import ovsvapp_agent
-from networking_vsphere.common import constants as l_consts
+
+from networking_vsphere.agent import ovsvapp_agent
+from networking_vsphere.common import constants as ovsvapp_const
 
 LOG = logging.getLogger(__name__)
 
@@ -69,12 +68,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self.sg_br = ovs_lib.OVSBridge(secbr_name)
         self.phy_ofport = self.sg_br.get_port_ofport(secbr_phyname)
         self.patch_ofport = self.sg_br.get_port_ofport(
-            l_consts.SEC_TO_INT_PATCH)
-        # TODO(sudhakar-gariganti) un-comment the below code when
-        # ovsvapp_agent has the code enabled
-        # self.portCache = ovsvapp_agent.portCache()
-        # Setting portCache to None for now
-        self.portCache = None
+            ovsvapp_const.SEC_TO_INT_PATCH)
+        self.portCache = ovsvapp_agent.portCache()
         self._defer_apply = False
         if not cfg.CONF.OVSVAPP.agent_maintenance:
             self.setup_base_flows()
@@ -118,16 +113,16 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             sg_br.add_flow(table=table_id, priority=pri, actions=action)
 
     def _add_icmp_learn_flow(self, sec_br, reqType, resType,
-                             pri=l_consts.SG_TP_PRI):
+                             pri=ovsvapp_const.SG_TP_PRI):
         sec_br.add_flow(priority=pri,
-                        table=l_consts.SG_ICMP_TABLE_ID,
+                        table=ovsvapp_const.SG_ICMP_TABLE_ID,
                         proto=constants.PROTO_NAME_ICMP,
                         icmp_type=reqType,
                         actions="learn(%s)" %
                         self._get_icmp_learn_flow(resType))
 
     def _get_icmp_learn_flow(self, resType):
-        if resType is l_consts.ICMP_DEST_UNREACH:
+        if resType is ovsvapp_const.ICMP_DEST_UNREACH:
             ip_str = ""
         else:
             ip_str = "NXM_OF_IP_SRC[]=NXM_OF_IP_DST[],"
@@ -141,21 +136,21 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 "%s"
                 "NXM_OF_IP_DST[]=NXM_OF_IP_SRC[],"
                 "output:NXM_OF_IN_PORT[]" %
-                (l_consts.SG_LEARN_TABLE_ID,
-                 l_consts.SG_TP_PRI,
+                (ovsvapp_const.SG_LEARN_TABLE_ID,
+                 ovsvapp_const.SG_TP_PRI,
                  constants.PROTO_NUM_ICMP,
                  resType, ip_str))
 
     def _setup_icmp_learn_flows(self, sec_br):
         # ICMP Learned flows
-        self._add_icmp_learn_flow(sec_br, l_consts.ICMP_ECHO_REQ,
-                                  l_consts.ICMP_ECHO_REP)
-        self._add_icmp_learn_flow(sec_br, l_consts.ICMP_TS_REQ,
-                                  l_consts.ICMP_TS_REP)
-        self._add_icmp_learn_flow(sec_br, l_consts.ICMP_INFO_REQ,
-                                  l_consts.ICMP_INFO_REP)
-        self._add_icmp_learn_flow(sec_br, l_consts.ICMP_AM_REQ,
-                                  l_consts.ICMP_AM_REP)
+        self._add_icmp_learn_flow(sec_br, ovsvapp_const.ICMP_ECHO_REQ,
+                                  ovsvapp_const.ICMP_ECHO_REP)
+        self._add_icmp_learn_flow(sec_br, ovsvapp_const.ICMP_TS_REQ,
+                                  ovsvapp_const.ICMP_TS_REP)
+        self._add_icmp_learn_flow(sec_br, ovsvapp_const.ICMP_INFO_REQ,
+                                  ovsvapp_const.ICMP_INFO_REP)
+        self._add_icmp_learn_flow(sec_br, ovsvapp_const.ICMP_AM_REQ,
+                                  ovsvapp_const.ICMP_AM_REP)
 
     def _setup_learning_flows(self, sec_br):
         """Helper method for adding learning flows
@@ -166,11 +161,11 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         TCP/UDP/ICMP
         """
         # First we chain the tables
-        self._add_ovs_flow(sec_br, l_consts.SG_DEFAULT_PRI,
-                           l_consts.SG_ICMP_TABLE_ID, "drop")
+        self._add_ovs_flow(sec_br, ovsvapp_const.SG_DEFAULT_PRI,
+                           ovsvapp_const.SG_ICMP_TABLE_ID, "drop")
         # If DMAC is bcast or mcast, don't learn
-        self._add_ovs_flow(sec_br, l_consts.SG_DROP_HIGH_PRI,
-                           l_consts.SG_IP_TABLE_ID, "drop",
+        self._add_ovs_flow(sec_br, ovsvapp_const.SG_DROP_HIGH_PRI,
+                           ovsvapp_const.SG_IP_TABLE_ID, "drop",
                            dl_dest="01:00:00:00:00:00/01:00:00:00:00:00")
 
         # Now we add learning flows one for TCP and another for UDP
@@ -188,11 +183,11 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                             "NXM_OF_TCP_SRC[]=NXM_OF_TCP_DST[],"
                             "NXM_OF_TCP_DST[]=NXM_OF_TCP_SRC[],"
                             "output:NXM_OF_IN_PORT[]" %
-                            (l_consts.SG_LEARN_TABLE_ID,
-                             l_consts.SG_TP_PRI,
+                            (ovsvapp_const.SG_LEARN_TABLE_ID,
+                             ovsvapp_const.SG_TP_PRI,
                              constants.PROTO_NUM_TCP))
-        self._add_ovs_flow(sec_br, l_consts.SG_TP_PRI,
-                           l_consts.SG_TCP_TABLE_ID,
+        self._add_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
+                           ovsvapp_const.SG_TCP_TABLE_ID,
                            "learn(%s)" % learned_tcp_flow,
                            protocol=constants.PROTO_NAME_TCP)
 
@@ -209,11 +204,11 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                             "NXM_OF_UDP_SRC[]=NXM_OF_UDP_DST[],"
                             "NXM_OF_UDP_DST[]=NXM_OF_UDP_SRC[],"
                             "output:NXM_OF_IN_PORT[]" %
-                            (l_consts.SG_LEARN_TABLE_ID,
-                             l_consts.SG_TP_PRI,
+                            (ovsvapp_const.SG_LEARN_TABLE_ID,
+                             ovsvapp_const.SG_TP_PRI,
                              constants.PROTO_NUM_UDP))
-        self._add_ovs_flow(sec_br, l_consts.SG_TP_PRI,
-                           l_consts.SG_UDP_TABLE_ID,
+        self._add_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
+                           ovsvapp_const.SG_UDP_TABLE_ID,
                            "learn(%s)" % learned_udp_flow,
                            protocol=constants.PROTO_NAME_UDP)
         # Now setup the ICMP learn flows.
@@ -228,46 +223,47 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         try:
             with self.sg_br.deferred(full_ordered=True, order=(
                 'del', 'mod', 'add')) as sec_br:
-                self._add_ovs_flow(sec_br, l_consts.SG_DEFAULT_PRI,
-                                   l_consts.SG_DEFAULT_TABLE_ID,
+                self._add_ovs_flow(sec_br, ovsvapp_const.SG_DEFAULT_PRI,
+                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                    "resubmit(,%s)" %
-                                   l_consts.SG_LEARN_TABLE_ID)
-                self._add_ovs_flow(sec_br, l_consts.SG_DROPALL_PRI,
-                                   l_consts.SG_LEARN_TABLE_ID, "drop")
+                                   ovsvapp_const.SG_LEARN_TABLE_ID)
+                self._add_ovs_flow(sec_br, ovsvapp_const.SG_DROPALL_PRI,
+                                   ovsvapp_const.SG_LEARN_TABLE_ID, "drop")
                 # Allow all ARP, parity with iptables
-                self._add_ovs_flow(sec_br, l_consts.SG_RULES_PRI,
-                                   l_consts.SG_DEFAULT_TABLE_ID,
+                self._add_ovs_flow(sec_br, ovsvapp_const.SG_RULES_PRI,
+                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                    "normal", protocol="arp")
                 # Allow all RARP, parity with iptables
-                self._add_ovs_flow(sec_br, l_consts.SG_RULES_PRI,
-                                   l_consts.SG_DEFAULT_TABLE_ID,
+                self._add_ovs_flow(sec_br, ovsvapp_const.SG_RULES_PRI,
+                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                    "normal", protocol="rarp")
                 # Rule to allow VMs to send DHCP requests (udp)
-                sec_br.add_flow(priority=l_consts.SG_RULES_PRI,
-                                table=l_consts.SG_DEFAULT_TABLE_ID,
+                sec_br.add_flow(priority=ovsvapp_const.SG_RULES_PRI,
+                                table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                 proto="udp", tp_src="68", tp_dst="67",
                                 actions="normal")
                 # Always allow ICMP DestUnreach
-                self._add_ovs_flow(sec_br, l_consts.SG_TP_PRI,
-                                   l_consts.SG_DEFAULT_TABLE_ID,
-                                   "normal",
-                                   icmp_req_type=l_consts.ICMP_DEST_UNREACH)
+                self._add_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
+                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                                   "normal", icmp_req_type=ovsvapp_const.
+                                   ICMP_DEST_UNREACH)
 
                 # Always allow ICMP TTL Exceeded
-                self._add_ovs_flow(sec_br, l_consts.SG_TP_PRI,
-                                   l_consts.SG_DEFAULT_TABLE_ID, "normal",
-                                   icmp_req_type=l_consts.ICMP_TIME_EXCEEDED)
+                self._add_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
+                                   ovsvapp_const.SG_DEFAULT_TABLE_ID, "normal",
+                                   icmp_req_type=ovsvapp_const.
+                                   ICMP_TIME_EXCEEDED)
                 # Always resubmit FIN pkts to learn table
-                self._add_ovs_flow(sec_br, l_consts.SG_TCP_FLAG_PRI,
-                                   l_consts.SG_DEFAULT_TABLE_ID,
+                self._add_ovs_flow(sec_br, ovsvapp_const.SG_TCP_FLAG_PRI,
+                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                    "resubmit(,%s),normal" %
-                                   l_consts.SG_LEARN_TABLE_ID,
+                                   ovsvapp_const.SG_LEARN_TABLE_ID,
                                    tcp_flag='+fin')
                 # Always resubmit RST pkts to learn table
-                self._add_ovs_flow(sec_br, l_consts.SG_TCP_FLAG_PRI,
-                                   l_consts.SG_DEFAULT_TABLE_ID,
+                self._add_ovs_flow(sec_br, ovsvapp_const.SG_TCP_FLAG_PRI,
+                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                    "resubmit(,%s),normal" %
-                                   l_consts.SG_LEARN_TABLE_ID,
+                                   ovsvapp_const.SG_LEARN_TABLE_ID,
                                    tcp_flag='+rst')
                 self._setup_learning_flows(sec_br)
 
@@ -280,11 +276,11 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             self.filtered_ports[port['id']] = self._get_compact_port(port)
 
     def _get_port_vlan(self, port_id):
-        port = self.filtered_ports.get(port_id)
-        if port:
-            # TODO(sudhakar-gariganti) Update this code to
-            # be compatible for vxlan
-            return port['segmentation_id']
+        if port_id:
+            port = self.filtered_ports.get(port_id)
+            LOG.debug("Filtered port %s", port)
+            if port:
+                return self.portCache.getPortVlan(port_id)
 
     def _setup_aap_flows(self, sec_br, port):
         """Method to help setup rules for allowed address pairs."""
@@ -298,8 +294,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     ap_proto = "ip"
                 else:
                     ap_proto = "ipv6"
-                sec_br.add_flow(priority=l_consts.SG_RULES_PRI,
-                                table=l_consts.SG_DEFAULT_TABLE_ID,
+                sec_br.add_flow(priority=ovsvapp_const.SG_RULES_PRI,
+                                table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                 cookie=self.get_cookie(port['id']),
                                 dl_dst=port["mac_address"],
                                 in_port=self.patch_ofport,
@@ -308,7 +304,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                                 proto=ap_proto,
                                 nw_src=addr_pair["ip_address"],
                                 actions="resubmit(,%s),output:%s" %
-                                (l_consts.SG_IP_TABLE_ID, self.phy_ofport))
+                                (ovsvapp_const.SG_IP_TABLE_ID,
+                                 self.phy_ofport))
 
     def _get_net_prefix_len(self, ip_prefix):
         if ip_prefix:
@@ -370,8 +367,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             ethertype = rule.get('ethertype')
             src_ip_prefix = rule.get('source_ip_prefix')
             dest_ip_prefix = rule.get('dest_ip_prefix')
-            flow = dict(priority=l_consts.SG_RULES_PRI)
-            flow["table"] = l_consts.SG_DEFAULT_TABLE_ID
+            flow = dict(priority=ovsvapp_const.SG_RULES_PRI)
+            flow["table"] = ovsvapp_const.SG_DEFAULT_TABLE_ID
             # Using port id as cookie
             flow["cookie"] = self.get_cookie(port['id'])
             flow["dl_vlan"] = vlan
@@ -401,11 +398,11 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                            constants.PROTO_NAME_UDP])
             table_id = None
             if protocol in tcp_udp:
-                flow["priority"] = l_consts.SG_TP_PRI
+                flow["priority"] = ovsvapp_const.SG_TP_PRI
                 if protocol == constants.PROTO_NAME_TCP:
-                    table_id = l_consts.SG_TCP_TABLE_ID
+                    table_id = ovsvapp_const.SG_TCP_TABLE_ID
                 else:
-                    table_id = l_consts.SG_UDP_TABLE_ID
+                    table_id = ovsvapp_const.SG_UDP_TABLE_ID
                 flow["actions"] = ("resubmit(,%s),%s" % (table_id, action))
                 self._add_flow_with_range(sec_br, flow, pr_min, pr_max,
                                           spr_min, spr_max)
@@ -413,14 +410,14 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 # we just proceed to the next sg rule
                 continue
             elif protocol == constants.PROTO_NAME_ICMP:
-                flow["priority"] = l_consts.SG_TP_PRI
+                flow["priority"] = ovsvapp_const.SG_TP_PRI
                 if pr_min is not None:
                     flow["icmp_type"] = pr_min
                 if pr_max is not None:
                     flow["icmp_code"] = pr_max
-                table_id = l_consts.SG_ICMP_TABLE_ID
+                table_id = ovsvapp_const.SG_ICMP_TABLE_ID
             else:
-                table_id = l_consts.SG_IP_TABLE_ID
+                table_id = ovsvapp_const.SG_IP_TABLE_ID
 
             flow["actions"] = ("resubmit(,%s),%s" % (table_id, action))
             sec_br.add_flow(**flow)
@@ -450,16 +447,16 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 LOG.debug("Invalid mac address or vlan for port"
                           " %s. Returning from _remove_flows ", port_id)
                 return
-            sec_br.delete_flows(table=l_consts.SG_LEARN_TABLE_ID,
+            sec_br.delete_flows(table=ovsvapp_const.SG_LEARN_TABLE_ID,
                                 dl_src=port['mac_address'],
                                 vlan_tci="0x%04x/0x0fff" % vlan)
-            sec_br.delete_flows(table=l_consts.SG_LEARN_TABLE_ID,
+            sec_br.delete_flows(table=ovsvapp_const.SG_LEARN_TABLE_ID,
                                 dl_dst=port['mac_address'],
                                 vlan_tci="0x%04x/0x0fff" % vlan)
-            sec_br.delete_flows(table=l_consts.SG_DEFAULT_TABLE_ID,
+            sec_br.delete_flows(table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                 dl_src=port['mac_address'],
                                 vlan_tci="0x%04x/0x0fff" % vlan)
-            sec_br.delete_flows(table=l_consts.SG_DEFAULT_TABLE_ID,
+            sec_br.delete_flows(table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                 dl_dst=port['mac_address'],
                                 vlan_tci="0x%04x/0x0fff" % vlan)
         except Exception:
