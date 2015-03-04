@@ -17,6 +17,7 @@ import signal
 import sys
 
 import eventlet
+eventlet.monkey_patch()
 from oslo_config import cfg
 
 from neutron.common import config as neutron_config
@@ -34,7 +35,6 @@ agent_obj = None
 def main():
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
-    eventlet.monkey_patch()
     try:
         global agent_obj
         neutron_config.init(sys.argv[1:])

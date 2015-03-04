@@ -74,12 +74,7 @@ OVSVAPP_OPTS = [
                help=_('MTU size of veth interfaces')),
     cfg.BoolOpt('agent_maintenance', default=False,
                 help=_('Turn on this flag during agent updates to help '
-                       'prevent datapath outage')),
-    cfg.StrOpt('firewall_driver',
-               help=_("DriverManager implementation for "
-                      "OVS based Firewall"),
-               default=_("networking_sphere.drivers.ovs_firewall."
-                         "OVSFirewallDriver"))
+                       'prevent datapath outage'))
 ]
 
 # OVSvApp Security Group related config read from ovsvapp_agent.ini
@@ -90,6 +85,11 @@ SECURITYGROUP_OPTS = [
     cfg.BoolOpt('defer_apply',
                 default=True,
                 help=_('Enable defer_apply on security bridge')),
+    cfg.StrOpt('ovsvapp_firewall_driver',
+               help=_("DriverManager implementation for "
+                      "OVS based Firewall"),
+               default=_("networking_sphere.drivers.ovs_firewall."
+                         "OVSFirewallDriver"))
 ]
 
 
