@@ -50,7 +50,7 @@ class ConnectionHandler:
         cls.https_port = https_port
         cls.stopped = False
         cls.create_session = True
-        cls.ca_cert = True
+        cls.ca_cert = False
 
     @classmethod
     def stop(cls):
