@@ -95,7 +95,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.agent_under_maintenance = CONF.OVSVAPP.agent_maintenance
         self.enable_tunneling = False
         self.int_br = ovs_lib.OVSBridge(CONF.OVSVAPP.integration_bridge)
-        self.firewall_driver = CONF.OVSVAPP.firewall_driver
+        self.firewall_driver = CONF.SECURITYGROUP.ovsvapp_firewall_driver
         if not self.agent_under_maintenance:
             self.setup_integration_br()
             LOG.info(_("Integration bridge successfully setup"))
@@ -433,7 +433,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
     def start(self):
         LOG.info(_("Starting OVSvApp L2 Agent"))
         self.set_node_state(True)
-        eventlet.spawn(self.check_for_updates)
+        t = eventlet.spawn(self.check_for_updates)
+        t.wait()
 
     def stop(self):
         LOG.info(_("Stopping OVSvApp L2 Agent"))
@@ -909,6 +910,15 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                               new_port['id'])
                 raise error.OVSvAppNeutronAgentError(e)
             LOG.info(_("OVSvApp Agent - port update finished"))
+
+
+class portCache(OVSvAppL2Agent):
+    def __init__(self):
+        pass
+
+    def getPortVlan(self, portid):
+        if portid in self.ports_dict:
+            return self.ports_dict[portid].vlanid
 
 
 class RpcPluginApi(agent_rpc.PluginApi,

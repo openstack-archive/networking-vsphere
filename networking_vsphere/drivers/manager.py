@@ -122,7 +122,7 @@ class VcenterManager(base_manager.DriverManager):
     def start(self):
         """Start the driver event monitoring."""
         if self.driver:
-            eventlet.spawn_n(self.driver.monitor_events)
+            self.driver.monitor_events()
 
     def pause(self):
         """Pause the driver."""
