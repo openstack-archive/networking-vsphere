@@ -11,52 +11,62 @@
      enable_plugin networking-vsphere http://git.openstack.org/stackforge/networking-vsphere
 
 
-3. Add the following required flags in local.conf to enable the OVSvApp L2 Agent::
+3. Add the following required flag in local.conf to enable the OVSvApp ML2 MechanismDriver::
 
-     Provide IP address for vCenter.
+     Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovsvapp
+
+
+4. Add the following required flags in local.conf to enable the OVSvApp L2 Agent::
+
+     # Provide IP address for vCenter.
      OVSVAPP_VCENTER_IP=$vCenter_ip_address
 
-     Provide vCenter Credentials.
+     # Provide vCenter Credentials.
      OVSVAPP_VCENTER_USERNAME=$vCenter_user_name
      OVSVAPP_VCENTER_PASSWORD=$vCenter_password
 
-     Provide ESX host name or IP address where OVSvApp VM is hosted.
+     # Provide ESX host name or IP address where OVSvApp VM is hosted.
      OVSVAPP_ESX_HOSTNAME=$esx_hostname
 
-     Provide Cluster to DVS/vDS mapping.
+     # Provide Cluster to DVS/vDS mapping.
      OVSVAPP_CLUSTER_DVS_MAPPING=
-     For Example:
-     OVSVAPP_CLUSTER_DVS_MAPPING=DatacenterName/host/ClusterName:vDSName
+     # For Example:
+     # OVSVAPP_CLUSTER_DVS_MAPPING=DatacenterName/host/ClusterName:vDSName
 
-     Provide Physical Bridge name.
+     # Provide Physical Bridge name.
      OVSVAPP_PHYSICAL_BRIDGE=
-     For Example:
-     OVSVAPP_PHYSICAL_BRIDGE=br-ethx
+     # For Example:
+     # OVSVAPP_PHYSICAL_BRIDGE=br-ethx
 
-     Provide Physical Interface to add port to Physical Bridge.
+     # Provide Physical Interface to add port to Physical Bridge.
      OVSVAPP_PHYSICAL_INTERFACE=
-     For Example:
-     OVSVAPP_PHYSICAL_INTERFACE=ethx
+     # For Example:
+     # OVSVAPP_PHYSICAL_INTERFACE=ethx
 
-     Provide Physical Bridge Mappings.
+     # Provide Physical Bridge Mappings.
      OVSVAPP_BRIDGE_MAPPINGS=
-     For Example:
-     OVSVAPP_BRIDGE_MAPPINGS=physnet1:ethx
+     # For Example:
+     # OVSVAPP_BRIDGE_MAPPINGS=physnet1:ethx
 
-     Provide Trunk Interface.
+     # Provide Trunk Interface.
      OVSVAPP_TRUNK_INTERFACE=
-     For Example:
-     OVSVAPP_TRUNK_INTERFACE=ethy
+     # For Example:
+     # OVSVAPP_TRUNK_INTERFACE=ethy
 
-     Provide Security Bridge Mapping.
+     #Provide Security Bridge Mapping.
      OVSVAPP_SECURITY_BRIDGE_MAPPINGS=
-     For Example:
-     OVSVAPP_SECURITY_BRIDGE_MAPPING=br-sec:ethy
+     # For Example:
+     # OVSVAPP_SECURITY_BRIDGE_MAPPING=br-sec:ethy
 
      Kindly, refer the ovsvapp_agent.ini for other default config parameters.
 
+     # We have to disable the Neutron L2 agent. OVSvApp solution does not use the
+     # Neutron L2 agent, instead uses a OVSvApp L2 Agent to program OVS on each
+     # ESX host.
+     disable_service q-agt
 
-4.  Add the following required flags in local.conf to enable the OVSvApp Compute VCDriver::
+
+5.  Add the following required flags in local.conf to enable the OVSvApp Compute VCDriver::
 
      VIRT_DRIVER=vsphere
      VMWAREAPI_IP=$vCenter_ip_address
@@ -67,6 +77,6 @@
      kindly, refer the following link:- https://wiki.openstack.org/wiki/NovaVMware/DeveloperGuide
 
 
-5. Read the settings file for more details.
+6. Read the settings file for more details.
 
-6. run ``stack.sh``
+7. run ``stack.sh``
