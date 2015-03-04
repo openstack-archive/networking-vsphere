@@ -12,6 +12,7 @@
 #
 # - install_networking_vsphere
 # - install_ovsvapp_agent_packages
+# - pre_configure_ovsvapp
 # - add_ovsvapp_config
 # - configure_ovsvapp_config
 # - setup_ovsvapp_bridges
@@ -84,8 +85,16 @@ function add_ovsvapp_config {
     cp $OVSVAPP_NETWORKING_DIR/$OVSVAPP_CONF_FILE /$OVSVAPP_CONF_FILE
 }
 
-function install_ovsvapp_agent_packages {
-    echo "Installing Openvswitch"
+function pre_configure_ovsvapp {
+    echo "Configuring Neutron for OVSvApp L2 Agent"
+    configure_neutron
+    _configure_neutron_service
+}
+
+function install_ovsvapp_dependency {
+    echo "Installing dependencies for OVSvApp L2 Agent"
+    install_nova
+    install_neutron
     _neutron_ovs_base_install_agent_packages
 }
 
@@ -125,9 +134,10 @@ if is_service_enabled ovsvapp-agent; then
         # no-op
         :
     elif [[ "$1" == "stack" && "$2" == "install" ]]; then
+        install_ovsvapp_dependency
         install_networking_vsphere
-        install_ovsvapp_agent_packages
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
+        pre_configure_ovsvapp
         add_ovsvapp_config
         configure_ovsvapp_config
         setup_ovsvapp_bridges
