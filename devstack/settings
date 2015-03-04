@@ -72,17 +72,6 @@ INTEGRATION_BRIDGE=${INTEGRATION_BRIDGE:-br-int}
 # Provide Security Bridge.
 SECURITY_BRIDGE=${SECURITY_BRIDGE:-br-sec}
 
-# Set a few things up for Neutron here.
-# We are explicitly enabling the OVSvApp ML2 MechanismDriver here.
-# Note we are also enabling the logger driver, which is helpful for
-# debugging things on the Neutron side.
-Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovsvapp,logger
-
-# We have to disable the Neutron L2 agent. OVSvApp solution does not use the
-# Neutron L2 agent, instead uses a OVSvApp L2 Agent to program OVS on each
-# ESX host.
-disable_service q-agt
-
 case $OVSVAPP_MODE in
     allinone)
         enable_service ovsvapp-server ovsvapp-compute ovsvapp-agent
