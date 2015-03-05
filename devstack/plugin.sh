@@ -109,6 +109,7 @@ if is_service_enabled ovsvapp-server; then
         # no-op
         :
     elif [[ "$1" == "stack" && "$2" == "install" ]]; then
+        install_ovsvapp_dependency
         install_networking_vsphere
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         # no-op
@@ -161,6 +162,7 @@ if is_service_enabled ovsvapp-compute; then
         # no-op
         :
     elif [[ "$1" == "stack" && "$2" == "install" ]]; then
+        install_ovsvapp_dependency
         install_networking_vsphere
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         configure_ovsvapp_compute_driver
