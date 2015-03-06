@@ -22,10 +22,9 @@ import contextlib
 from neutron.agent.common import config
 from neutron.agent.linux import ovs_lib as ovslib
 from neutron.common import constants
-from neutron.tests import base
 
 from networking_vsphere.drivers import ovs_firewall as ovs_fw
-
+from networking_vsphere.tests import base
 
 fake_port = {'security_group_source_groups': 'abc',
              'mac_address': '00:11:22:33:44:55',
@@ -45,7 +44,7 @@ fake_port = {'security_group_source_groups': 'abc',
                   "dest_ip_prefix": "170.1.1.0/22"}]}
 
 
-class TestOVSFirewallDriver(base.BaseTestCase):
+class TestOVSFirewallDriver(base.TestCase):
     def setUp(self):
         super(TestOVSFirewallDriver, self).setUp()
         config.register_root_helper(cfg.CONF)
