@@ -30,6 +30,10 @@ OVSVAPP_MODE=${OVSVAPP_MODE:-allinone}
 #
 # OVSVAPP_MODE=agent
 # Use this mode for the OVSvApp VM of a multi-node devstack install.
+#
+# OVSVAPP_MODE=manual
+# You're on your own here, and are enabling services outside the scope of
+# the OVSVAPP_MODE variable.
 
 
 # Set in local.conf for OVSvApp Solution
@@ -84,5 +88,8 @@ case $OVSVAPP_MODE in
         ;;
     agent)
         enable_service ovsvapp-agent
+        ;;
+    manual)
+        echo "Manual mode: Enabling services explicitly."
         ;;
 esac
