@@ -70,6 +70,17 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         self._session._wait_for_task(power_on_task)
         LOG.debug("Powered on the VM instance", instance=instance)
 
+    def _get_mo_id_from_instance(self, instance):
+        """Return the managed object ID from the instance.
+
+        The instance['node'] will have the hypervisor_hostname field of the
+        compute node on which the instance exists or will be provisioned.
+        This will be of the form
+        'respool-1001(MyResPoolName)'
+        'domain-1001(MyClusterName)'
+        """
+        return instance['node'].partition('(')[0]
+
     def _create_virtual_nic(self, instance, image_info, network_info, vm_ref):
         if network_info is None:
             return
@@ -83,7 +94,7 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
             network_id = vif['network']['id']
             portgroup_name.append(network_id)
             network_id_cluster_id = (network_id + "-" +
-                                     vm_util.get_mo_id_from_instance(instance))
+                                     self._get_mo_id_from_instance(instance))
             portgroup_name.append(network_id_cluster_id)
             # wait for port group creation (if not present) by neutron agent
             network_ref = self._wait_and_get_portgroup_details(self._session,
@@ -139,8 +150,8 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         max_counts = CONF.vmware.vmwareapi_nic_attach_retry_count
         count = 0
         network_obj = {}
-        LOG.info(_("Waiting for the portgroup %s to be created"),
-                 port_group_name)
+        LOG.debug("Waiting for the portgroup %s to be created",
+                  port_group_name)
         while count < max_counts:
             host = session._call_method(vim_util, "get_dynamic_property",
                                         vm_ref, "VirtualMachine",
