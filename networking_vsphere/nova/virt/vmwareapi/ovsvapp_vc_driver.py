@@ -101,7 +101,7 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                                                                vm_ref,
                                                                portgroup_name)
             if not network_ref:
-                msg = (_("Portgroup %(vlan)s (or) Portgroup %(vxlan)s"),
+                msg = ("Portgroup %(vlan)s (or) Portgroup %(vxlan)s",
                        {'vlan': network_id, 'vxlan': network_id_cluster_id})
                 raise exception.NetworkNotCreated(msg)
             vif_infos.append({

@@ -88,7 +88,7 @@ SECURITYGROUP_OPTS = [
     cfg.StrOpt('ovsvapp_firewall_driver',
                help=_("DriverManager implementation for "
                       "OVS based Firewall"),
-               default=_("networking_sphere.drivers.ovs_firewall."
+               default=_("networking_vsphere.drivers.ovs_firewall."
                          "OVSFirewallDriver"))
 ]
 

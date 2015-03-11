@@ -23,8 +23,6 @@ from neutron.agent.linux import ovs_lib
 from neutron.common import constants
 from neutron.openstack.common import log as logging
 
-
-from networking_vsphere.agent import ovsvapp_agent
 from networking_vsphere.common import constants as ovsvapp_const
 
 LOG = logging.getLogger(__name__)
@@ -69,7 +67,6 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self.phy_ofport = self.sg_br.get_port_ofport(secbr_phyname)
         self.patch_ofport = self.sg_br.get_port_ofport(
             ovsvapp_const.SEC_TO_INT_PATCH)
-        self.portCache = ovsvapp_agent.portCache()
         self._defer_apply = False
         if not cfg.CONF.OVSVAPP.agent_maintenance:
             self.setup_base_flows()
@@ -79,6 +76,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         return self.filtered_ports
 
     def _get_compact_port(self, port):
+        if 'segmentation_id' not in port:
+            if port['id'] in self.filtered_ports:
+                old_port = self.filtered_ports[port['id']]
+                port['segmentation_id'] = old_port['segmentation_id']
         new_port = {}
         new_port['device'] = port['id']
         for key in PORT_KEYS:
@@ -221,58 +222,58 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         of the agent
         """
         try:
-            with self.sg_br.deferred(full_ordered=True, order=(
-                'del', 'mod', 'add')) as sec_br:
-                self._add_ovs_flow(sec_br, ovsvapp_const.SG_DEFAULT_PRI,
-                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
-                                   "resubmit(,%s)" %
-                                   ovsvapp_const.SG_LEARN_TABLE_ID)
-                self._add_ovs_flow(sec_br, ovsvapp_const.SG_DROPALL_PRI,
-                                   ovsvapp_const.SG_LEARN_TABLE_ID, "drop")
-                # Allow all ARP, parity with iptables
-                self._add_ovs_flow(sec_br, ovsvapp_const.SG_RULES_PRI,
-                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
-                                   "normal", protocol="arp")
-                # Allow all RARP, parity with iptables
-                self._add_ovs_flow(sec_br, ovsvapp_const.SG_RULES_PRI,
-                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
-                                   "normal", protocol="rarp")
-                # Rule to allow VMs to send DHCP requests (udp)
-                sec_br.add_flow(priority=ovsvapp_const.SG_RULES_PRI,
-                                table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
-                                proto="udp", tp_src="68", tp_dst="67",
-                                actions="normal")
-                # Always allow ICMP DestUnreach
-                self._add_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
-                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
-                                   "normal", icmp_req_type=ovsvapp_const.
-                                   ICMP_DEST_UNREACH)
+            sec_br = self.sg_br
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_DEFAULT_PRI,
+                               ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                               "resubmit(,%s)" %
+                               ovsvapp_const.SG_LEARN_TABLE_ID)
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_DROPALL_PRI,
+                               ovsvapp_const.SG_LEARN_TABLE_ID, "drop")
+            # Allow all ARP, parity with iptables
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_RULES_PRI,
+                               ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                               "normal", protocol="arp")
+            # Allow all RARP, parity with iptables
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_RULES_PRI,
+                               ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                               "normal", protocol="rarp")
+            # Rule to allow VMs to send DHCP requests (udp)
+            sec_br.add_flow(priority=ovsvapp_const.SG_RULES_PRI,
+                            table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                            proto="udp", tp_src="68", tp_dst="67",
+                            actions="normal")
+            # Always allow ICMP DestUnreach
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
+                               ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                               "normal", icmp_req_type=ovsvapp_const.
+                               ICMP_DEST_UNREACH)
 
-                # Always allow ICMP TTL Exceeded
-                self._add_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
-                                   ovsvapp_const.SG_DEFAULT_TABLE_ID, "normal",
-                                   icmp_req_type=ovsvapp_const.
-                                   ICMP_TIME_EXCEEDED)
-                # Always resubmit FIN pkts to learn table
-                self._add_ovs_flow(sec_br, ovsvapp_const.SG_TCP_FLAG_PRI,
-                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
-                                   "resubmit(,%s),normal" %
-                                   ovsvapp_const.SG_LEARN_TABLE_ID,
-                                   tcp_flag='+fin')
-                # Always resubmit RST pkts to learn table
-                self._add_ovs_flow(sec_br, ovsvapp_const.SG_TCP_FLAG_PRI,
-                                   ovsvapp_const.SG_DEFAULT_TABLE_ID,
-                                   "resubmit(,%s),normal" %
-                                   ovsvapp_const.SG_LEARN_TABLE_ID,
-                                   tcp_flag='+rst')
-                self._setup_learning_flows(sec_br)
+            # Always allow ICMP TTL Exceeded
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
+                               ovsvapp_const.SG_DEFAULT_TABLE_ID, "normal",
+                               icmp_req_type=ovsvapp_const.
+                               ICMP_TIME_EXCEEDED)
 
+            self._setup_learning_flows(sec_br)
+
+            # Always resubmit FIN pkts to learn table
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_TCP_FLAG_PRI,
+                               ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                               "resubmit(,%s),normal" %
+                               ovsvapp_const.SG_LEARN_TABLE_ID,
+                               tcp_flag='+fin')
+            # Always resubmit RST pkts to learn table
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_TCP_FLAG_PRI,
+                               ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                               "resubmit(,%s),normal" %
+                               ovsvapp_const.SG_LEARN_TABLE_ID,
+                               tcp_flag='+rst')
         except Exception:
             LOG.exception(_("Unable to add base flows"))
 
     def add_ports_to_filter(self, ports):
         for port in ports:
-            LOG.debug("OVSF Adding port %s to filter", port['id'])
+            LOG.debug("OVSF Adding port %s to filter", port)
             self.filtered_ports[port['id']] = self._get_compact_port(port)
 
     def _get_port_vlan(self, port_id):
@@ -280,7 +281,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             port = self.filtered_ports.get(port_id)
             LOG.debug("Filtered port %s", port)
             if port:
-                return self.portCache.getPortVlan(port_id)
+                return port['segmentation_id']
 
     def _setup_aap_flows(self, sec_br, port):
         """Method to help setup rules for allowed address pairs."""
