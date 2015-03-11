@@ -80,7 +80,11 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.run_check_for_updates = True
         self.use_call = True
         self.hostname = cfg.CONF.host
-        self.bridge_mappings = CONF.OVSVAPP.bridge_mappings
+        try:
+            self.bridge_mappings = n_utils.parse_mappings(
+                CONF.OVSVAPP.bridge_mappings)
+        except ValueError as e:
+            raise ValueError(_("Parsing bridge_mappings failed: %s.") % e)
         self.tunnel_types = []
         self.agent_state = {
             'binary': 'ovsvapp-agent',
@@ -109,7 +113,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.setup_rpc()
         defer_apply = CONF.SECURITYGROUP.defer_apply
         self.sg_agent = sgagent.OVSVAppSecurityGroupAgent(self.context,
-                                                          self.plugin_rpc,
+                                                          self.sg_plugin_rpc,
                                                           defer_apply)
         self.setup_report_states()
 
@@ -473,6 +477,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.topic = topics.AGENT
         self.plugin_rpc = RpcPluginApi()
         self.state_rpc = agent_rpc.PluginReportStateAPI(topics.PLUGIN)
+        self.sg_plugin_rpc = sg_rpc.SecurityGroupServerRpcApi(topics.PLUGIN)
         self.ovsvapp_rpc = OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
 
         # RPC network init
@@ -863,6 +868,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         LOG.info(_("OVSvApp Agent - port update RPC received"))
         LOG.debug("port_update arguments : %s", kwargs)
         new_port = kwargs.get('port')
+        new_port['segmentation_id'] = kwargs.get('segmentation_id')
         ovsvapplock.acquire()
         old_port_object = None
         new_port_object = None
@@ -912,17 +918,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.info(_("OVSvApp Agent - port update finished"))
 
 
-class portCache(OVSvAppL2Agent):
-    def __init__(self):
-        pass
-
-    def getPortVlan(self, portid):
-        if portid in self.ports_dict:
-            return self.ports_dict[portid].vlanid
-
-
-class RpcPluginApi(agent_rpc.PluginApi,
-                   sg_rpc.SecurityGroupServerRpcApi):
+class RpcPluginApi(agent_rpc.PluginApi):
 
     def __init__(self):
         super(RpcPluginApi, self).__init__(topic=topics.PLUGIN)

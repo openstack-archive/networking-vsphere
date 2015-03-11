@@ -83,10 +83,6 @@ class TestOVSvAppL2Agent(base.TestCase):
         super(TestOVSvAppL2Agent, self).setUp()
         cfg.CONF.set_override('security_bridge_mapping',
                               "br-fake:fake_if", 'SECURITYGROUP')
-        cfg.CONF.set_default(
-            'ovsvapp_firewall_driver',
-            'networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver',
-            group='SECURITYGROUP')
         with contextlib.nested(
             mock.patch('neutron.common.config.'
                        'init'),
@@ -94,6 +90,8 @@ class TestOVSvAppL2Agent(base.TestCase):
                        'setup_logging'),
             mock.patch('networking_vsphere.agent.ovsvapp_agent.'
                        'RpcPluginApi'),
+            mock.patch('neutron.agent.securitygroups_rpc.'
+                       'SecurityGroupServerRpcApi'),
             mock.patch('neutron.agent.rpc.'
                        'PluginReportStateAPI'),
             mock.patch('networking_vsphere.agent.ovsvapp_agent.'

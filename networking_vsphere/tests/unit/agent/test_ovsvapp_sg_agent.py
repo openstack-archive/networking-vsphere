@@ -55,10 +55,6 @@ class TestOVSVAppSecurityGroupAgent(base.TestCase):
         super(TestOVSVAppSecurityGroupAgent, self).setUp()
         self.context = mock.Mock()
         self.plugin = FakePlugin('fake_topic')
-        cfg.CONF.set_default(
-            'ovsvapp_firewall_driver',
-            'networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver',
-            group='SECURITYGROUP')
         cfg.CONF.set_override('security_bridge_mapping',
                               "br-fake:fake_if", 'SECURITYGROUP')
         with contextlib.nested(
