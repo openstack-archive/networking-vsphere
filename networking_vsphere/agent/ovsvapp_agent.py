@@ -699,7 +699,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     if vnic.port_uuid in self.ports_dict.keys():
                         self.sg_agent.remove_devices_filter(vnic.port_uuid)
                         LOG.info(_("Delete port %(port)s with mac %(mac)s for "
-                                   "VM %(vm) finished"),
+                                   "VM %(vm)s finished"),
                                  {'port': vnic.port_uuid,
                                   'mac': vnic.mac_address,
                                   'vm': vm.uuid})
@@ -709,10 +709,10 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                   "ports_dict", vnic.port_uuid)
                 finally:
                     ovsvapplock.release()
-                    if del_port:
-                        if self.tenant_network_type == p_const.TYPE_VLAN:
-                            self._process_delete_vlan_portgroup(host, vm,
-                                                                del_port)
+                if del_port:
+                    if self.tenant_network_type == p_const.TYPE_VLAN:
+                        self._process_delete_vlan_portgroup(host, vm,
+                                                            del_port)
 
     def _build_port_info(self, port):
         return PortInfo(port['id'],
@@ -874,7 +874,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         new_port_object = None
         try:
             if new_port['id'] not in self.ports_dict.keys():
-                ovsvapplock.release()
                 return
             else:
                 old_port_object = self.ports_dict[new_port['id']]
