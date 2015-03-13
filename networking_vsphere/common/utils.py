@@ -31,7 +31,7 @@ def import_class(import_str):
         __import__(mod_str)
         return getattr(sys.modules[mod_str], class_str)
     except (ValueError, AttributeError):
-        raise ImportError('Class %s cannot be found (%s)' %
+        raise ImportError('Class %s cannot be found (%s).' %
                           (class_str,
                            traceback.format_exception(*sys.exc_info())))
 
@@ -40,7 +40,7 @@ def load_object(driver, base_class, *args, **kwargs):
     """Load a class, instantiate, check if its of base_class type."""
     driver_obj = import_class(driver)(*args, **kwargs)
     if not isinstance(driver_obj, base_class):
-        raise TypeError("Invalid type - %s does not extend %s" %
+        raise TypeError("Invalid type - %s does not extend %s." %
                         (fullname(driver_obj), base_class))
     return driver_obj
 
@@ -81,7 +81,7 @@ def require_state(state=None, excp=True):
                 else:
                     LOG.info(_("%(name)s not allowed. "
                                "%(obj)s is %(state)s state. "
-                               "Need to be in %(states)s state"),
+                               "Need to be in %(states)s state."),
                              {'name': f.__name__,
                               'obj': obj.__class__.__name__,
                               'state': obj.state,

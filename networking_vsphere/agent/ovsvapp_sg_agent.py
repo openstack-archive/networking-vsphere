@@ -32,21 +32,21 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self.context = context
         self.plugin_rpc = plugin_rpc
         self.init_firewall(defer_apply)
-        LOG.info(_("OVSVAppSecurityGroupAgent initialized"))
+        LOG.info(_("OVSVAppSecurityGroupAgent initialized."))
 
     def init_firewall(self, defer_refresh_firewall=False):
         firewall_driver = cfg.CONF.SECURITYGROUP.ovsvapp_firewall_driver
-        LOG.debug("Init firewall settings (driver=%s)", firewall_driver)
+        LOG.debug("Init firewall settings (driver=%s).", firewall_driver)
         if not firewall_driver:
             firewall_driver = 'neutron.agent.firewall.NoopFirewallDriver'
         self.firewall = importutils.import_object(firewall_driver)
         # The following flag will be set to true if port filter must not be
-        # applied as soon as a rule or membership notification is received
+        # applied as soon as a rule or membership notification is received.
         self.defer_refresh_firewall = defer_refresh_firewall
         # Stores devices for which firewall should be refreshed when
         # deferred refresh is enabled.
         self.devices_to_refilter = set()
-        # Flag raised when a global refresh is needed
+        # Flag raised when a global refresh is needed.
         self.global_refresh_firewall = False
         self._use_enhanced_rpc = None
 
@@ -63,7 +63,7 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
     def remove_device_filters(self, device_id):
         if not device_id:
             return
-        LOG.info(_("Remove device filters for %r"), device_id)
+        LOG.info(_("Remove device filters for %r."), device_id)
         self.firewall.clean_port_filters([device_id], True)
 
     def prepare_firewall(self, device_ids):
@@ -75,7 +75,7 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         :param device_ids: set of port_ids for which firewall rules
         need to be created.
         """
-        LOG.info(_("Prepare firewall rules %s"), len(device_ids))
+        LOG.info(_("Prepare firewall rules %s."), len(device_ids))
         dev_list = list(device_ids)
         if len(dev_list) > 10:
             sublists = [dev_list[x:x + 10] for x in xrange(0, len(dev_list),
@@ -98,11 +98,11 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         :param device_ids: set of port_ids for which firewall rules
         need to be refreshed.
         """
-        LOG.info(_("Refresh firewall rules"))
+        LOG.info(_("Refresh firewall rules."))
         if not device_ids:
             device_ids = self.firewall.ports.keys()
             if not device_ids:
-                LOG.info(_("No ports here to refresh firewall"))
+                LOG.info(_("No ports here to refresh firewall."))
                 return
         dev_list = list(device_ids)
         if len(dev_list) > 10:
@@ -112,7 +112,7 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             sublists = [dev_list]
 
         for dev_ids in sublists:
-            # Sleep is to prevent any device_create calls from getting starved
+            # Sleep is to prevent any device_create calls from getting starved.
             time.sleep(0)
             devices = self.plugin_rpc.security_group_rules_for_devices(
                 self.context, dev_ids)
@@ -125,23 +125,23 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
 
         This routine refreshes firewall rules when devices have been
         updated, or when there are changes in security group membership
-         or rules.
+        or rules.
 
         :param own_devices: set containing identifiers for devices
-        belonging to this ESX host
+        belonging to this ESX host.
         :param other_devices: set containing identifiers for
-        devices belonging to other ESX hosts within the Cluster
+        devices belonging to other ESX hosts within the Cluster.
         """
         # These data structures are cleared here in order to avoid
-        # losing updates occurring during firewall refresh
+        # losing updates occurring during firewall refresh.
         devices_to_refilter = self.devices_to_refilter
         global_refresh_firewall = self.global_refresh_firewall
         self.devices_to_refilter = set()
         self.global_refresh_firewall = False
-        LOG.info(_("Going to refresh for devices: %s"),
+        LOG.info(_("Going to refresh for devices: %s."),
                  devices_to_refilter)
         if global_refresh_firewall:
-            LOG.debug("Refreshing firewall for all filtered devices")
+            LOG.debug("Refreshing firewall for all filtered devices.")
             self.firewall.clean_port_filters(other_devices)
             self.refresh_firewall()
         else:
@@ -149,10 +149,10 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             other_devices = (other_devices & devices_to_refilter)
             self.firewall.clean_port_filters(other_devices)
             if own_devices:
-                LOG.info(_("Refreshing firewall for %d devices"),
+                LOG.info(_("Refreshing firewall for %d devices."),
                          len(own_devices))
                 self.refresh_firewall(own_devices)
             if other_devices:
-                LOG.info(_("Refreshing firewall for %d devices"),
+                LOG.info(_("Refreshing firewall for %d devices."),
                          len(other_devices))
                 self.prepare_firewall(other_devices)

@@ -51,7 +51,7 @@ class VcenterManager(base_manager.DriverManager):
         """
         try:
             cluster_dvs_list = []
-            LOG.debug("Parsing cluster_dvs_mapping %s" % entry)
+            LOG.debug("Parsing cluster_dvs_mapping %s." % entry)
             mappings = entry.split(",")
             for mapping in mappings:
                 cluster = None
@@ -62,11 +62,11 @@ class VcenterManager(base_manager.DriverManager):
                     vds = vds.strip()
                 if not cluster or not vds:
                     LOG.error(_("Invalid value %s for opt "
-                                "cluster_dvs_mapping") % mapping)
+                                "cluster_dvs_mapping.") % mapping)
                 else:
                     cluster_dvs_list.append((cluster, vds))
         except Exception:
-            LOG.exception(_("Invalid value %s for opt cluster_dvs_mapping")
+            LOG.exception(_("Invalid value %s for opt cluster_dvs_mapping.")
                           % entry)
         return cluster_dvs_list
 
@@ -74,7 +74,7 @@ class VcenterManager(base_manager.DriverManager):
         try:
             self.driver.add_cluster(cluster, vds)
         except Exception:
-            LOG.exception(_("Adding cluster %(cluster)s:%(vds)s failed"),
+            LOG.exception(_("Adding cluster %(cluster)s:%(vds)s failed."),
                           {'cluster': cluster, 'vds': vds})
         else:
             self.cluster_switch_mapping[cluster] = vds
@@ -108,8 +108,8 @@ class VcenterManager(base_manager.DriverManager):
                 LOG.warn(_("Thread waiting on vCenter connection exited."))
                 return
         else:
-            LOG.error(_("Must specify vcenter_ip, vcenter_username,"
-                        "vcenter_password and wsdl_location"))
+            LOG.error(_("Must specify vcenter_ip, vcenter_username, "
+                        "vcenter_password and wsdl_location."))
             return
         self.driver = dvs_driver.DvsNetworkDriver()
         self.driver.set_callback(self.netcallback)
