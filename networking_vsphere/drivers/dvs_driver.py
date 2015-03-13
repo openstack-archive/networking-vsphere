@@ -64,11 +64,11 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                                   collector)
 
     # TODO(romilg): Split into helper method
-    # say _wait_for_vm_to_attach_to_portgroup()
+    # say _wait_for_vm_to_attach_to_portgroup().
     def _wait_for_port_update_on_vm(self, vm_mor, pgmor):
         property_collector = None
         try:
-            LOG.debug("Creating new property collector")
+            LOG.debug("Creating new property collector.")
             property_collector = self.session._call_method(
                 vim_util, "create_property_collector")
             self._register_vm_for_updates(vm_mor, property_collector)
@@ -76,15 +76,15 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
             pg_key, port_key, swuuid = (None, None, None)
             while self.state == constants.DRIVER_RUNNING:
                 LOG.debug("Waiting for VM %(vm)s to connect to "
-                          "port group %(pg)s",
+                          "port group %(pg)s.",
                           {'vm': vm_mor.value, 'pg': pgmor.value})
                 try:
                     update_set = self.session._call_method(
                         vim_util, "wait_for_updates_ex", version,
                         collector=property_collector)
                 except error_util.SocketTimeoutException:
-                    LOG.exception("Socket Timeout Exception")
-                    # Ignore timeout
+                    LOG.exception("Socket Timeout Exception.")
+                    # Ignore timeout.
                     continue
                 if update_set:
                     version = update_set.version
@@ -99,7 +99,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                             if objectUpdate.kind == "leave":
                                 LOG.warn(_("VM %(vm)s got deleted while "
                                            "waiting for it to connect to "
-                                           "port group %(pg)s"),
+                                           "port group %(pg)s."),
                                          {'vm': vm_mor.value,
                                           'pg': pgmor.value})
                                 return (pg_key, port_key, swuuid)
@@ -121,18 +121,19 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                                                 hasattr(port, "portKey")):
                                             port_key = port.portKey
                                             swuuid = port.switchUuid
-                                            LOG.info(_("VM %(vm)s connected to"
-                                                       " port group %(pg)s"),
+                                            LOG.info(_("VM %(vm)s connected "
+                                                       "to port group: "
+                                                       "%(pg)s."),
                                                      {'vm': vm_mor.value,
                                                       'pg': pgmor.value})
                                             return (pg_key, port_key, swuuid)
         except Exception as e:
             LOG.exception(_("Exception while waiting for VM %(vm)s "
-                            "to connect to port group %(pg)s: %(err)s"),
+                            "to connect to port group %(pg)s: %(err)s."),
                           {'vm': vm_mor.value, 'pg': pgmor.value, 'err': e})
             raise e
         finally:
-            LOG.debug("Destroying the property collector created")
+            LOG.debug("Destroying the property collector created.")
             self.session._call_method(vim_util,
                                       "destroy_property_collector",
                                       property_collector)
@@ -141,7 +142,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                                 constants.DRIVER_RUNNING])
     def create_network(self, network, virtual_switch):
         LOG.info(_("Creating portgroup %(nm)s with vlan id %(vid)s "
-                   "on virtual switch %(sw)s"),
+                   "on virtual switch %(sw)s."),
                  {'nm': network.name, 'vid': network.config.vlan.vlanIds[0],
                  'sw': virtual_switch.name})
         network_util.create_port_group(self.session,
@@ -152,7 +153,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
     def get_pg_vlanid(self, dvs_name, pg_name):
-        LOG.info(_("Fetching details of %(pg)s on %(dvs)s"),
+        LOG.info(_("Fetching details of %(pg)s on %(dvs)s."),
                  {'pg': pg_name, 'dvs': dvs_name})
         local_vlan_id = network_util.get_portgroup_details(self.session,
                                                            dvs_name, pg_name)
@@ -161,14 +162,14 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
     def get_vm_ref_uuid(self, vm_uuid):
-        LOG.info(_("Fetching reference for %s"), vm_uuid)
+        LOG.info(_("Fetching reference for %s."), vm_uuid)
         vm_ref = resource_util.get_vm_reference(self.session, vm_uuid)
         return vm_ref
 
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
     def wait_for_portgroup(self, vm_ref, pg_name):
-        LOG.info(_("Wait for port group %s"), pg_name)
+        LOG.info(_("Wait for port group %s."), pg_name)
         pg_exists = network_util.wait_on_dvs_portgroup(self.session,
                                                        vm_ref, pg_name)
         return pg_exists
@@ -190,7 +191,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
         vm_mor = resource_util.get_vm_mor_for_uuid(self.session, device_id)
         if not vm_mor:
             LOG.warn(_("VM %(vm)s with mac address %(mac)s for port %(uuid)s "
-                       "not found on this node"),
+                       "not found on this node."),
                      {'vm': device_id, 'mac': mac_address, 'uuid': port.uuid})
             return False
         if port.port_status == constants.PORT_STATUS_UP:
@@ -203,7 +204,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
             raise error.OVSvAppNeutronAgentError(msg)
         action = "Enabling" if enabled else "Disabling"
         LOG.debug("%(action)s port used by VM %(id)s for VNIC with "
-                  "mac address %(mac)s",
+                  "mac address %(mac)s.",
                   {'action': action, 'id': device_id, 'mac': mac_address})
         status = network_util.enable_disable_port_of_vm(self.session,
                                                         vm_mor,
@@ -223,7 +224,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                                                             port.network_uuid)
             if pg_mor is None:
                 msg = (_("Port group %(net_id)s not created on "
-                         "virtual switch %(vds)s"),
+                         "virtual switch %(vds)s."),
                        {'net_id': port.network_uuid,
                         'vds': vds_name})
                 raise error_util.RunTimeError(msg)
@@ -231,13 +232,13 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                                                        device_id)
             if vm_mor is None:
                 msg = (_("Virtual machine %(id)s with "
-                         "port %(port)s not created"),
+                         "port %(port)s not created."),
                        {'id': device_id,
                         'port': port.uuid})
                 raise error_util.RunTimeError(msg)
             (pg_key, port_key, swuuid) = self._wait_for_port_update_on_vm(
                 vm_mor, pg_mor)
             if pg_key and port_key and swuuid:
-                # enable the port on virtual switch
+                # enable the port on virtual switch.
                 network_util.enable_disable_port(self.session, swuuid,
                                                  pg_key, port_key, True)

@@ -18,34 +18,34 @@ AGENT_TYPE_OVSVAPP = "OVSvApp L2 Agent"
 OVSVAPP = 'ovsvapp'
 DEVICE = 'device'
 
-# Network type constants
+# Network type constants.
 NETWORK_VLAN = 'VLAN'
 NETWORK_VXLAN = 'VXLAN'
 
-# Port status constants
+# Port status constants.
 PORT_STATUS_UP = 'UP'
 PORT_STATUS_DOWN = 'DOWN'
 
-# VM Event type constants
+# VM Event type constants.
 VM_CREATED = 'VM_CREATED'
 VM_UPDATED = 'VM_UPDATED'
 VM_DELETED = 'VM_DELETED'
 
-# Driver state constants
+# Driver state constants.
 # Driver cannot connect or monitor hypervisor. Driver cannot process
-# ResourceEntity APIs
+# ResourceEntity APIs.
 DRIVER_IDLE = 'IDLE'
-# Driver is ready for monitoring hypervisor
+# Driver is ready for monitoring hypervisor.
 DRIVER_READY = 'READY'
-# Driver is monitoring hypervisor
+# Driver is monitoring hypervisor.
 DRIVER_RUNNING = 'RUNNING'
-# Driver is stopped
+# Driver is stopped.
 DRIVER_STOPPED = 'STOPPED'
 
-# VLAN ID constants
+# VLAN ID constants.
 DEAD_VLAN = 4095
 
-# Agent State constants
+# Agent State constants.
 AGENT_INITIALIZING = "INITIALIZING"
 AGENT_INITIALIZED = "INITIALIZED"
 AGENT_RUNNING = "RUNNING"
@@ -55,7 +55,7 @@ AGENT_STOPPED = "STOPPED"
 SEC_TO_INT_PATCH = "patch-integration"
 INT_TO_SEC_PATCH = "patch-security"
 
-# OVS Firewall related constants
+# OVS Firewall related constants.
 SG_DROPALL_PRI = 0
 SG_DEFAULT_PRI = 1
 SG_LOW_PRI = 5
