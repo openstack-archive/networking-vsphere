@@ -688,15 +688,15 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             if not vnic.port_uuid:
                 LOG.info(_("Port id for VM %s not present"), vm.uuid)
             else:
-                del_port = None
-                if vnic.port_uuid in self.ports_dict.keys():
-                    ovsvapplock.acquire()
-                    if vnic.port_uuid in self.cluster_host_ports:
-                        self.cluster_host_ports.remove(vnic.port_uuid)
-                    elif vnic.port_uuid in self.cluster_other_ports:
-                        self.cluster_other_ports.remove(vnic.port_uuid)
                 try:
+                    ovsvapplock.acquire()
+                    del_port = None
                     if vnic.port_uuid in self.ports_dict.keys():
+                        if vnic.port_uuid in self.cluster_host_ports:
+                            self.cluster_host_ports.remove(vnic.port_uuid)
+                        elif vnic.port_uuid in self.cluster_other_ports:
+                            self.cluster_other_ports.remove(vnic.port_uuid)
+
                         self.sg_agent.remove_devices_filter(vnic.port_uuid)
                         LOG.info(_("Delete port %(port)s with mac %(mac)s for "
                                    "VM %(vm)s finished"),
