@@ -39,17 +39,17 @@ def main():
         global agent_obj
         neutron_config.init(sys.argv[1:])
         neutron_config.setup_logging()
-        LOG.debug("Logging setup complete")
+        LOG.debug("Logging setup complete.")
         ovsvapp_config.register_options()
-        LOG.info(_("Loading agent %s"), cfg.CONF.OVSVAPP.agent_driver)
+        LOG.info(_("Loading agent %s."), cfg.CONF.OVSVAPP.agent_driver)
         agent_obj = utils.load_object(cfg.CONF.OVSVAPP.agent_driver,
                                       agent.Agent)
         agent_obj.start()
     except Exception as e:
-        LOG.exception(_("Error in L2 agent service"))
+        LOG.exception(_("Error in L2 agent service."))
         if agent_obj:
             agent_obj.stop()
-        sys.exit(_("ERROR: %s") % e)
+        sys.exit(_("ERROR: %s.") % e)
 
 
 def signal_handler(signum, frame):
@@ -57,12 +57,12 @@ def signal_handler(signum, frame):
     for n in dir(signal):
         if n.startswith('SIG') and not n.startswith('SIG_'):
             signals_to_names[getattr(signal, n)] = n
-    LOG.info(_("Caught %s, exiting"), signals_to_names[signum])
+    LOG.info(_("Caught %s, exiting."), signals_to_names[signum])
     if agent_obj:
         try:
             agent_obj.stop()
         except Exception:
-            # Ignore any exceptions while exiting
+            # Ignore any exceptions while exiting.
             pass
     signal.signal(signum, signal.SIG_DFL)
     sys.exit(0)
