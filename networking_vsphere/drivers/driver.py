@@ -23,7 +23,7 @@ class NetworkDriver(object):
     '''Base Class for defining interface for all L2 network drivers.'''
 
     def __init__(self):
-        # Reference to NetworkDriverCallback impl
+        # Reference to NetworkDriverCallback impl.
         self.callback_impl = None
 
     def set_callback(self, callback_impl):
@@ -74,7 +74,7 @@ class NetworkDriver(object):
     def prepare_port_group(self, network, port, virtual_nic):
         """Prepares portgroup creation on DVS with specified configuration.
 
-        Calls create_network if network does not exist
+        Calls create_network if network does not exist.
         :param network: Type model.Network
         :param port: Type model.Port
         :param virtual_nic: Type model.VirtualNic

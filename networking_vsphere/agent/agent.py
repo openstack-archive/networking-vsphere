@@ -29,7 +29,7 @@ class Agent(driver.NetworkDriverCallback):
     """Agent class.
 
     Base class for agents - initializing, starting and
-    stopping driver manager
+    stopping driver manager.
     """
 
     def __init__(self):
@@ -38,7 +38,7 @@ class Agent(driver.NetworkDriverCallback):
         self.node_up = False
 
     def _stop_managers(self):
-        LOG.debug("Stopping managers")
+        LOG.debug("Stopping managers.")
         self.state = constants.AGENT_STOPPING
         if self.net_mgr:
             self.net_mgr.stop()
@@ -46,7 +46,7 @@ class Agent(driver.NetworkDriverCallback):
 
     def _initialize_managers(self):
         self.state = constants.AGENT_INITIALIZING
-        LOG.info(_("Loading network driver manager %s"),
+        LOG.info(_("Loading network driver manager: %s."),
                  cfg.CONF.OVSVAPP.network_manager)
         self.net_mgr = utils.load_object(cfg.CONF.OVSVAPP.network_manager,
                                          manager.DriverManager,
@@ -56,7 +56,7 @@ class Agent(driver.NetworkDriverCallback):
 
     def _start_managers(self):
         if self.state == constants.AGENT_INITIALIZED and self.node_up:
-            LOG.debug("Starting managers")
+            LOG.debug("Starting managers.")
             if self.net_mgr:
                 self.net_mgr.start()
             self.state = constants.AGENT_RUNNING
@@ -65,13 +65,13 @@ class Agent(driver.NetworkDriverCallback):
         if is_up != self.node_up:
             self.node_up = is_up
             if is_up:
-                LOG.info(_("Making node up"))
+                LOG.info(_("Making node up."))
                 self._initialize_managers()
                 self._start_managers()
             else:
                 self.state = constants.AGENT_INITIALIZING
                 self._stop_managers()
         else:
-            LOG.info(_("Ignoring node update as agent"
-                     " is already %s"),
+            LOG.info(_("Ignoring node update as agent "
+                     "is already %s."),
                      "ACTIVE" if self.node_up else "DOWN")

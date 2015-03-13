@@ -63,7 +63,7 @@ class OVSvAppServerRpcCallback(object):
         device = kwargs.get('device')
         device_id = device['id']
         LOG.debug("Device %(device_id)s details requested by agent "
-                  "%(agent_id)s",
+                  "%(agent_id)s.",
                   {'device_id': device_id, 'agent_id': agent_id})
         if not device_id:
             return False
@@ -98,12 +98,12 @@ class OVSvAppServerRpcCallback(object):
                 if not device_ports:
                     try_count -= 1
                     LOG.debug("Port details could not be retrieved for "
-                              "device %s ..retrying", device_id)
+                              "device %s ..retrying.", device_id)
                     time.sleep(3)
                 else:
-                    LOG.debug("Device details returned by server:"
-                              " %s", device_ports)
-                    # Get the SG rules for the security enabled ports
+                    LOG.debug("Device details returned by server: "
+                              "%s.", device_ports)
+                    # Get the SG rules for the security enabled ports.
                     sg_payload = {}
                     if sg_port_ids:
                         ports = self._get_devices_info(sg_port_ids)
@@ -115,8 +115,8 @@ class OVSvAppServerRpcCallback(object):
                     return True
         except Exception:
             LOG.exception(_("Failed to retrieve port details for "
-                            "device %s"), device_id)
-        LOG.debug("Failed to retrieve ports for device %s", device_id)
+                            "device: %s."), device_id)
+        LOG.debug("Failed to retrieve ports for device: %s.", device_id)
         return False
 
     def update_port_binding(self, rpc_context, **kwargs):
@@ -124,7 +124,7 @@ class OVSvAppServerRpcCallback(object):
         port_id = kwargs.get('port_id')
         host = kwargs.get('host')
         LOG.debug("Port %(port_id)s update_port_binding() invoked by agent "
-                  "%(agent_id)s for host %(host)s",
+                  "%(agent_id)s for host %(host)s.",
                   {'port_id': port_id, 'agent_id': agent_id, 'host': host})
         port = {'port': {portbindings.HOST_ID: host}}
         updated_port = self.plugin.update_port(rpc_context, port_id, port)
