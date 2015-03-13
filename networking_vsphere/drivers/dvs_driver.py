@@ -83,7 +83,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                         vim_util, "wait_for_updates_ex", version,
                         collector=property_collector)
                 except error_util.SocketTimeoutException:
-                    LOG.exception("Socket Timeout Exception.")
+                    LOG.exception(_("Socket Timeout Exception."))
                     # Ignore timeout.
                     continue
                 if update_set:

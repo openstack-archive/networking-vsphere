@@ -485,8 +485,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         """Method to update OVS rules for an existing VM port."""
         LOG.debug("OVSF Updating port: %s filter.", port['id'])
         if port['id'] not in self.filtered_ports:
-            LOG.warn("Attempted to update port filter which is not "
-                     "filtered %s.", port['id'])
+            LOG.warn(_("Attempted to update port filter which is not "
+                     "filtered %s."), port['id'])
             return
         try:
             with self.sg_br.deferred(full_ordered=True, order=(

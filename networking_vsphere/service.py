@@ -41,7 +41,7 @@ def main():
         neutron_config.setup_logging()
         LOG.debug("Logging setup complete.")
         ovsvapp_config.register_options()
-        LOG.info(_("Loading agent %s."), cfg.CONF.OVSVAPP.agent_driver)
+        LOG.info(_("Loading agent: %s."), cfg.CONF.OVSVAPP.agent_driver)
         agent_obj = utils.load_object(cfg.CONF.OVSVAPP.agent_driver,
                                       agent.Agent)
         agent_obj.start()
