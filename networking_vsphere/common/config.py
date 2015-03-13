@@ -15,81 +15,92 @@
 
 from oslo_config import cfg
 
-# vCenter server and ESX host related config read from ovsvapp_agent.ini
+# vCenter server and ESX host related config read from ovsvapp_agent.ini.
 VMWARE_OPTS = [
     cfg.StrOpt('vcenter_ip',
-               help=_("vCenter server IP"),
-               default=None),
+               default=None,
+               help='vCenter server IP'),
     cfg.StrOpt('vcenter_username',
-               help=_("vCenter server user name"),
-               default=None),
+               default=None,
+               help='vCenter server user name'),
     cfg.StrOpt('vcenter_password',
-               help=_("vCenter server password"),
-               default=None),
-    cfg.BoolOpt('cert_check', default=False,
-                help=_('Enable SSL certificate check for vCenter')),
-    cfg.StrOpt('cert_path', default='/etc/ssl/certs/certs.pem',
-               help=_('Certificate chain path containing cacert of vCenters')),
+               default=None,
+               help='vCenter server password'),
+    cfg.BoolOpt('cert_check',
+                default=False,
+                help='Enable SSL certificate check for vCenter'),
+    cfg.StrOpt('cert_path',
+               default='/etc/ssl/certs/certs.pem',
+               help='Certificate chain path containing cacert of vCenters'),
     cfg.IntOpt('https_port',
-               help=_('Customized https_port for vCenter communication'),
-               default=443),
+               default=443,
+               help='Customized https_port for vCenter communication'),
     cfg.StrOpt('wsdl_location',
-               help=_("vCenter server wsdl location"),
-               default=None),
+               default=None,
+               help='vCenter server wsdl location'),
     cfg.StrOpt('vcenter_api_retry_count',
-               help=_("Number of retries while connecting to vcenter server"),
-               default=5),
-    cfg.StrOpt('esx_hostname', default="default",
-               help=_('ESX host name where this OVSvApp is hosted')),
-    cfg.BoolOpt('esx_maintenance_mode', default=True,
-                help=_('Set host into maintenance mode')),
+               default=5,
+               help='Number of retries while connecting to vcenter server'),
+    cfg.StrOpt('esx_hostname',
+               default=None,
+               help='ESX host name where this OVSvApp is hosted'),
+    cfg.BoolOpt('esx_maintenance_mode',
+                default=True,
+                help='Set host into maintenance mode'),
     cfg.MultiStrOpt('cluster_dvs_mapping',
-                    help=_("vCenter cluster to DVS mapping"),
-                    default=[])
+                    default=[],
+                    help='vCenter cluster to DVS mapping')
 ]
 
-# OVSvApp Agent related config read from ovsvapp_agent.ini and neutron.conf
+# OVSvApp Agent related config read from ovsvapp_agent.ini and neutron.conf.
 OVSVAPP_OPTS = [
-    cfg.StrOpt('tenant_network_type', default='vlan',
-               help=_('Network type for tenant networks - vlan')),
-    cfg.StrOpt('integration_bridge', default="br-int",
-               help=_('Integration Bridge')),
-    cfg.ListOpt('bridge_mappings', default=[],
-                help=_('Bridge mappings')),
+    cfg.StrOpt('tenant_network_type',
+               default='vlan',
+               help='Network type for tenant networks - vlan'),
+    cfg.StrOpt('integration_bridge',
+               default="br-int",
+               help='Integration Bridge'),
+    cfg.ListOpt('bridge_mappings',
+                default=[],
+                help='Bridge mappings'),
     cfg.StrOpt('agent_driver',
-               help=_("OVSvApp Agent implementation"),
-               default=_("networking_vsphere.agent.ovsvapp_agent"
-                         ".OVSvAppL2Agent")),
+               default='networking_vsphere.agent.ovsvapp_agent'
+                       '.OVSvAppL2Agent',
+               help='OVSvApp Agent implementation'),
     cfg.StrOpt('network_manager',
-               help=_("DriverManager implementation for "
-                      "NetworkDriver"),
-               default=_("networking_vsphere.drivers.manager."
-                         "VcenterManager")),
-    cfg.IntOpt('report_interval', default=4,
-               help=_('Seconds between nodes reporting state to server')),
-    cfg.IntOpt('polling_interval', default=2,
-               help=_('The number of seconds the agent will wait between '
-                      'polling for local device changes')),
-    cfg.IntOpt('veth_mtu', default=1500,
-               help=_('MTU size of veth interfaces')),
-    cfg.BoolOpt('agent_maintenance', default=False,
-                help=_('Turn on this flag during agent updates to help '
-                       'prevent datapath outage'))
+               default='networking_vsphere.drivers.manager.'
+                       'VcenterManager',
+               help='Driver Manager implementation for '
+                    'NetworkDriver'),
+    cfg.IntOpt('report_interval',
+               default=4,
+               help='Seconds between nodes reporting state to server'),
+    cfg.IntOpt('polling_interval',
+               default=2,
+               help='The number of seconds the agent will wait between '
+                    'polling for local device changes'),
+    cfg.IntOpt('veth_mtu',
+               default=1500,
+               help='MTU size of veth interfaces'),
+    cfg.BoolOpt('agent_maintenance',
+                default=False,
+                help='Turn on this flag during agent updates to help '
+                     'prevent datapath outage')
 ]
 
-# OVSvApp Security Group related config read from ovsvapp_agent.ini
+# OVSvApp Security Group related config read from ovsvapp_agent.ini.
 SECURITYGROUP_OPTS = [
     cfg.StrOpt('security_bridge_mapping',
                default='br-sec',
-               help=_("<security_bridge>:<phy_interface>")),
+               help='<security_bridge>:<phy_interface>'),
     cfg.BoolOpt('defer_apply',
                 default=True,
-                help=_('Enable defer_apply on security bridge')),
+                help='Enable defer_apply on security bridge'),
     cfg.StrOpt('ovsvapp_firewall_driver',
-               help=_("DriverManager implementation for "
-                      "OVS based Firewall"),
-               default=_("networking_vsphere.drivers.ovs_firewall."
-                         "OVSFirewallDriver"))
+               default='networking_vsphere.drivers.ovs_firewall.'
+                       'OVSFirewallDriver',
+               help='DriverManager implementation for '
+                    'OVS based Firewall')
 ]
 
 

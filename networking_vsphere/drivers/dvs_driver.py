@@ -17,7 +17,7 @@ Implements methods defined in NetworkDriver and VCNetworkDriver
 and supports VMware Distributed Virtual Switch.
 '''
 
-from neutron.openstack.common import log
+from oslo_log import log
 
 from networking_vsphere.common import constants
 from networking_vsphere.common import error

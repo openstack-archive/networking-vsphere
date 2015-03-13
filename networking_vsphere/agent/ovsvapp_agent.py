@@ -18,6 +18,7 @@ import time
 
 import eventlet
 from oslo_config import cfg
+from oslo_log import log
 import oslo_messaging
 
 from neutron.agent.linux import ovs_lib
@@ -27,7 +28,6 @@ from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.common import utils as n_utils
 from neutron import context
-from neutron.openstack.common import log as logging
 from neutron.openstack.common import loopingcall
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.openvswitch.agent import ovs_neutron_agent as ovs_agent
@@ -40,7 +40,7 @@ from networking_vsphere.common import error
 from networking_vsphere.common import model
 from networking_vsphere.common import utils
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 CONF = cfg.CONF
 
 # To ensure thread safety for the shared variables

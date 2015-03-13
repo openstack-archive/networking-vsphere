@@ -15,8 +15,7 @@
 
 from eventlet import greenthread
 from oslo_config import cfg
-
-from neutron.openstack.common import log as logging
+from oslo_log import log
 
 from networking_vsphere.common import constants
 from networking_vsphere.utils import common_util
@@ -24,7 +23,7 @@ from networking_vsphere.utils import error_util
 from networking_vsphere.utils import resource_util
 from networking_vsphere.utils import vim_util
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 
 def get_dvs_mor_by_uuid(session, uuid):

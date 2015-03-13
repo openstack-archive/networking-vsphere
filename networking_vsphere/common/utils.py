@@ -17,11 +17,11 @@ import functools
 import sys
 import traceback
 
+from oslo_log import log
+
 from networking_vsphere.common import error
 
-from neutron.openstack.common import log as logging
-
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 
 def import_class(import_str):

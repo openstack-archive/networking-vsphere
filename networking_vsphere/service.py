@@ -19,15 +19,15 @@ import sys
 import eventlet
 eventlet.monkey_patch()
 from oslo_config import cfg
+from oslo_log import log
 
 from neutron.common import config as neutron_config
-from neutron.openstack.common import log as logging
 
 from networking_vsphere.agent import agent
 from networking_vsphere.common import config as ovsvapp_config
 from networking_vsphere.common import utils
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 agent_obj = None
 

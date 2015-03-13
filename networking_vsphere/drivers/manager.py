@@ -16,14 +16,13 @@
 import eventlet
 import greenlet
 from oslo_config import cfg
-
-from neutron.openstack.common import log as logging
+from oslo_log import log
 
 from networking_vsphere.drivers import base_manager
 from networking_vsphere.drivers import dvs_driver
 from networking_vsphere.utils import vim_session
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 
 class VcenterManager(base_manager.DriverManager):

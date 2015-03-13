@@ -15,13 +15,13 @@
 
 """Utils for managing resources like cluster, VM and host."""
 
-from neutron.openstack.common import log as logging
+from oslo_log import log
 
 from networking_vsphere.utils import cache
 from networking_vsphere.utils import common_util
 from networking_vsphere.utils import vim_util
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 
 def get_host_mor_for_vm(session, vm_uuid):

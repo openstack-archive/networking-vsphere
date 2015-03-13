@@ -14,13 +14,13 @@
 #    under the License.
 
 from oslo_config import cfg
+from oslo_log import log
 from oslo_utils import importutils
 
 from neutron.agent import securitygroups_rpc as sg_rpc
-from neutron.openstack.common import log as logging
 import time
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 
 class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):

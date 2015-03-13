@@ -15,6 +15,7 @@
 
 import time
 
+from oslo_log import log
 import oslo_messaging
 
 from networking_vsphere.common import constants as ovsvapp_const
@@ -24,7 +25,6 @@ from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.extensions import portbindings
 from neutron import manager
-from neutron.openstack.common import log
 
 LOG = log.getLogger(__name__)
 

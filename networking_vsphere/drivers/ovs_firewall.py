@@ -17,15 +17,15 @@ import itertools
 
 import netaddr
 from oslo_config import cfg
+from oslo_log import log
 
 from neutron.agent import firewall
 from neutron.agent.linux import ovs_lib
 from neutron.common import constants
-from neutron.openstack.common import log as logging
 
 from networking_vsphere.common import constants as ovsvapp_const
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 PROTOCOLS = {constants.PROTO_NAME_TCP: constants.PROTO_NAME_TCP,
              constants.PROTO_NUM_TCP: constants.PROTO_NAME_TCP,

@@ -17,6 +17,8 @@ import copy
 import re
 import time
 
+from oslo_log import log
+
 from networking_vsphere.common import constants
 from networking_vsphere.common import error
 from networking_vsphere.common import model
@@ -30,10 +32,7 @@ from networking_vsphere.utils import resource_util
 from networking_vsphere.utils import vim_session
 from networking_vsphere.utils import vim_util
 
-from neutron.openstack.common import log as logging
-
-
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 
 class VCNetworkDriver(driver.NetworkDriver):

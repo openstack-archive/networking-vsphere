@@ -15,12 +15,11 @@
 
 import time
 
+from oslo_log import log
 from oslo_vmware import api
 from oslo_vmware import vim
 
-from neutron.openstack.common import log as logging
-
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 
 class ConnectionHandler:

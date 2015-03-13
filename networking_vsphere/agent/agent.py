@@ -14,15 +14,14 @@
 #    under the License.
 
 from oslo_config import cfg
-
-from neutron.openstack.common import log as logging
+from oslo_log import log
 
 from networking_vsphere.common import constants
 from networking_vsphere.common import utils
 from networking_vsphere.drivers import base_manager as manager
 from networking_vsphere.drivers import driver
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 
 class Agent(driver.NetworkDriverCallback):

@@ -14,7 +14,7 @@
 
 from eventlet import greenthread
 from oslo_config import cfg
-from oslo_log import log as logging
+from oslo_log import log
 
 from nova import exception
 from nova.virt.vmwareapi import driver as vmware_driver
@@ -22,7 +22,7 @@ from nova.virt.vmwareapi import images
 from nova.virt.vmwareapi import vim_util
 from nova.virt.vmwareapi import vm_util
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 vmware_neutron_opts = [
     cfg.IntOpt('vmwareapi_nic_attach_retry_count',
