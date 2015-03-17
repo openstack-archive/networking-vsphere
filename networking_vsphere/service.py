@@ -21,8 +21,6 @@ eventlet.monkey_patch()
 from oslo_config import cfg
 from oslo_log import log
 
-from neutron.common import config as neutron_config
-
 from networking_vsphere.agent import agent
 from networking_vsphere.common import config as ovsvapp_config
 from networking_vsphere.common import utils
@@ -32,14 +30,11 @@ LOG = log.getLogger(__name__)
 agent_obj = None
 
 
-def main():
+def run():
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     try:
         global agent_obj
-        neutron_config.init(sys.argv[1:])
-        neutron_config.setup_logging()
-        LOG.debug("Logging setup complete.")
         ovsvapp_config.register_options()
         LOG.info(_("Loading agent %s."), cfg.CONF.OVSVAPP.agent_driver)
         agent_obj = utils.load_object(cfg.CONF.OVSVAPP.agent_driver,
@@ -66,7 +61,3 @@ def signal_handler(signum, frame):
             pass
     signal.signal(signum, signal.SIG_DFL)
     sys.exit(0)
-
-
-if __name__ == '__main__':
-    main()
