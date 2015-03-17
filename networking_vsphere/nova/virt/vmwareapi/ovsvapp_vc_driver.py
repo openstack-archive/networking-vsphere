@@ -41,8 +41,7 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         self.old_modified_time = -1
 
     def spawn(self, context, instance, image_meta, injected_files,
-              admin_password, network_info=None, block_device_info=None,
-              flavor=None):
+              admin_password, network_info=None, block_device_info=None):
         _vmops = self._get_vmops_for_compute_node(instance['node'])
         _vmops.spawn(context=context,
                      instance=instance,
@@ -52,8 +51,7 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                      network_info=None,
                      block_device_info=block_device_info,
                      instance_name=None,
-                     power_on=False,
-                     flavor=flavor)
+                     power_on=False)
         vm_ref = vm_util.get_vm_ref(self._session, instance)
         if vm_ref is None:
             raise exception.InstanceNotFound(instance_id=instance['uuid'])
