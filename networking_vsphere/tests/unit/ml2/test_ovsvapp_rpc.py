@@ -25,7 +25,7 @@ from neutron.tests.unit.ml2 import test_rpcapi
 
 from networking_vsphere.agent import ovsvapp_agent
 from networking_vsphere.common import constants as ovsvapp_const
-from networking_vsphere.plugins.ml2.drivers.ovsvapp import rpc
+from networking_vsphere.ml2 import ovsvapp_rpc
 
 cfg.CONF.import_group('ml2', 'neutron.plugins.ml2.config')
 
@@ -34,7 +34,7 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
 
     def setUp(self):
         super(OVSvAppServerRpcCallbackTest, self).setUp()
-        self.ovsvapp_callbacks = rpc.OVSvAppServerRpcCallback(
+        self.ovsvapp_callbacks = ovsvapp_rpc.OVSvAppServerRpcCallback(
             mock.Mock())
         self.plugin = self.manager.get_plugin()
 
@@ -56,7 +56,7 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
                               return_value=network),
             mock.patch.object(self.ovsvapp_callbacks.notifier,
                               'device_create'),
-            mock.patch.object(rpc.LOG, 'debug'),
+            mock.patch.object(ovsvapp_rpc.LOG, 'debug'),
             mock.patch.object(self.plugin, 'get_ports_from_devices'),
             mock.patch.object(self.plugin, 'security_group_rules_for_ports'),
         ) as (get_ports, get_network, device_create,
@@ -85,7 +85,7 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
                               return_value=network),
             mock.patch.object(self.ovsvapp_callbacks.notifier,
                               'device_create'),
-            mock.patch.object(rpc.LOG, 'debug'),
+            mock.patch.object(ovsvapp_rpc.LOG, 'debug'),
             mock.patch.object(self.plugin, 'get_ports_from_devices'),
         ) as (get_ports, get_network, device_create,
               log_debug, device_ports):
@@ -98,8 +98,8 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
     def test_get_ports_for_device_without_port(self):
         self.plugin.get_ports.return_value = None
         with contextlib.nested(
-            mock.patch.object(rpc.LOG, 'debug'),
-            mock.patch.object(rpc.LOG, 'exception')
+            mock.patch.object(ovsvapp_rpc.LOG, 'debug'),
+            mock.patch.object(ovsvapp_rpc.LOG, 'exception')
         ) as (log_debug, log_exception):
             self.assertFalse(self.ovsvapp_callbacks.get_ports_for_device(
                              'fake_context', agent_id='fake_agent_id',
@@ -114,7 +114,7 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
                   'device': {'id': None,
                              'host': 'fake_host',
                              'cluster_id': 'fake_cluster_id'}}
-        with mock.patch.object(rpc.LOG, 'debug') as log_debug:
+        with mock.patch.object(ovsvapp_rpc.LOG, 'debug') as log_debug:
             self.assertFalse(self.ovsvapp_callbacks.get_ports_for_device(
                              'fake_context', **kwargs))
             self.assertTrue(log_debug.called)
@@ -124,7 +124,7 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
                   'agent_id': 'fake_agent_id'}
         port = {portbindings.HOST_ID: 'fake_host'}
         self.plugin.update_port.return_value = port
-        with mock.patch.object(rpc.LOG, 'debug') as log_debug:
+        with mock.patch.object(ovsvapp_rpc.LOG, 'debug') as log_debug:
             updated_port = self.ovsvapp_callbacks.update_port_binding(
                 'fake_context', **kwargs)
             self.assertEqual(port[portbindings.HOST_ID],
@@ -135,7 +135,7 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
 class OVSvAppAgentNotifyAPITest(test_rpcapi.RpcApiTestCase):
 
     def test_device_create(self):
-        rpcapi = rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
+        rpcapi = ovsvapp_rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
         self._test_rpc_api(rpcapi,
                            topics.get_topic_name(topics.AGENT,
                                                  ovsvapp_const.DEVICE,
@@ -147,7 +147,7 @@ class OVSvAppAgentNotifyAPITest(test_rpcapi.RpcApiTestCase):
                            sg_rules='fake_sg_rules')
 
     def test_device_update(self):
-        rpcapi = rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
+        rpcapi = ovsvapp_rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
         self._test_rpc_api(rpcapi,
                            topics.get_topic_name(topics.AGENT,
                                                  ovsvapp_const.DEVICE,
