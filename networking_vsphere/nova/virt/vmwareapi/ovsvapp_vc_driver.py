@@ -50,7 +50,6 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                      admin_password=admin_password,
                      network_info=None,
                      block_device_info=block_device_info,
-                     instance_name=None,
                      power_on=False)
         vm_ref = vm_util.get_vm_ref(self._session, instance)
         if vm_ref is None:
