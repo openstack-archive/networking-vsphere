@@ -12,11 +12,13 @@
 #
 # - install_ovsvapp_dependency
 # - install_networking_vsphere
+# - run_ovsvapp_alembic_migration
 # - pre_configure_ovsvapp
 # - add_ovsvapp_config
 # - configure_ovsvapp_config
 # - setup_ovsvapp_bridges
 # - start_ovsvapp_agent
+# - configure_ovsvapp_compute_driver
 # - cleanup_ovsvapp_bridges
 
 # Save trace setting
@@ -42,6 +44,7 @@ function configure_ovsvapp_compute_driver {
     cp $OVSVAPP_VCDRIVER $NOVA_VCDRIVER
     iniset $NOVA_CONF DEFAULT compute_driver "vmwareapi.ovsvapp_vc_driver.OVSvAppVCDriver"
 }
+
 function start_ovsvapp_agent {
     OVSVAPP_AGENT_BINARY="$NEUTRON_BIN_DIR/neutron-ovsvapp-agent"
     echo "Starting OVSvApp L2 Agent"
@@ -91,6 +94,10 @@ function pre_configure_ovsvapp {
     _configure_neutron_service
 }
 
+function run_ovsvapp_alembic_migration {
+    $NEUTRON_BIN_DIR/neutron-ovsvapp-db-manage --config-file $NEUTRON_CONF --config-file /$Q_PLUGIN_CONF_FILE upgrade head
+}
+
 function install_ovsvapp_dependency {
     echo "Installing dependencies for OVSvApp"
     install_nova
@@ -112,8 +119,7 @@ if is_service_enabled ovsvapp-server; then
         install_ovsvapp_dependency
         install_networking_vsphere
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
-        # no-op
-        :
+        run_ovsvapp_alembic_migration
     elif [[ "$1" == "stack" && "$2" == "post-extra" ]]; then
         # no-op
         :
