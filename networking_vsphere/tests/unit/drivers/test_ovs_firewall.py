@@ -20,7 +20,7 @@ from oslo_config import cfg
 
 import contextlib
 from neutron.agent.common import config
-from neutron.agent.linux import ovs_lib as ovslib
+from neutron.agent.common import ovs_lib
 from neutron.common import constants
 
 from networking_vsphere.drivers import ovs_firewall as ovs_fw
@@ -54,16 +54,16 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch('networking_vsphere.drivers.'
                            'ovs_firewall.OVSFirewallDriver.'
                            'setup_base_flows'),
-                mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                            'create'),
-                mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                            'set_secure_mode'),
-                mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                            'get_port_ofport',
                            return_value=5)):
             self.ovs_firewall = ovs_fw.OVSFirewallDriver()
             self.ovs_firewall.sg_br = mock.Mock()
-            self.mock_br = ovslib.DeferredOVSBridge(self.ovs_firewall.sg_br)
+            self.mock_br = ovs_lib.DeferredOVSBridge(self.ovs_firewall.sg_br)
             self.LOG = ovs_fw.LOG
 
     def test_get_compact_port(self):

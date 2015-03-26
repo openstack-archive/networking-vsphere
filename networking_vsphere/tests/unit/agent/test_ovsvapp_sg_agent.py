@@ -61,11 +61,11 @@ class TestOVSVAppSecurityGroupAgent(base.TestCase):
                 mock.patch('networking_vsphere.drivers.'
                            'ovs_firewall.OVSFirewallDriver.'
                            'setup_base_flows'),
-                mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                            'create'),
-                mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                            'set_secure_mode'),
-                mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                            'get_port_ofport',
                            return_value=5)):
             self.agent = ovsvapp_sg_agent.OVSVAppSecurityGroupAgent(

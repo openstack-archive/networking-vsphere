@@ -28,7 +28,7 @@ from networking_vsphere.common import error
 from networking_vsphere.tests import base
 from networking_vsphere.tests.unit.drivers import fake_manager
 
-from neutron.agent.linux import ovs_lib
+from neutron.agent.common import ovs_lib
 from neutron.plugins.common import constants as p_const
 
 VNIC_ADDED = 'VNIC_ADDED'
@@ -111,11 +111,11 @@ class TestOVSvAppL2Agent(base.TestCase):
             mock.patch('networking_vsphere.drivers.'
                        'ovs_firewall.OVSFirewallDriver.'
                        'setup_base_flows'),
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'create'),
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'set_secure_mode'),
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'get_port_ofport',
                        return_value=5)):
             self.agent = ovsvapp_agent.OVSvAppL2Agent()
