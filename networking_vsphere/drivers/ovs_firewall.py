@@ -19,8 +19,8 @@ import netaddr
 from oslo_config import cfg
 from oslo_log import log
 
+from neutron.agent.common import ovs_lib
 from neutron.agent import firewall
-from neutron.agent.linux import ovs_lib
 from neutron.common import constants
 
 from networking_vsphere.common import constants as ovsvapp_const
