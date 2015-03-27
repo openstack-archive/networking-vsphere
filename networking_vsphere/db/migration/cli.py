@@ -16,15 +16,22 @@
 import os
 
 from alembic import config as alembic_config
-from oslo_config import cfg
 
-CONF = cfg.ConfigOpts()
+from neutron.db.migration import cli
+
+CONF = cli.CONF
 
 
-def main():
+def get_alembic_config():
     script_location = 'networking_vsphere.db.migration:alembic_migrations'
     config = alembic_config.Config(os.path.join(os.path.dirname(__file__),
                                                 'alembic.ini'))
     config.set_main_option('script_location', script_location)
+    return config
+
+
+def main():
+    config = get_alembic_config()
     config.neutron_config = CONF
+    CONF()
     CONF.command.func(config, CONF.command.name)
