@@ -119,7 +119,8 @@ if is_service_enabled ovsvapp-server; then
         install_ovsvapp_dependency
         install_networking_vsphere
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
-        run_ovsvapp_alembic_migration
+        #run_ovsvapp_alembic_migration
+        :
     elif [[ "$1" == "stack" && "$2" == "post-extra" ]]; then
         # no-op
         :
