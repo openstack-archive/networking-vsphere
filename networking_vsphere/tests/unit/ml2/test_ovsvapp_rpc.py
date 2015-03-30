@@ -42,7 +42,9 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
         kwargs = {'agent_id': 'fake_agent_id',
                   'device': {'id': 1,
                              'host': 'fake_host',
-                             'cluster_id': 'fake_cluster_id'}}
+                             'cluster_id': 'fake_cluster_id',
+                             'vcenter': 'fake_vcenter'}}
+
         port = collections.defaultdict(lambda: 'fake')
         network = collections.defaultdict(lambda: 'fake')
         port['id'] = 'fake-id'
@@ -64,7 +66,7 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
             self.assertTrue(self.ovsvapp_callbacks.get_ports_for_device(
                             'fake_context', **kwargs))
             self.assertTrue(device_create.called)
-            self.assertEqual(2, log_debug.call_count)
+            self.assertEqual(3, log_debug.call_count)
             self.assertTrue(device_ports.called)
             self.assertTrue(sg_method.called)
 
@@ -72,7 +74,8 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
         kwargs = {'agent_id': 'fake_agent_id',
                   'device': {'id': 1,
                              'host': 'fake_host',
-                             'cluster_id': 'fake_cluster_id'}}
+                             'cluster_id': 'fake_cluster_id',
+                             'vcenter': 'fake_vcenter'}}
         port = collections.defaultdict(lambda: 'fake')
         network = collections.defaultdict(lambda: 'fake')
         port['id'] = 'fake-id'
@@ -92,7 +95,7 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
             self.assertTrue(self.ovsvapp_callbacks.get_ports_for_device(
                             'fake_context', **kwargs))
             self.assertTrue(device_create.called)
-            self.assertEqual(2, log_debug.call_count)
+            self.assertEqual(3, log_debug.call_count)
             self.assertFalse(device_ports.called)
 
     def test_get_ports_for_device_without_port(self):
@@ -105,7 +108,8 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
                              'fake_context', agent_id='fake_agent_id',
                              device={'id': 1,
                                      'host': 'fake_host',
-                                     'cluster_id': 'fake_cluster_id'}))
+                                     'cluster_id': 'fake_cluster_id',
+                                     'vcenter': 'fake_vcenter'}))
             self.assertEqual(2, log_debug.call_count)
             self.assertTrue(log_exception.called)
 
@@ -113,7 +117,8 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
         kwargs = {'agent_id': 'fake_agent_id',
                   'device': {'id': None,
                              'host': 'fake_host',
-                             'cluster_id': 'fake_cluster_id'}}
+                             'cluster_id': 'fake_cluster_id',
+                             'vcenter': 'fake_vcenter'}}
         with mock.patch.object(ovsvapp_rpc.LOG, 'debug') as log_debug:
             self.assertFalse(self.ovsvapp_callbacks.get_ports_for_device(
                              'fake_context', **kwargs))
@@ -145,16 +150,6 @@ class OVSvAppAgentNotifyAPITest(test_rpcapi.RpcApiTestCase):
                            device='fake_device',
                            ports='fake_ports',
                            sg_rules='fake_sg_rules')
-
-    def test_device_update(self):
-        rpcapi = ovsvapp_rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
-        self._test_rpc_api(rpcapi,
-                           topics.get_topic_name(topics.AGENT,
-                                                 ovsvapp_const.DEVICE,
-                                                 topics.UPDATE),
-                           'device_update', rpc_method='cast',
-                           fanout=True,
-                           device_data='fake_device_data')
 
     def test_get_ports_for_device(self):
         rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
