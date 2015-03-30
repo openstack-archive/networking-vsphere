@@ -38,6 +38,7 @@ FAKE_HOST_1 = 'fake_host_1'
 FAKE_HOST_2 = 'fake_host_2'
 FAKE_CLUSTER_1 = 'fake_cluster_1'
 FAKE_CLUSTER_2 = 'fake_cluster_2'
+FAKE_VCENTER = 'fake_vcenter'
 FAKE_PORT_1 = 'fake_port_1'
 FAKE_PORT_2 = 'fake_port_2'
 MAC_ADDRESS = '01:02:03:04:05:06'
@@ -49,7 +50,8 @@ FAKE_SG_RULES = {FAKE_DEVICE_ID: ['fake_rule_1',
                  }
 DEVICE = {'id': FAKE_DEVICE_ID,
           'cluster_id': FAKE_CLUSTER_1,
-          'host': FAKE_HOST_1}
+          'host': FAKE_HOST_1,
+          'vcenter': FAKE_VCENTER}
 
 
 class SampleEvent(object):
@@ -737,6 +739,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.assertEqual(exp_port['id'], port.uuid)
 
     def test_device_create_cluster_mismatch(self):
+        self.agent.vcenter_id = FAKE_VCENTER
         self.agent.cluster_id = FAKE_CLUSTER_2
         with contextlib.nested(
             mock.patch.object(self.agent,
@@ -751,6 +754,7 @@ class TestOVSvAppL2Agent(base.TestCase):
 
     def test_device_create_non_hosted_vm(self):
         ports = [self._build_port()]
+        self.agent.vcenter_id = FAKE_VCENTER
         self.agent.cluster_id = FAKE_CLUSTER_1
         self.agent.esx_hostname = FAKE_HOST_2
         self.agent.tenant_network_type = p_const.TYPE_VLAN
@@ -775,6 +779,7 @@ class TestOVSvAppL2Agent(base.TestCase):
 
     def test_device_create_hosted_vm_vlan(self):
         ports = [self._build_port()]
+        self.agent.vcenter_id = FAKE_VCENTER
         self.agent.cluster_id = FAKE_CLUSTER_1
         self.agent.esx_hostname = FAKE_HOST_1
         self.agent.tenant_network_type = p_const.TYPE_VLAN
@@ -802,6 +807,7 @@ class TestOVSvAppL2Agent(base.TestCase):
 
     def test_device_create_hosted_vm_create_port_exception(self):
         ports = [self._build_port()]
+        self.agent.vcenter_id = FAKE_VCENTER
         self.agent.cluster_id = FAKE_CLUSTER_1
         self.agent.esx_hostname = FAKE_HOST_1
         self.agent.tenant_network_type = p_const.TYPE_VLAN
@@ -831,6 +837,7 @@ class TestOVSvAppL2Agent(base.TestCase):
 
     def test_device_create_hosted_vm_update_device_exception(self):
         ports = [self._build_port()]
+        self.agent.vcenter_id = FAKE_VCENTER
         self.agent.cluster_id = FAKE_CLUSTER_1
         self.agent.esx_hostname = FAKE_HOST_1
         self.agent.tenant_network_type = p_const.TYPE_VLAN
