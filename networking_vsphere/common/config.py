@@ -17,6 +17,10 @@ from oslo_config import cfg
 
 # vCenter server and ESX host related config read from ovsvapp_agent.ini.
 VMWARE_OPTS = [
+    cfg.StrOpt('vcenter_id',
+               default=None,
+               help='Unique ID of the vCenter Server on which this OVSvApp is'
+                    'hosted'),
     cfg.StrOpt('vcenter_ip',
                default=None,
                help='vCenter server IP.'),
@@ -48,7 +52,7 @@ VMWARE_OPTS = [
                 default=True,
                 help='Set host into maintenance mode.'),
     cfg.MultiStrOpt('cluster_dvs_mapping',
-                    default=[],
+                    default=[''],
                     help='vCenter cluster to DVS mapping.')
 ]
 
