@@ -34,17 +34,19 @@ def downgrade():
 
 def upgrade():
     op.create_table('ovsvapp_cluster_vni_allocations',
-                    sa.Column('vcenter_id', sa.String(length=255),
+                    sa.Column('vcenter_id', sa.String(length=36),
                               nullable=False),
-                    sa.Column('cluster_id', sa.String(length=255),
+                    sa.Column('cluster_id', sa.String(length=1024),
                               nullable=False),
                     sa.Column('lvid', sa.Integer(), nullable=False,
                               autoincrement=False),
-                    sa.Column('network_id', sa.String(length=64)),
+                    sa.Column('network_id', sa.String(length=36)),
                     sa.Column('allocated', sa.Boolean(),
                               server_default=sa.sql.false(), nullable=False),
                     sa.Column('network_port_count', sa.Integer(),
                               server_default='0', nullable=False),
+                    sa.Column('pending_release', sa.Boolean(),
+                              server_default=sa.sql.false(), nullable=False),
                     sa.PrimaryKeyConstraint('vcenter_id', 'cluster_id',
                                             'lvid')
                     )

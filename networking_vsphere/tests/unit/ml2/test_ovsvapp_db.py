@@ -14,10 +14,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from networking_vsphere.tests import base
+from neutron.tests.unit import testlib_api
 
 
-class OVSvAppAgentDriverTestCase(base.TestCase):
+class OVSvAppDBTestCase(testlib_api.SqlTestCase):
 
     def setUp(self):
-        super(OVSvAppAgentDriverTestCase, self).setUp()
+        super(OVSvAppDBTestCase, self).setUp()
