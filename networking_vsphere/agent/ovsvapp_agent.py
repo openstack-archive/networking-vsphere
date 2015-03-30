@@ -489,6 +489,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             [topics.PORT, topics.UPDATE],
             [ovsvapp_const.DEVICE, topics.CREATE],
             [ovsvapp_const.DEVICE, topics.UPDATE],
+            [ovsvapp_const.DEVICE, topics.DELETE],
             [topics.SECURITY_GROUP, topics.UPDATE]
         ]
         self.connection = agent_rpc.create_consumers(self.endpoints,
@@ -560,7 +561,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     try:
                         # Make RPC call to plugin to get port details.
                         status = self.ovsvapp_rpc.get_ports_for_device(
-                            self.context, device, self.agent_id)
+                            self.context, device, self.agent_id, self.hostname)
                         if status:
                             retry = False
                         else:
@@ -917,6 +918,11 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 raise error.OVSvAppNeutronAgentError(e)
             LOG.info(_("OVSvApp Agent - port update finished."))
 
+    def delete_vxlan_portgroup(self, context, **kwargs):
+        """Delete the portgroup, flows and reclaim lvid for a VXLAN network."""
+
+        LOG.info(_("OVSvApp Agent - delete vxlan portgroup RPC received"))
+
 
 class RpcPluginApi(agent_rpc.PluginApi):
 
@@ -930,14 +936,23 @@ class OVSvAppPluginApi(object):
         target = oslo_messaging.Target(topic=topic, version='1.0')
         self.client = n_rpc.get_client(target)
 
-    def get_ports_for_device(self, context, device, agent_id):
+    def get_ports_for_device(self, context, device, agent_id, host):
         cctxt = self.client.prepare()
-        LOG.info(_(" RPC get_ports_for_device is called for device_id: %s."),
+        LOG.info(_("RPC get_ports_for_device is called for device_id: %s."),
                  device['id'])
         return cctxt.call(context, 'get_ports_for_device', device=device,
-                          agent_id=agent_id)
+                          agent_id=agent_id, host=host)
 
     def update_port_binding(self, context, agent_id, port_id, host):
         cctxt = self.client.prepare()
         return cctxt.call(context, 'update_port_binding', agent_id=agent_id,
                           port_id=port_id, host=host)
+
+    def get_ports_details_list(self, context, port_ids, agent_id,
+                               vcenter_id, cluster_id):
+        cctxt = self.client.prepare()
+        LOG.info(_("RPC get_ports_details_list is called with port_ids: %s."),
+                 port_ids)
+        return cctxt.call(context, 'get_ports_details_list', port_ids=port_ids,
+                          agent_id=agent_id, vcenter_id=vcenter_id,
+                          cluster_id=cluster_id)

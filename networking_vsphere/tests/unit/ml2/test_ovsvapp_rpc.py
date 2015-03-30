@@ -40,9 +40,11 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
 
     def test_get_ports_for_device(self):
         kwargs = {'agent_id': 'fake_agent_id',
+                  'host': 'fake_host',
                   'device': {'id': 1,
-                             'host': 'fake_host',
-                             'cluster_id': 'fake_cluster_id'}}
+                             'cluster_id': 'fake_cluster_id',
+                             'vcenter': 'fake_vcenter'}}
+
         port = collections.defaultdict(lambda: 'fake')
         network = collections.defaultdict(lambda: 'fake')
         port['id'] = 'fake-id'
@@ -59,20 +61,26 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
             mock.patch.object(ovsvapp_rpc.LOG, 'debug'),
             mock.patch.object(self.plugin, 'get_ports_from_devices'),
             mock.patch.object(self.plugin, 'security_group_rules_for_ports'),
+            mock.patch.object(self.ovsvapp_callbacks, 'update_port_binding',
+                              return_value=[port])
         ) as (get_ports, get_network, device_create,
-              log_debug, device_ports, sg_method):
+              log_debug, get_ports_from_devices, sg_rules_for_ports,
+              update_port_binding):
             self.assertTrue(self.ovsvapp_callbacks.get_ports_for_device(
                             'fake_context', **kwargs))
             self.assertTrue(device_create.called)
             self.assertEqual(2, log_debug.call_count)
-            self.assertTrue(device_ports.called)
-            self.assertTrue(sg_method.called)
+            self.assertTrue(get_ports_from_devices.called)
+            self.assertTrue(sg_rules_for_ports.called)
+            self.assertTrue(update_port_binding.called)
 
     def test_get_ports_for_device_no_security_groups(self):
         kwargs = {'agent_id': 'fake_agent_id',
+                  'host': 'fake_host',
                   'device': {'id': 1,
-                             'host': 'fake_host',
-                             'cluster_id': 'fake_cluster_id'}}
+                             'cluster_id': 'fake_cluster_id',
+                             'vcenter': 'fake_vcenter'}}
+
         port = collections.defaultdict(lambda: 'fake')
         network = collections.defaultdict(lambda: 'fake')
         port['id'] = 'fake-id'
@@ -87,13 +95,16 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
                               'device_create'),
             mock.patch.object(ovsvapp_rpc.LOG, 'debug'),
             mock.patch.object(self.plugin, 'get_ports_from_devices'),
+            mock.patch.object(self.ovsvapp_callbacks, 'update_port_binding',
+                              return_value=[port])
         ) as (get_ports, get_network, device_create,
-              log_debug, device_ports):
+              log_debug, get_ports_from_devices, update_port_binding):
             self.assertTrue(self.ovsvapp_callbacks.get_ports_for_device(
                             'fake_context', **kwargs))
             self.assertTrue(device_create.called)
             self.assertEqual(2, log_debug.call_count)
-            self.assertFalse(device_ports.called)
+            self.assertFalse(get_ports_from_devices.called)
+            self.assertTrue(update_port_binding.called)
 
     def test_get_ports_for_device_without_port(self):
         self.plugin.get_ports.return_value = None
@@ -103,17 +114,19 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
         ) as (log_debug, log_exception):
             self.assertFalse(self.ovsvapp_callbacks.get_ports_for_device(
                              'fake_context', agent_id='fake_agent_id',
+                             host='fake_host',
                              device={'id': 1,
-                                     'host': 'fake_host',
-                                     'cluster_id': 'fake_cluster_id'}))
+                                     'cluster_id': 'fake_cluster_id',
+                                     'vcenter': 'fake_vcenter'}))
             self.assertEqual(2, log_debug.call_count)
             self.assertTrue(log_exception.called)
 
     def test_get_ports_for_device_without_device_id(self):
         kwargs = {'agent_id': 'fake_agent_id',
+                  'host': 'fake_host',
                   'device': {'id': None,
-                             'host': 'fake_host',
-                             'cluster_id': 'fake_cluster_id'}}
+                             'cluster_id': 'fake_cluster_id',
+                             'vcenter': 'fake_vcenter'}}
         with mock.patch.object(ovsvapp_rpc.LOG, 'debug') as log_debug:
             self.assertFalse(self.ovsvapp_callbacks.get_ports_for_device(
                              'fake_context', **kwargs))
@@ -146,24 +159,24 @@ class OVSvAppAgentNotifyAPITest(test_rpcapi.RpcApiTestCase):
                            ports='fake_ports',
                            sg_rules='fake_sg_rules')
 
-    def test_device_update(self):
+    def test_delete_vxlan_portgroup(self):
         rpcapi = ovsvapp_rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
         self._test_rpc_api(rpcapi,
                            topics.get_topic_name(topics.AGENT,
                                                  ovsvapp_const.DEVICE,
-                                                 topics.UPDATE),
-                           'device_update', rpc_method='cast',
-                           fanout=True,
-                           device_data='fake_device_data')
+                                                 topics.DELETE),
+                           'delete_vxlan_portgroup', rpc_method='call',
+                           network_info='fake_network_info',
+                           host='fake_host')
 
     def test_get_ports_for_device(self):
         rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
         self._test_rpc_api(rpcapi, None,
                            'get_ports_for_device', rpc_method='call',
                            device={'id': 'fake_id',
-                                   'host': 'fake_host',
+                                   'vcenter': 'fake_vcenter',
                                    'cluster_id': 'fake_cluster_id'},
-                           agent_id='fake_agent_id')
+                           agent_id='fake_agent_id', host='fake_host')
 
     def test_update_port_binding(self):
         rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
@@ -171,3 +184,11 @@ class OVSvAppAgentNotifyAPITest(test_rpcapi.RpcApiTestCase):
                            'update_port_binding', rpc_method='call',
                            port_id='fake_port_id',
                            host='fake_host', agent_id='fake_agent_id')
+
+    def test_get_ports_details_list(self):
+        rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
+        self._test_rpc_api(rpcapi, None,
+                           'get_ports_details_list', rpc_method='call',
+                           port_ids=['fake_port_ids'],
+                           agent_id='fake_agent_id', vcenter_id='fake_vcenter',
+                           cluster_id='fake_cluster_id')
