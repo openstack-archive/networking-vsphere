@@ -69,7 +69,11 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
     def __init__(self):
         agent.Agent.__init__(self)
         self.esx_hostname = CONF.VMWARE.esx_hostname
-        self.cluster_id = None
+        self.vcenter_id = CONF.VMWARE.vcenter_id
+        if not self.vcenter_id:
+            self.vcenter_id = CONF.VMWARE.vcenter_ip
+        self.cluster_dvs_info = (CONF.VMWARE.cluster_dvs_mapping)[0].split(":")
+        self.cluster_id = self.cluster_dvs_info[0]
         self.ports_dict = {}
         self.network_port_count = {}
         self.devices_to_filter = set()
@@ -91,7 +95,9 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             'host': self.hostname,
             'topic': topics.AGENT,
             'configurations': {'bridge_mappings': self.bridge_mappings,
-                               'tunnel_types': self.tunnel_types},
+                               'tunnel_types': self.tunnel_types,
+                               'cluster_id': self.cluster_id,
+                               'vcenter_id': self.vcenter_id},
             'agent_type': ovsvapp_const.AGENT_TYPE_OVSVAPP,
             'start_flag': True}
         self.veth_mtu = CONF.OVSVAPP.veth_mtu
@@ -489,6 +495,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             [topics.PORT, topics.UPDATE],
             [ovsvapp_const.DEVICE, topics.CREATE],
             [ovsvapp_const.DEVICE, topics.UPDATE],
+            [ovsvapp_const.DEVICE, topics.DELETE],
             [topics.SECURITY_GROUP, topics.UPDATE]
         ]
         self.connection = agent_rpc.create_consumers(self.endpoints,
@@ -553,14 +560,15 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             if host == self.esx_hostname:
                 device = {'id': vm.uuid,
                           'host': host,
-                          'cluster_id': self.cluster_id}
+                          'cluster_id': self.cluster_id,
+                          'vcenter': self.vcenter_id}
                 retry = True
                 iteration = 1
                 while retry:
                     try:
                         # Make RPC call to plugin to get port details.
                         status = self.ovsvapp_rpc.get_ports_for_device(
-                            self.context, device, self.agent_id)
+                            self.context, device, self.agent_id, self.hostname)
                         if status:
                             retry = False
                         else:
@@ -822,9 +830,10 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         device = kwargs.get('device')
         device_id = device['id']
         cluster_id = device['cluster_id']
+        vcenter_id = device['vcenter']
         LOG.debug("device_create notification for VM %s.", device_id)
-        if cluster_id != self.cluster_id:
-            LOG.debug("Cluster mismatch ..ignoring device_create rpc.")
+        if cluster_id != self.cluster_id or vcenter_id != self.vcenter_id:
+            LOG.debug('Cluster/vCenter mismatch..ignoring device_create rpc.')
             return
         ports_list = kwargs.get('ports')
         sg_rules = kwargs.get("sg_rules")
@@ -917,6 +926,11 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 raise error.OVSvAppNeutronAgentError(e)
             LOG.info(_("OVSvApp Agent - port update finished."))
 
+    def device_delete(self, context, **kwargs):
+        """Delete the portgroup, flows and reclaim lvid for a VXLAN network."""
+
+        LOG.info(_("OVSvApp Agent - device delete RPC received."))
+
 
 class RpcPluginApi(agent_rpc.PluginApi):
 
@@ -930,14 +944,28 @@ class OVSvAppPluginApi(object):
         target = oslo_messaging.Target(topic=topic, version='1.0')
         self.client = n_rpc.get_client(target)
 
-    def get_ports_for_device(self, context, device, agent_id):
+    def get_ports_for_device(self, context, device, agent_id, host):
         cctxt = self.client.prepare()
-        LOG.info(_(" RPC get_ports_for_device is called for device_id: %s."),
+        LOG.info(_("RPC get_ports_for_device is called for device_id: %s."),
                  device['id'])
         return cctxt.call(context, 'get_ports_for_device', device=device,
-                          agent_id=agent_id)
+                          agent_id=agent_id, host=host)
 
     def update_port_binding(self, context, agent_id, port_id, host):
         cctxt = self.client.prepare()
         return cctxt.call(context, 'update_port_binding', agent_id=agent_id,
                           port_id=port_id, host=host)
+
+    def update_ports_binding(self, context, agent_id, ports, host):
+        cctxt = self.client.prepare()
+        return cctxt.call(context, 'update_ports_binding', agent_id=agent_id,
+                          ports=ports, host=host)
+
+    def get_ports_details_list(self, context, port_ids, agent_id,
+                               vcenter_id, cluster_id):
+        cctxt = self.client.prepare()
+        LOG.info(_("RPC get_ports_details_list is called with port_ids: %s."),
+                 port_ids)
+        return cctxt.call(context, 'get_ports_details_list', port_ids=port_ids,
+                          agent_id=agent_id, vcenter_id=vcenter_id,
+                          cluster_id=cluster_id)
