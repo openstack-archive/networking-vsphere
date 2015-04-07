@@ -21,7 +21,7 @@ from oslo_config import cfg
 
 from neutron.common import topics
 from neutron.extensions import portbindings
-from neutron.tests.unit.ml2 import test_rpcapi
+from neutron.tests.unit.plugins.ml2 import test_rpc
 
 from networking_vsphere.agent import ovsvapp_agent
 from networking_vsphere.common import constants as ovsvapp_const
@@ -30,7 +30,7 @@ from networking_vsphere.ml2 import ovsvapp_rpc
 cfg.CONF.import_group('ml2', 'neutron.plugins.ml2.config')
 
 
-class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
+class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
 
     def setUp(self):
         super(OVSvAppServerRpcCallbackTest, self).setUp()
@@ -132,7 +132,7 @@ class OVSvAppServerRpcCallbackTest(test_rpcapi.RpcCallbacksTestCase):
             self.assertTrue(log_debug.called)
 
 
-class OVSvAppAgentNotifyAPITest(test_rpcapi.RpcApiTestCase):
+class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
 
     def test_device_create(self):
         rpcapi = ovsvapp_rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
