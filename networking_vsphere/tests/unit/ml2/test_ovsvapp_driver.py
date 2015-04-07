@@ -19,6 +19,7 @@ from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers.ovsvapp import mech_driver
 from neutron.tests.unit.ml2 import _test_mech_agent as base
+
 # TODO(romilg): Revisit to minimize dependency on ML2 tests.
 
 from networking_vsphere.common import constants
