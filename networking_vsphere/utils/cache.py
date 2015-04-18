@@ -26,7 +26,9 @@ class VCCache(object):
 
     @classmethod
     def get_esx_hostname_for_vm(cls, vm_uuid):
-        return cls.vm_uuid_to_esx_hostname.get(vm_uuid)
+        if vm_uuid in cls.vm_uuid_to_esx_hostname.keys():
+            return cls.vm_uuid_to_esx_hostname.get(vm_uuid)
+        return None
 
     @classmethod
     def add_esx_hostname_for_vm(cls, vm_uuid, hostname):

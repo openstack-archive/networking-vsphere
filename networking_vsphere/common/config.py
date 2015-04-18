@@ -15,6 +15,8 @@
 
 from oslo_config import cfg
 
+from neutron.plugins.common import constants as p_const
+
 # vCenter server and ESX host related config read from ovsvapp_agent.ini.
 VMWARE_OPTS = [
     cfg.StrOpt('vcenter_id',
@@ -59,10 +61,10 @@ VMWARE_OPTS = [
 # OVSvApp Agent related config read from ovsvapp_agent.ini and neutron.conf.
 OVSVAPP_OPTS = [
     cfg.StrOpt('tenant_network_type',
-               default='vlan',
-               help='Network type for tenant networks - vlan.'),
+               default=p_const.TYPE_VLAN,
+               help='Network type for tenant networks'),
     cfg.StrOpt('integration_bridge',
-               default="br-int",
+               default='br-int',
                help='Integration Bridge.'),
     cfg.ListOpt('bridge_mappings',
                 default=[],
@@ -86,6 +88,21 @@ OVSVAPP_OPTS = [
     cfg.IntOpt('veth_mtu',
                default=1500,
                help='MTU size of veth interfaces.'),
+    cfg.ListOpt('tunnel_types',
+                default=[p_const.TYPE_VXLAN],
+                help='Tunnel network types supported by the OVSvApp Agent.'),
+    cfg.IntOpt('vxlan_udp_port',
+               default=p_const.VXLAN_UDP_PORT,
+               help='The UDP port to use for VXLAN tunnels.'),
+    cfg.IntOpt('dont_fragment',
+               default=True,
+               help='Do not fragment.'),
+    cfg.StrOpt('tunnel_bridge',
+               default='br-tun',
+               help='Tunnel Bridge for tunneling.'),
+    cfg.StrOpt('local_ip',
+               default='',
+               help='Local IP address of VXLAN tunnel endpoint.'),
     cfg.BoolOpt('agent_maintenance',
                 default=False,
                 help='Turn on this flag during agent updates to help '

@@ -281,7 +281,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             port = self.filtered_ports.get(port_id)
             LOG.debug("Filtered port: %s.", port)
             if port:
-                return port['segmentation_id']
+                return port['lvid']
 
     def _setup_aap_flows(self, sec_br, port):
         """Method to help setup rules for allowed address pairs."""

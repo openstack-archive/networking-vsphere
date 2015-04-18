@@ -176,8 +176,10 @@ class CommonModelTestCase(base.TestCase):
         hostname = 'host1'
         clustername = 'cluster1'
         clusterid = 'domain-xyz'
+        host_changed = False
         event = model.Event(event_type, src_obj, None,
-                            hostname, clustername, clusterid)
+                            hostname, clustername, clusterid,
+                            host_changed)
         self.assertEqual(event.event_type, event_type,
                          "event event_type does not match")
         self.assertEqual(event.host_name, hostname,
@@ -186,3 +188,5 @@ class CommonModelTestCase(base.TestCase):
                          "event cluster_name does not match")
         self.assertEqual(event.cluster_id, clusterid,
                          "event cluster_id does not match")
+        self.assertEqual(event.host_changed, host_changed,
+                         "event host_changed does not match")
