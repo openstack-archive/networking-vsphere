@@ -20,6 +20,7 @@ import eventlet
 from oslo_config import cfg
 from oslo_log import log
 import oslo_messaging
+from six import moves
 
 from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
@@ -47,6 +48,14 @@ CONF = cfg.CONF
 # ports_dict, network_port_count, devices_to_filter,
 # we use this per-thread recursive lock i.e., ovsvapplock
 ovsvapplock = threading.RLock()
+
+
+class LocalVLANMapping:
+    """Maps Global VNI to local VLAN Id."""
+    def __init__(self, vlan, network_type, segmentation_id):
+        self.vlan = vlan
+        self.network_type = network_type
+        self.segmentation_id = segmentation_id
 
 
 class PortInfo(object):
@@ -79,7 +88,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.devices_to_filter = set()
         self.cluster_host_ports = set()
         self.cluster_other_ports = set()
-        self.update_port_bindings = []
+        self.ports_to_bind = set()
         self.refresh_firewall_required = False
         self.run_check_for_updates = True
         self.use_call = True
@@ -89,7 +98,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 CONF.OVSVAPP.bridge_mappings)
         except ValueError as e:
             raise ValueError(_("Parsing bridge_mappings failed: %s.") % e)
-        self.tunnel_types = []
+        self.tunnel_types = CONF.OVSVAPP.tunnel_types
         self.agent_state = {
             'binary': 'ovsvapp-agent',
             'host': self.hostname,
@@ -115,7 +124,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.check_integration_br()
             if "OVSFirewallDriver" in self.firewall_driver:
                 self.recover_security_br()
-        self.initialize_physical_bridges()
+        self.setup_ovs_bridges()
         self.setup_rpc()
         defer_apply = CONF.SECURITYGROUP.defer_apply
         self.sg_agent = sgagent.OVSVAppSecurityGroupAgent(self.context,
@@ -211,6 +220,63 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             raise SystemExit(1)
         LOG.info(_("Security bridge successfully recovered."))
 
+    def recover_tunnel_bridge(self, tun_br_name=None):
+        """Recover the tunnel bridge.
+
+        :param tun_br_name: the name of the tunnel bridge.
+        """
+        self.tun_br = ovs_lib.OVSBridge(tun_br_name, self.root_helper)
+
+        self.patch_tun_ofport = self.int_br.get_port_ofport(
+            cfg.CONF.OVS.int_peer_patch_port)
+        self.patch_int_ofport = self.tun_br.get_port_ofport(
+            cfg.CONF.OVS.tun_peer_patch_port)
+        if int(self.patch_tun_ofport) < 0 or int(self.patch_int_ofport) < 0:
+            LOG.error(_("Failed to find OVS tunnel patch port(s). Cannot have "
+                        "tunneling enabled on this agent, since this version "
+                        "of OVS does not support tunnels or patch ports. "
+                        "Agent terminated!"))
+            raise SystemExit(1)
+
+    def recover_physical_bridges(self, bridge_mappings):
+        """Recover data from the physical network bridges.
+
+        :param bridge_mappings: map physical network names to bridge names.
+        """
+        self.phys_brs = {}
+        self.int_ofports = {}
+        self.phys_ofports = {}
+        ovs_bridges = ovs_lib.get_bridges()
+        for phys_net, bridge in bridge_mappings.iteritems():
+            LOG.info(_("Mapping physical network %(phys_net)s to "
+                       "bridge %(bridge)s."), {'phys_net': phys_net,
+                                               'bridge': bridge})
+            # setup physical bridge.
+            if bridge not in ovs_bridges:
+                LOG.error(_("Bridge %(bridge)s for physical network "
+                            "%(phys_net)s does not exist. Terminating "
+                            "the agent!"), {'phys_net': phys_net,
+                                            'bridge': bridge})
+                raise SystemExit(1)
+            br = ovs_lib.OVSBridge(bridge)
+            self.phys_brs[phys_net] = br
+            # Interconnect physical and integration bridges using veth/patch
+            # ports.
+            int_if_name = self.get_peer_name(ovs_const.PEER_INTEGRATION_PREFIX,
+                                             bridge)
+            phys_if_name = self.get_peer_name(ovs_const.PEER_PHYSICAL_PREFIX,
+                                              bridge)
+            int_ofport = self.int_br.get_port_ofport(int_if_name)
+            phys_ofport = br.get_port_ofport(phys_if_name)
+            if int(phys_ofport) < 0 or int(int_ofport) < 0:
+                LOG.error(_("Patch ports missing for bridge %(bridge)s for "
+                            "physical network %(phys_net)s. Agent "
+                            "terminated!"), {'phys_net': phys_net,
+                                             'bridge': bridge})
+                raise SystemExit(1)
+            self.int_ofports[phys_net] = int_ofport
+            self.phys_ofports[phys_net] = phys_ofport
+
     def _init_ovs_flows(self, bridge_mappings):
         """Delete the drop flow created by OVSvApp Agent code.
 
@@ -243,132 +309,129 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                  in_port=self.int_ofports[phys_net],
                                  actions="output:%s" % self.patch_sec_ofport)
 
-    def initialize_physical_bridges(self):
+    def setup_ovs_bridges(self):
         self.tenant_network_type = CONF.OVSVAPP.tenant_network_type
+
         if self.tenant_network_type == p_const.TYPE_VLAN:
-            self.bridge_mappings = n_utils.parse_mappings(
-                CONF.OVSVAPP.bridge_mappings)
             if not self.agent_under_maintenance:
                 self.setup_physical_bridges(self.bridge_mappings)
                 LOG.info(_("Physical bridges successfully setup."))
                 self._init_ovs_flows(self.bridge_mappings)
             else:
                 self.recover_physical_bridges(self.bridge_mappings)
-        else:
-            # TODO(bhooshan): Add VxLAN related code.
-            return
 
-    def recover_physical_bridges(self, bridge_mappings):
-        """Recover data from the physical network bridges.
-
-        :param bridge_mappings: map physical network names to bridge names.
-        """
-        self.phys_brs = {}
-        self.int_ofports = {}
-        self.phys_ofports = {}
-        ovs_bridges = ovs_lib.get_bridges()
-        for phys_net, bridge in bridge_mappings.iteritems():
-            LOG.info(_("Mapping physical network %(phys_net)s to "
-                       "bridge %(bridge)s"), {'phys_net': phys_net,
-                                              'bridge': bridge})
-            # setup physical bridge.
-            if bridge not in ovs_bridges:
-                LOG.error(_("Bridge %(bridge)s for physical network "
-                            "%(phys_net)s does not exist. Terminating "
-                            "the agent!"), {'phys_net': phys_net,
-                                            'bridge': bridge})
+        elif self.tenant_network_type == p_const.TYPE_VXLAN:
+            self.available_local_vlans = set(moves.xrange(
+                p_const.MIN_VLAN_TAG, p_const.MAX_VLAN_TAG))
+            # For now l2_pop and arp_responder are disabled
+            # Once enabled, their values will be read from ini file.
+            self.l2_pop = False
+            self.arp_responder_enabled = False
+            self.local_vlan_map = {}
+            self.tun_br_ofports = {p_const.TYPE_VXLAN: {}}
+            self.polling_interval = CONF.OVSVAPP.polling_interval
+            self.enable_tunneling = True
+            self.local_ip = CONF.OVSVAPP.local_ip
+            if not self.local_ip:
+                LOG.error(_("Tunneling cannot be enabled without a valid "
+                            "local_ip."))
                 raise SystemExit(1)
-            br = ovs_lib.OVSBridge(bridge)
-            self.phys_brs[phys_net] = br
-            # Interconnect physical and integration bridges using veth/patch
-            # ports.
-            int_if_name = self.get_peer_name(ovs_const.PEER_INTEGRATION_PREFIX,
-                                             bridge)
-            phys_if_name = self.get_peer_name(ovs_const.PEER_PHYSICAL_PREFIX,
-                                              bridge)
-            int_ofport = self.int_br.get_port_ofport(int_if_name)
-            phys_ofport = br.get_port_ofport(phys_if_name)
-            if int(phys_ofport) < 0 or int(int_ofport) < 0:
-                LOG.error(_("Patch ports missing for bridge %(bridge)s for "
-                            "physical network %(phys_net)s. Agent "
-                            "terminated!"), {'phys_net': phys_net,
-                                             'bridge': bridge})
-                raise SystemExit(1)
-            self.int_ofports[phys_net] = int_ofport
-            self.phys_ofports[phys_net] = phys_ofport
+            self.tun_br = None
+            self.agent_state['configurations']['tunneling_ip'] = self.local_ip
+            self.agent_state['configurations']['l2_population'] = self.l2_pop
+            if not self.agent_under_maintenance:
+                self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
+                LOG.info(_("Tunnel bridge successfully set."))
+            else:
+                self.recover_tunnel_bridge(CONF.OVSVAPP.tunnel_bridge)
 
-    # TODO(sudhakar-gariganti): Check if this method is required
-    # if we have update_port_bindings called within get_ports_for_device RPC.
-    def _update_port_bindings(self):
-        for element in self.update_port_bindings:
-            try:
-                # Update port binding with the host as OVSvApp
-                # VM's hostname.
-                LOG.debug("Updating port binding for port %s.", element)
-                self.ovsvapp_rpc.update_port_binding(
-                    self.context,
-                    agent_id=self.agent_id,
-                    port_id=element,
-                    host=self.hostname)
-                self.update_port_bindings.remove(element)
-            except Exception as e:
-                LOG.exception(_("Port binding update failed "
-                                "for port: %s"), element)
-                raise error.OVSvAppNeutronAgentError(e)
-            LOG.debug("update_port_binding RPC finished for port: "
-                      "%s", element)
+    def _populate_tunnel_flows_for_port(self, port):
+        lvid = port['lvid']
+        if self.tenant_network_type in ovs_const.TUNNEL_NETWORK_TYPES:
+            ofports = ','.join(self.tun_br_ofports[port['network_type']].
+                               values())
+            if ofports:
+                self.tun_br.mod_flow(table=ovs_const.FLOOD_TO_TUN,
+                                     dl_vlan=lvid,
+                                     actions="strip_vlan,"
+                                     "set_tunnel:%s,output:%s" %
+                                     (port['segmentation_id'], ofports))
+            self.tun_br.add_flow(
+                table=ovs_const.TUN_TABLE[port['network_type']],
+                priority=1,
+                tun_id=port['segmentation_id'],
+                actions="mod_vlan_vid:%s,resubmit(,%s)" %
+                (lvid, ovs_const.LEARN_FROM_TUN))
 
-    def mitigate_ovs_restart(self):
-        """Mitigates OpenvSwitch process restarts.
-
-        Method to reset the flows which are lost due to an openvswitch
-        process restart. After resetting up all the bridges, we set the
-        SG agent's global_refresh_firewall flag to True to bring back all
-        the flows related to Tenant VMs.
-        """
-        try:
-            self.setup_integration_br()
-            self.setup_physical_bridges(self.bridge_mappings)
-            self._init_ovs_flows(self.bridge_mappings)
-        # TODO(bhooshan): Add tunneling related code below.
-            if self.enable_tunneling:
-                pass
-        # TODO(garigant): We need to add the DVR related resets
-        # once it is enabled for vApp, similar to what is being
-        # done in ovs_neutron_agent.
-            self.setup_security_br()
-            ovsvapplock.acquire()
-            try:
-                self.sg_agent.init_firewall(True)
-                self.ports_dict = {}
-                self.network_port_count = {}
-                self.devices_to_filter |= self.cluster_host_ports
-                self.devices_to_filter |= self.cluster_other_ports
-                self.refresh_firewall_required = True
-            finally:
-                ovsvapplock.release()
-            LOG.info(_("Finished resetting the bridges post ovs restart."))
-        except Exception:
-            LOG.exception(_("Exception encountered while mitigating the ovs "
-                            "restart."))
+    def _populate_lvm(self, port):
+        self.local_vlan_map[port['network_id']] = LocalVLANMapping(
+            port['lvid'], port['network_type'], port['segmentation_id'])
 
     def _update_port_dict(self, port):
         ovsvapplock.acquire()
         try:
-            self.ports_dict[port['id']] = PortInfo(port['id'],
-                                                   port['segmentation_id'],
-                                                   None, None, None,
-                                                   port['admin_state_up'],
-                                                   port['network_id'],
-                                                   port['device'])
-            if port['network_id'] not in self.network_port_count.keys():
-                self.network_port_count[port['network_id']] = 1
+            if self.tenant_network_type == p_const.TYPE_VXLAN:
+                self.ports_dict[port['id']] = PortInfo(port['id'],
+                                                       port['lvid'],
+                                                       None, None, None,
+                                                       port['admin_state_up'],
+                                                       port['network_id'],
+                                                       port['device'])
             else:
-                self.network_port_count[port['network_id']] += 1
-            self.sg_agent.add_devices_to_filter([port])
+                self.ports_dict[port['id']] = PortInfo(port['id'],
+                                                       port['segmentation_id'],
+                                                       None, None, None,
+                                                       port['admin_state_up'],
+                                                       port['network_id'],
+                                                       port['device'])
+            if self.tenant_network_type == p_const.TYPE_VXLAN:
+                if port['network_id'] not in self.local_vlan_map:
+                    self._populate_lvm(port)
+                self._populate_tunnel_flows_for_port(port)
+            else:
+                if port['network_id'] not in self.network_port_count.keys():
+                    self.network_port_count[port['network_id']] = 1
+                else:
+                    self.network_port_count[port['network_id']] += 1
+                self.sg_agent.add_devices_to_filter([port])
             return True
         finally:
             ovsvapplock.release()
+
+    # TODO(sudhakar-gariganti): Check if this method is required
+    # if we have update_port_bindings called within get_ports_for_device RPC.
+    def _update_port_bindings(self):
+        ovsvapplock.acquire()
+        ports_to_update = self.ports_to_bind
+        self.ports_to_bind = set()
+        ovsvapplock.release()
+        try:
+            # Update port binding with the host set as OVSvApp
+            # VM's hostname.
+            LOG.debug("Going to update port binding for %s ports.",
+                      len(ports_to_update))
+            success_ports = self.ovsvapp_rpc.update_ports_binding(
+                self.context,
+                agent_id=self.agent_id,
+                ports=ports_to_update,
+                host=self.hostname)
+            if len(success_ports) == len(ports_to_update):
+                LOG.debug("Port binding updates finished successfully")
+            else:
+                failed_ports = ports_to_update - success_ports
+                LOG.debug("Port binding update failed for %s ports."
+                          "Will be retried in the next cycle",
+                          len(failed_ports))
+                ovsvapplock.acquire()
+                self.ports_to_bind |= failed_ports
+                ovsvapplock.release()
+        except Exception as e:
+            LOG.exception(_("Update ports binding failed. All ports will be "
+                            "retried in the next iteration."))
+            ovsvapplock.acquire()
+            self.ports_to_bind |= ports_to_update
+            ovsvapplock.release()
+            raise error.OVSvAppNeutronAgentError(e)
 
     def _update_firewall(self):
         """Helper method to monitor devices added.
@@ -387,16 +450,18 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         ports = []
         if devices_to_filter:
             try:
-                ports = self.plugin_rpc.get_devices_details_list(
-                    self.context, devices_to_filter, self.agent_id)
+                ports = self.ovsvapp_rpc.get_ports_details_list(
+                    self.context, devices_to_filter, self.agent_id,
+                    self.vcenter_id, self.cluster_id)
                 for port in ports:
+                    ovsvapplock.acquire()
                     if port and 'port_id' in port:
                         port['id'] = port['port_id']
                         status = self._update_port_dict(port)
                         if status:
                             device_list.add(port['id'])
             except Exception:
-                LOG.exception(_("get_devices_details_list rpc failed."))
+                LOG.exception(_("get_ports_details_list rpc failed."))
                 # Process the ports again in the next iteration.
                 self.devices_to_filter |= devices_to_filter
                 self.refresh_firewall_required = True
@@ -404,6 +469,40 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 LOG.info(_("Going to update firewall for ports: "
                            "%s"), device_list)
                 self.sg_agent.refresh_firewall(device_list)
+
+    def mitigate_ovs_restart(self):
+        """Mitigates OpenvSwitch process restarts.
+
+        Method to reset the flows which are lost due to an openvswitch
+        process restart. After resetting up all the bridges, we set the
+        SG agent's global_refresh_firewall flag to True to bring back all
+        the flows related to Tenant VMs.
+        """
+        try:
+            self.setup_integration_br()
+            self.setup_physical_bridges(self.bridge_mappings)
+            self._init_ovs_flows(self.bridge_mappings)
+            if self.enable_tunneling:
+                self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
+                self.tunnel_sync()
+        # TODO(garigant): We need to add the DVR related resets
+        # once it is enabled for vApp, similar to what is being
+        # done in ovs_neutron_agent.
+            self.setup_security_br()
+            ovsvapplock.acquire()
+            try:
+                self.sg_agent.init_firewall(True)
+                self.ports_dict = {}
+                self.network_port_count = {}
+                self.devices_to_filter |= self.cluster_host_ports
+                self.devices_to_filter |= self.cluster_other_ports
+                self.refresh_firewall_required = True
+            finally:
+                ovsvapplock.release()
+            LOG.info(_("Finished resetting the bridges post ovs restart."))
+        except Exception:
+            LOG.exception(_("Exception encountered while mitigating the ovs "
+                            "restart."))
 
     def _check_for_updates(self):
         """Method to handle any updates related to the agent.
@@ -432,7 +531,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.sg_agent.refresh_port_filters(
                 self.cluster_host_ports, self.cluster_other_ports)
         # Check if there are any pending port bindings to be made.
-        if self.update_port_bindings:
+        if self.ports_to_bind:
             self._update_port_bindings()
 
     def check_for_updates(self):
@@ -440,11 +539,43 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self._check_for_updates()
             time.sleep(2)
 
+    def tunnel_sync_rpc_loop(self):
+        """Establishes VXLAN tunnels between tunnel end points."""
+
+        tunnel_sync = True
+        while tunnel_sync:
+            try:
+                start = time.time()
+                # Notify the plugin of tunnel IP.
+                if self.enable_tunneling and tunnel_sync:
+                    LOG.info(_("OVSvApp Agent tunnel out of sync with "
+                               "plugin!"))
+                    tunnel_sync = self.tunnel_sync()
+            except Exception:
+                LOG.exception(_("Error while synchronizing tunnels."))
+                tunnel_sync = True
+
+            # sleep till end of polling interval.
+            elapsed = (time.time() - start)
+            if (elapsed < self.polling_interval):
+                time.sleep(self.polling_interval - elapsed)
+            else:
+                LOG.debug(_("Loop iteration exceeded interval "
+                            "(%(polling_interval)s vs. %(elapsed)s)!"),
+                          {'polling_interval': self.polling_interval,
+                           'elapsed': elapsed})
+
     def start(self):
         LOG.info(_("Starting OVSvApp L2 Agent."))
         self.set_node_state(True)
         t = eventlet.spawn(self.check_for_updates)
+        if self.tenant_network_type == p_const.TYPE_VXLAN:
+            # A daemon loop which invokes tunnel_sync_rpc_loop
+            # to sync up the tunnels.
+            t1 = eventlet.spawn(self.tunnel_sync_rpc_loop)
         t.wait()
+        if self.tenant_network_type == p_const.TYPE_VXLAN:
+            t1.wait()
 
     def stop(self):
         LOG.info(_("Stopping OVSvApp L2 Agent."))
@@ -452,30 +583,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.run_check_for_updates = False
         if self.connection:
             self.connection.close()
-
-    def _report_state(self):
-        """Reporting agent state to neutron server."""
-
-        try:
-            self.state_rpc.report_state(self.context,
-                                        self.agent_state,
-                                        self.use_call)
-            self.use_call = False
-            self.agent_state.pop('start_flag', None)
-        except Exception:
-            LOG.exception(_("Heartbeat failure - Failed reporting state!"))
-
-    def setup_report_states(self):
-        """Method to send heartbeats to the neutron server."""
-
-        report_interval = CONF.OVSVAPP.report_interval
-        if report_interval:
-            heartbeat = loopingcall.FixedIntervalLoopingCall(
-                self._report_state)
-            heartbeat.start(interval=report_interval)
-        else:
-            LOG.warn(_("Report interval is not initialized."
-                       "Unable to send heartbeats to Neutron Server."))
 
     def setup_rpc(self):
         # Ensure that the control exchange is set correctly.
@@ -502,6 +609,30 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                                      self.topic,
                                                      consumers)
         LOG.debug("Finished Setup RPC.")
+
+    def _report_state(self):
+        """Reporting agent state to neutron server."""
+
+        try:
+            self.state_rpc.report_state(self.context,
+                                        self.agent_state,
+                                        self.use_call)
+            self.use_call = False
+            self.agent_state.pop('start_flag', None)
+        except Exception:
+            LOG.exception(_("Heartbeat failure - Failed reporting state!"))
+
+    def setup_report_states(self):
+        """Method to send heartbeats to the neutron server."""
+
+        report_interval = CONF.OVSVAPP.report_interval
+        if report_interval:
+            heartbeat = loopingcall.FixedIntervalLoopingCall(
+                self._report_state)
+            heartbeat.start(interval=report_interval)
+        else:
+            LOG.warn(_("Report interval is not initialized."
+                       "Unable to send heartbeats to Neutron Server."))
 
     def process_event(self, event):
         """Handles vCenter based events
@@ -819,9 +950,12 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     LOG.exception(_("update_device_up failed for port: %s."),
                                   element['id'])
                     raise error.OVSvAppNeutronAgentError(e)
-                self.update_port_bindings.append(element['id'])
-                # TODO(romilg): Revisit for VXLAN, update_port_bindings must
-                # be done much before update_device_up.
+        else:
+            ovsvapplock.acquire()
+            port_ids = [element['id'] for element in ports_list]
+            self.devices_to_filter |= set(port_ids)
+            self.refresh_firewall_required = True
+            ovsvapplock.release()
 
     def device_create(self, context, **kwargs):
         """Gets the port details from plugin using RPC call."""
