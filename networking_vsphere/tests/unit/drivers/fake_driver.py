@@ -44,6 +44,13 @@ class MockNetworkDriver(network_driver.NetworkDriver):
         kwargs["virtual_nic"] = virtual_nic
         self.methods["create_port"] = kwargs
 
+    def update_port(self, network=None, port=None, virtual_nic=None):
+        kwargs = {}
+        kwargs["network"] = network
+        kwargs["port"] = port
+        kwargs["virtual_nic"] = virtual_nic
+        self.methods["update_port"] = kwargs
+
     def prepare_port_group(self, network, port, virtual_nic):
         kwargs = {}
         kwargs["network"] = network
