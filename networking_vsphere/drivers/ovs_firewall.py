@@ -49,7 +49,7 @@ PORT_KEYS = ['security_group_source_groups',
              'network_id',
              'id',
              'security_groups',
-             'segmentation_id']
+             'lvid']
 
 
 class OVSFirewallDriver(firewall.FirewallDriver):
@@ -76,10 +76,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         return self.filtered_ports
 
     def _get_compact_port(self, port):
-        if 'segmentation_id' not in port:
+        if 'lvid' not in port:
             if port['id'] in self.filtered_ports:
                 old_port = self.filtered_ports[port['id']]
-                port['segmentation_id'] = old_port['segmentation_id']
+                port['lvid'] = old_port['lvid']
         new_port = {}
         new_port['device'] = port['id']
         for key in PORT_KEYS:
@@ -281,7 +281,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             port = self.filtered_ports.get(port_id)
             LOG.debug("Filtered port: %s.", port)
             if port:
-                return port['segmentation_id']
+                return port['lvid']
 
     def _setup_aap_flows(self, sec_br, port):
         """Method to help setup rules for allowed address pairs."""
