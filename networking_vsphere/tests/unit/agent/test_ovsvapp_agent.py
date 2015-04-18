@@ -105,7 +105,7 @@ class TestOVSvAppL2Agent(base.TestCase):
             mock.patch('neutron.plugins.openvswitch.agent.ovs_neutron_agent.'
                        'OVSNeutronAgent.setup_integration_br'),
             mock.patch('networking_vsphere.agent.ovsvapp_agent.'
-                       'OVSvAppL2Agent.initialize_physical_bridges'),
+                       'OVSvAppL2Agent.setup_ovs_bridges'),
             mock.patch('networking_vsphere.agent.ovsvapp_agent.'
                        'OVSvAppL2Agent.setup_security_br'),
             mock.patch('networking_vsphere.agent.ovsvapp_agent.'
@@ -187,22 +187,67 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertTrue(logger_warn.called)
             self.assertFalse(ovs_bridge.called)
 
-    def test_update_port_bindings(self):
-        self.agent.update_port_bindings = [FAKE_PORT_1]
-        context = mock.Mock()
-        self.agent.context = context
-        self.agent.agent_id = "agent-id"
-        self.agent.hostname = "esx-hostname"
-        with mock.patch.object(self.agent.ovsvapp_rpc, "update_port_binding"
-                               ) as mock_update_port_binding:
-            self.agent._update_port_bindings()
-            self.assertEqual([], self.agent.update_port_bindings)
-            mock_update_port_binding.assert_called_with(
-                context, agent_id="agent-id",
-                port_id=FAKE_PORT_1,
-                host="esx-hostname")
+#     def test_update_port_bindings(self):
+#         self.agent.update_port_bindings = [FAKE_PORT_1]
+#         context = mock.Mock()
+#         self.agent.context = context
+#         self.agent.agent_id = "agent-id"
+#         self.agent.hostname = "esx-hostname"
+#         with mock.patch.object(self.agent.ovsvapp_rpc, "update_port_binding"
+#                                ) as mock_update_port_binding:
+#             self.agent._update_port_bindings()
+#             self.assertEqual([], self.agent.update_port_bindings)
+#             mock_update_port_binding.assert_called_with(
+#                 context, agent_id="agent-id",
+#                 port_id=FAKE_PORT_1,
+#                 host="esx-hostname")
 
-    def test_initialize_physical_bridges(self):
+    def test_update_port_bindings(self):
+        self.agent.ports_to_bind.add("fake_port")
+        with contextlib.nested(
+            mock.patch.object(self.agent.ovsvapp_rpc,
+                              "update_ports_binding",
+                              return_value=set(["fake_port"])),
+            mock.patch.object(self.LOG, 'exception'),
+        ) as (update_ports_binding, log_exception):
+            self.agent._update_port_bindings()
+            self.assertTrue(update_ports_binding.called)
+            self.assertFalse(self.agent.ports_to_bind)
+            self.assertFalse(log_exception.called)
+
+    def test_update_port_bindings_rpc_exception(self):
+        self.agent.ports_to_bind.add("fake_port")
+        with contextlib.nested(
+            mock.patch.object(self.agent.ovsvapp_rpc,
+                              "update_ports_binding",
+                              side_effect=Exception()),
+            mock.patch.object(self.LOG, 'exception'),
+        ) as (update_port_binding, log_exception):
+            self.assertRaises(
+                error.OVSvAppNeutronAgentError,
+                self.agent._update_port_bindings)
+            self.assertTrue(update_port_binding.called)
+            self.assertTrue(log_exception.called)
+            self.assertEqual(set(['fake_port']),
+                             self.agent.ports_to_bind)
+
+    def test_update_port_bindings_partial(self):
+        self.agent.ports_to_bind.add("fake_port1")
+        self.agent.ports_to_bind.add("fake_port2")
+        self.agent.ports_to_bind.add("fake_port3")
+        with contextlib.nested(
+            mock.patch.object(self.agent.ovsvapp_rpc,
+                              "update_ports_binding",
+                              return_value=set(["fake_port1",
+                                                "fake_port2"])),
+            mock.patch.object(self.LOG, 'exception'),
+        ) as (update_port_binding, log_exception):
+            self.agent._update_port_bindings()
+            self.assertTrue(update_port_binding.called)
+            self.assertEqual(set(["fake_port3"]),
+                             self.agent.ports_to_bind)
+
+    def test_setup_ovs_bridges_vlan(self):
         cfg.CONF.set_override('tenant_network_type',
                               "vlan", 'OVSVAPP')
         cfg.CONF.set_override('bridge_mappings',
@@ -211,22 +256,21 @@ class TestOVSvAppL2Agent(base.TestCase):
             mock.patch.object(self.agent, 'setup_physical_bridges'),
             mock.patch.object(self.agent, '_init_ovs_flows')
         ) as (mock_phys_brs, mock_init_ovs_flows):
-            self.agent.initialize_physical_bridges()
-            mock_phys_brs.assert_called_with({'physnet1': 'br-eth1'})
-            mock_init_ovs_flows.assert_called_with({'physnet1': 'br-eth1'})
+            self.agent.setup_ovs_bridges()
+            mock_phys_brs.assert_called_with(self.agent.bridge_mappings)
+            mock_init_ovs_flows.assert_called_with(self.agent.bridge_mappings)
 
-    def test_initialize_physical_bridges_not_vlan(self):
+    def test_setup_ovs_bridges_vxlan(self):
         cfg.CONF.set_override('tenant_network_type',
                               "vxlan", 'OVSVAPP')
-        cfg.CONF.set_override('bridge_mappings',
-                              ["physnet1:br-tun"], 'OVSVAPP')
-        with contextlib.nested(
-            mock.patch.object(self.agent, 'setup_physical_bridges'),
-            mock.patch.object(self.agent, '_init_ovs_flows')
-        ) as (mock_phys_brs, mock_init_ovs_flows):
-            self.agent.initialize_physical_bridges()
-            self.assertFalse(mock_phys_brs.called)
-            self.assertFalse(mock_init_ovs_flows.called)
+        cfg.CONF.set_override('local_ip',
+                              "10.10.10.10", 'OVSVAPP')
+        cfg.CONF.set_override('tunnel_bridge',
+                              "br-tun", 'OVSVAPP')
+        with mock.patch.object(self.agent, 'setup_tunnel_br'
+                               ) as (mock_setup_tunnel_br):
+            self.agent.setup_ovs_bridges()
+            mock_setup_tunnel_br.assert_called_with("br-tun")
 
     def test_mitigate_ovs_restart_vlan(self):
         self.agent.enable_tunneling = False
@@ -357,7 +401,7 @@ class TestOVSvAppL2Agent(base.TestCase):
 
     def test_check_for_updates_no_updates(self):
         self.agent.refresh_firewall_required = False
-        self.agent.update_port_bindings = []
+        self.agent.ports_to_bind = None
         with contextlib.nested(
             mock.patch.object(self.agent, 'check_ovs_status',
                               return_value=4),
@@ -378,7 +422,7 @@ class TestOVSvAppL2Agent(base.TestCase):
 
     def test_check_for_updates_ovs_restarted(self):
         self.agent.refresh_firewall_required = False
-        self.agent.update_port_bindings = []
+        self.agent.ports_to_bind = None
         with contextlib.nested(
             mock.patch.object(self.agent, 'check_ovs_status',
                               return_value=0),
@@ -399,7 +443,7 @@ class TestOVSvAppL2Agent(base.TestCase):
 
     def test_check_for_updates_devices_to_filter(self):
         self.agent.refresh_firewall_required = True
-        self.agent.update_port_bindings = []
+        self.agent.ports_to_bind = None
         with contextlib.nested(
             mock.patch.object(self.agent, 'check_ovs_status',
                               return_value=4),
@@ -420,7 +464,7 @@ class TestOVSvAppL2Agent(base.TestCase):
 
     def test_check_for_updates_firewall_refresh(self):
         self.agent.refresh_firewall_required = False
-        self.agent.update_port_bindings = []
+        self.agent.ports_to_bind = None
         with contextlib.nested(
             mock.patch.object(self.agent, 'check_ovs_status',
                               return_value=4),
@@ -441,7 +485,7 @@ class TestOVSvAppL2Agent(base.TestCase):
 
     def test_check_for_updates_port_bindings(self):
         self.agent.refresh_firewall_required = False
-        self.agent.update_port_bindings = ['fake_port']
+        self.agent.ports_to_bind.add("fake_port")
         with contextlib.nested(
             mock.patch.object(self.agent, 'check_ovs_status',
                               return_value=4),
