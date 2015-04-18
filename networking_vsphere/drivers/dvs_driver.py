@@ -155,9 +155,9 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
     def get_pg_vlanid(self, dvs_name, pg_name):
         LOG.info(_("Fetching details of %(pg)s on %(dvs)s."),
                  {'pg': pg_name, 'dvs': dvs_name})
-        local_vlan_id = network_util.get_portgroup_details(self.session,
-                                                           dvs_name, pg_name)
-        return local_vlan_id
+        pg_vlan_id = network_util.get_portgroup_details(self.session,
+                                                        dvs_name, pg_name)
+        return pg_vlan_id
 
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])

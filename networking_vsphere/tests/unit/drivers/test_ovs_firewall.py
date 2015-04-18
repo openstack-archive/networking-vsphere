@@ -31,7 +31,7 @@ fake_port = {'security_group_source_groups': 'abc',
              'network_id': "netid",
              'id': "123",
              'security_groups': "abc",
-             'segmentation_id': "100",
+             'lvid': "100",
              "security_group_rules": [
                  {"direction": "ingress",
                   "protocol": "tcp",
@@ -73,7 +73,7 @@ class TestOVSFirewallDriver(base.TestCase):
                         'id': "123",
                         'device': "123",
                         'security_groups': "abc",
-                        'segmentation_id': "100"}
+                        'lvid': "100"}
         res = self.ovs_firewall._get_compact_port(fake_port)
         self.assertEqual(compact_port, res)
 
@@ -149,7 +149,7 @@ class TestOVSFirewallDriver(base.TestCase):
                     'network_id': "netid",
                     'id': "123",
                     'security_groups': "abc",
-                    'segmentation_id': "100",
+                    'lvid': "100",
                     'device': "123"}
         self.assertIsNotNone(self.ovs_firewall.filtered_ports)
         ret_port = self.ovs_firewall.filtered_ports["123"]
@@ -298,7 +298,7 @@ class TestOVSFirewallDriver(base.TestCase):
                     'network_id': "netid",
                     'id': "123",
                     'security_groups': "abc",
-                    'segmentation_id': "100",
+                    'lvid': "100",
                     'device': "123"}
         with contextlib.nested(
             mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
@@ -335,7 +335,7 @@ class TestOVSFirewallDriver(base.TestCase):
                     'network_id': "netid",
                     'id': "123",
                     'security_groups': "abc",
-                    'segmentation_id': "100",
+                    'lvid': "100",
                     'device': "123"}
         self.ovs_firewall.filtered_ports["123"] = res_port
         with contextlib.nested(
@@ -354,7 +354,7 @@ class TestOVSFirewallDriver(base.TestCase):
                     'network_id': "netid",
                     'id': "123",
                     'security_groups': "abc",
-                    'segmentation_id': "100",
+                    'lvid': "100",
                     'device': "123"}
         self.ovs_firewall.filtered_ports["123"] = res_port
         with contextlib.nested(
@@ -376,7 +376,7 @@ class TestOVSFirewallDriver(base.TestCase):
                     'network_id': "netid",
                     'id': "123",
                     'security_groups': "abc",
-                    'segmentation_id': "100",
+                    'lvid': "100",
                     'device': "123"}
         self.ovs_firewall.filtered_ports["123"] = res_port
         with contextlib.nested(
@@ -394,7 +394,7 @@ class TestOVSFirewallDriver(base.TestCase):
                     'network_id': "netid",
                     'id': "123",
                     'security_groups': "abc",
-                    'segmentation_id': "100",
+                    'lvid': "100",
                     'device': "123"}
         self.ovs_firewall.filtered_ports["123"] = res_port
         with contextlib.nested(
@@ -412,7 +412,7 @@ class TestOVSFirewallDriver(base.TestCase):
                     'network_id': "netid",
                     'id': "123",
                     'security_groups': "abc",
-                    'segmentation_id': "100",
+                    'lvid': "100",
                     'device': "123"}
         self.ovs_firewall.filtered_ports["123"] = res_port
         with contextlib.nested(
@@ -432,7 +432,7 @@ class TestOVSFirewallDriver(base.TestCase):
                     'network_id': "netid",
                     'id': "123",
                     'security_groups': "abc",
-                    'segmentation_id': "100",
+                    'lvid': "100",
                     'device': "123"}
         self.ovs_firewall.filtered_ports["123"] = res_port
         with contextlib.nested(
@@ -455,7 +455,7 @@ class TestOVSFirewallDriver(base.TestCase):
                     'network_id': "netid",
                     'id': "123",
                     'security_groups': "abc",
-                    'segmentation_id': "100",
+                    'lvid': "100",
                     'device': "123"}
         self.ovs_firewall.filtered_ports["123"] = res_port
         with contextlib.nested(
