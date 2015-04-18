@@ -71,6 +71,15 @@ class NetworkDriver(object):
         """
         raise NotImplementedError()
 
+    def update_port(self, network=None, port=None, virtual_nic=None):
+        """Update the Port status UP/DOWN.
+
+        :param network: Type model.Network
+        :param port: Type model.Port
+        :param virtual_nic: Type model.VirtualNic
+        """
+        raise NotImplementedError()
+
     def prepare_port_group(self, network, port, virtual_nic):
         """Prepares portgroup creation on DVS with specified configuration.
 

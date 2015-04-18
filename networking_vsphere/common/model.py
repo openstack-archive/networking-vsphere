@@ -122,10 +122,11 @@ class VirtualMachine(ResourceEntity):
 class Event(object):
 
     def __init__(self, event_type, src_obj, changes, host_name,
-                 cluster_name, cluster_id):
+                 cluster_name, cluster_id, host_changed):
         self.event_type = event_type
         self.src_obj = src_obj
         self.changes = changes
         self.host_name = host_name
         self.cluster_name = cluster_name
         self.cluster_id = cluster_id
+        self.host_changed = host_changed
