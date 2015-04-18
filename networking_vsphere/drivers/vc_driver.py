@@ -287,104 +287,128 @@ class VCNetworkDriver(driver.NetworkDriver):
             if not objectSet:
                 continue
             for objectUpdate in objectSet:
-                obj_mor = objectUpdate.obj
-                if obj_mor._type != "VirtualMachine":
-                    continue
-                if objectUpdate.kind == "enter":
-                    event_type = constants.VM_CREATED
-                elif objectUpdate.kind == "modify":
-                    event_type = constants.VM_UPDATED
-                elif objectUpdate.kind == "leave":
-                    event_type = constants.VM_DELETED
-                else:
-                    continue
-                changes = common_util.convert_objectupdate_to_dict(
-                    objectUpdate)
-                vm_uuid = None
-                if changes.get('config.extraConfig["nvp.vm-uuid"]'):
-                    vm_uuid = changes.get('config.extraConfig'
-                                          '["nvp.vm-uuid"]').value
-                    event_type = constants.VM_CREATED
-                    cache.VCCache.add_vm_mor_for_uuid(vm_uuid, obj_mor)
-                else:
-                    vm_uuid = cache.VCCache.get_vmuuid_for_moid(obj_mor.value)
-                if vm_uuid:
-                    old_vm = cache.VCCache.get_vm_model_for_uuid(vm_uuid)
-                    LOG.debug("Old VM: %s.", old_vm)
-                    LOG.debug("cache.VCCache.vm_uuid_to_model: %s.",
-                              cache.VCCache.vm_uuid_to_model)
-                    new_vm = None
-                    if old_vm:
-                        new_vm = copy.deepcopy(old_vm)
+                try:
+                    obj_mor = objectUpdate.obj
+                    if obj_mor._type != "VirtualMachine":
+                        continue
+                    if objectUpdate.kind == "enter":
+                        event_type = constants.VM_CREATED
+                    elif objectUpdate.kind == "modify":
+                        event_type = constants.VM_UPDATED
+                    elif objectUpdate.kind == "leave":
+                        event_type = constants.VM_DELETED
                     else:
-                        new_vm = model.VirtualMachine(name=None,
-                                                      vnics=[],
-                                                      uuid=None,
-                                                      key=None)
-                        LOG.debug("VM not found in cache. New created: %s.",
-                                  new_vm)
-                    new_vm.uuid = vm_uuid
-                    new_vm.key = obj_mor.value
-                    if changes.get('name'):
-                        new_vm.name = changes.get('name')
-                    if changes.get('runtime.host'):
-                        # Host got changed / New VM.
-                        clus_mor = self.session._call_method(
-                            vim_util,
-                            "get_dynamic_property",
-                            changes.get('runtime.host'),
-                            "HostSystem", "parent")
-                        # Cache the VM and Cluster.
-                        cache.VCCache.add_cluster_mor_for_vm(vm_uuid,
-                                                             clus_mor)
-                    if event_type != constants.VM_DELETED:
-                        extraconfigs = resource_util.get_extraconfigs_for_vm(
-                            self.session, obj_mor)
-                        if changes.get('config.hardware.device'):
-                            devices = changes.get('config.hardware.device')
-                            nicdvs = network_util.get_vnics_from_devices(
-                                devices)
-                            i = 0
-                            vnics = []
-                            for nicdev in nicdvs:
-                                macadd = nicdev.macAddress
-                                portid = extraconfigs.get("nvp.iface-id.%d"
-                                                          % i)
-                                vnic = model.VirtualNic(mac_address=macadd,
-                                                        port_uuid=portid,
-                                                        vm_id=vm_uuid,
-                                                        vm_name=new_vm.name,
-                                                        nic_type=None,
-                                                        key=None)
-                                vnics.append(vnic)
-                                i += 1
-                            new_vm.vnics = vnics
-                        host_mor = resource_util.get_host_mor_for_vm(
-                            self.session, vm_uuid)
-                        clus_mor = resource_util.get_cluster_mor_for_vm(
-                            self.session, vm_uuid)
-                        host_name = resource_util.get_hostname_for_host_mor(
-                            self.session, host_mor)
-                        cache.VCCache.add_esx_hostname_for_vm(
-                            vm_uuid, host_name)
-                        clus_name = (
-                            resource_util.get_clustername_for_cluster_mor(
-                                self.session, clus_mor))
-                        clus_id = resource_util.get_clusterid_for_cluster_mor(
-                            self.session, clus_mor)
-                    elif event_type == constants.VM_DELETED:
-                        host_name = cache.VCCache.get_esx_hostname_for_vm(
-                            vm_uuid)
-                    event = model.Event(event_type, new_vm, None,
-                                        host_name, clus_name, clus_id)
-                    events.append(event)
-                    cache.VCCache.add_vm_model_for_uuid(vm_uuid, new_vm)
-                    LOG.debug("Added vm to cache: %s.", new_vm)
-                    LOG.debug("cache.VCCache.vm_uuid_to_model: %s.",
-                              cache.VCCache.vm_uuid_to_model)
-                else:
-                    LOG.debug("Ignoring update for VM: %s.",
-                              changes.get('name'))
+                        continue
+                    host_changed = False
+                    vm_uuid = None
+                    changes = common_util.convert_objectupdate_to_dict(
+                        objectUpdate)
+                    if changes.get('config.extraConfig["nvp.vm-uuid"]'):
+                        vm_uuid = changes.get('config.extraConfig'
+                                              '["nvp.vm-uuid"]').value
+                        event_type = constants.VM_CREATED
+                        cache.VCCache.add_vm_mor_for_uuid(vm_uuid, obj_mor)
+                    else:
+                        vm_uuid = cache.VCCache.get_vmuuid_for_moid(
+                            obj_mor.value)
+                    if vm_uuid:
+                        old_vm = cache.VCCache.get_vm_model_for_uuid(vm_uuid)
+                        LOG.debug("Old VM: %s.", old_vm)
+                        LOG.debug("cache.VCCache.vm_uuid_to_model: %s.",
+                                  cache.VCCache.vm_uuid_to_model)
+                        new_vm = None
+                        if old_vm:
+                            if event_type == constants.VM_CREATED:
+                                # Our cache has information about VM. But event
+                                # received is VM_CREATED. This means it is
+                                # session restart case. So we should not add
+                                # this to new event.
+                                LOG.debug("Session restart event for VM %s",
+                                          vm_uuid)
+                                continue
+                            new_vm = copy.deepcopy(old_vm)
+                        else:
+                            new_vm = model.VirtualMachine(name=None,
+                                                          vnics=[],
+                                                          uuid=None,
+                                                          key=None)
+                            LOG.debug("VM not found in cache. New created: "
+                                      " %s.", new_vm)
+                        new_vm.uuid = vm_uuid
+                        new_vm.key = obj_mor.value
+                        if changes.get('name'):
+                            new_vm.name = changes.get('name')
+                        if changes.get('runtime.host'):
+                            # Host got changed / New VM.
+                            clus_mor = self.session._call_method(
+                                vim_util,
+                                "get_dynamic_property",
+                                changes.get('runtime.host'),
+                                "HostSystem", "parent")
+                            # Cache the VM and Cluster.
+                            cache.VCCache.add_cluster_mor_for_vm(vm_uuid,
+                                                                 clus_mor)
+                        if event_type != constants.VM_DELETED:
+                            extraconfigs = (
+                                resource_util.get_extraconfigs_for_vm(
+                                    self.session, obj_mor))
+                            if changes.get('config.hardware.device'):
+                                devices = changes.get('config.hardware.device')
+                                nicdvs = network_util.get_vnics_from_devices(
+                                    devices)
+                                i = 0
+                                vnics = []
+                                for nicdev in nicdvs:
+                                    macadd = nicdev.macAddress
+                                    portid = extraconfigs.get("nvp.iface-id.%d"
+                                                              % i)
+                                    vnic = model.VirtualNic(
+                                        mac_address=macadd,
+                                        port_uuid=portid,
+                                        vm_id=vm_uuid,
+                                        vm_name=new_vm.name,
+                                        nic_type=None,
+                                        key=None)
+                                    vnics.append(vnic)
+                                    i += 1
+                                new_vm.vnics = vnics
+                            host_mor = resource_util.get_host_mor_for_vm(
+                                self.session, vm_uuid)
+                            clus_mor = resource_util.get_cluster_mor_for_vm(
+                                self.session, vm_uuid)
+                            host_name = (
+                                resource_util.get_hostname_for_host_mor(
+                                    self.session, host_mor))
+                            old_host_name = (
+                                cache.VCCache.get_esx_hostname_for_vm(vm_uuid))
+                            if old_host_name and old_host_name != host_name:
+                                host_changed = True
+                            cache.VCCache.add_esx_hostname_for_vm(vm_uuid,
+                                                                  host_name)
+                            clus_name = (
+                                resource_util.get_clustername_for_cluster_mor(
+                                    self.session, clus_mor))
+                            clus_id = (
+                                resource_util.get_clusterid_for_cluster_mor(
+                                    self.session, clus_mor))
+                        elif event_type == constants.VM_DELETED:
+                            host_name = cache.VCCache.get_esx_hostname_for_vm(
+                                vm_uuid)
+                        event = model.Event(event_type, new_vm, None,
+                                            host_name, clus_name, clus_id,
+                                            host_changed)
+                        events.append(event)
+                        cache.VCCache.add_vm_model_for_uuid(vm_uuid, new_vm)
+                        LOG.debug("Added vm to cache: %s.", new_vm)
+                        LOG.debug("cache.VCCache.vm_uuid_to_model: %s.",
+                                  cache.VCCache.vm_uuid_to_model)
+                    else:
+                        LOG.debug("Ignoring update for VM: %s.",
+                                  changes.get('name'))
+                except Exception:
+                    LOG.exception(_("Exception while processing update set "
+                                    "for event %(event)s for vm %(vm)s."),
+                                  {'event': event_type, 'vm': vm_uuid})
         LOG.debug("Finished processing UpdateSet version: %s.",
                   updateSet.version)
         return events
