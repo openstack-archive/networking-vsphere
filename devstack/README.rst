@@ -33,6 +33,12 @@
      # For Example:
      # OVSVAPP_CLUSTER_DVS_MAPPING=DatacenterName/host/ClusterName:vDSName
 
+     # Provide the tenant network type (VLAN or VXLAN).
+     TENANT_NETWORK_TYPE=
+
+     # Provide the IP for VXLAN tunnel endpoint.
+     LOCAL_IP=
+
      # Provide Physical Bridge name.
      OVSVAPP_PHYSICAL_BRIDGE=
      # For Example:
