@@ -54,6 +54,7 @@ function start_ovsvapp_agent {
 function cleanup_ovsvapp_bridges {
     echo "Removing Bridges for OVSvApp L2 Agent"
     sudo ovs-vsctl del-br $INTEGRATION_BRIDGE
+    sudo ovs-vsctl del-br $TUNNEL_BRIDGE
     sudo ovs-vsctl del-br $SECURITY_BRIDGE
     sudo ovs-vsctl del-br $OVSVAPP_PHYSICAL_BRIDGE
 }
@@ -61,9 +62,13 @@ function cleanup_ovsvapp_bridges {
 function setup_ovsvapp_bridges {
     echo "Adding Bridges for OVSvApp L2 Agent"
     sudo ovs-vsctl --no-wait -- --may-exist add-br $INTEGRATION_BRIDGE
+    if [ "$TENANT_NETWORK_TYPE" == "vxlan" ]; then
+        sudo ovs-vsctl --no-wait -- --may-exist add-br $TUNNEL_BRIDGE
+    else
+        sudo ovs-vsctl --no-wait -- --may-exist add-br $OVSVAPP_PHYSICAL_BRIDGE
+        sudo ovs-vsctl --no-wait -- --may-exist add-port $OVSVAPP_PHYSICAL_BRIDGE $OVSVAPP_PHYSICAL_INTERFACE
+    fi
     sudo ovs-vsctl --no-wait -- --may-exist add-br $SECURITY_BRIDGE
-    sudo ovs-vsctl --no-wait -- --may-exist add-br $OVSVAPP_PHYSICAL_BRIDGE
-    sudo ovs-vsctl --no-wait -- --may-exist add-port $OVSVAPP_PHYSICAL_BRIDGE $OVSVAPP_PHYSICAL_INTERFACE
     sudo ovs-vsctl --no-wait -- --may-exist add-port $SECURITY_BRIDGE $OVSVAPP_TRUNK_INTERFACE
 }
 
@@ -75,6 +80,8 @@ function configure_ovsvapp_config {
     iniset /$OVSVAPP_CONF_FILE vmware wsdl_location $OVSVAPP_WSDL_LOCATION
     iniset /$OVSVAPP_CONF_FILE vmware cluster_dvs_mapping $OVSVAPP_CLUSTER_DVS_MAPPING
     iniset /$OVSVAPP_CONF_FILE vmware esx_hostname $OVSVAPP_ESX_HOSTNAME
+    iniset /$OVSVAPP_CONF_FILE ovsvapp tenant_network_type $TENANT_NETWORK_TYPE
+    iniset /$OVSVAPP_CONF_FILE ovsvapp local_ip $LOCAL_IP
     iniset /$OVSVAPP_CONF_FILE ovsvapp bridge_mappings $OVSVAPP_BRIDGE_MAPPINGS
     iniset /$OVSVAPP_CONF_FILE securitygroup security_bridge_mapping $OVSVAPP_SECURITY_BRIDGE_MAPPINGS
 }
@@ -155,7 +162,7 @@ if is_service_enabled ovsvapp-agent; then
     fi
 
     if [[ "$1" == "unstack" ]]; then
-       cleanup_ovsvapp_bridges
+        cleanup_ovsvapp_bridges
     fi
 
     if [[ "$1" == "clean" ]]; then
