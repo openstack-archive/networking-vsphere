@@ -55,6 +55,12 @@ OVSVAPP_ESX_HOSTNAME=${OVSVAPP_ESX_HOSTNAME:-None}
 # Provide Cluster to DVS/vDS mapping.
 OVSVAPP_CLUSTER_DVS_MAPPING=${OVSVAPP_CLUSTER_DVS_MAPPING:-DatacenterName/host/ClusterName:vDSName}
 
+# Provide the tenant network type (VLAN or VXLAN).
+OVSVAPP_TENANT_NETWORK_TYPE=${OVSVAPP_TENANT_NETWORK_TYPE:-vlan}
+
+# Provide the IP for VXLAN tunnel endpoint.
+OVSVAPP_LOCAL_IP=${OVSVAPP_LOCAL_IP:-None}
+
 # Provide Physical Bridge name.
 OVSVAPP_PHYSICAL_BRIDGE=${OVSVAPP_PHYSICAL_BRIDGE:-br-ethx}
 
@@ -72,6 +78,9 @@ OVSVAPP_SECURITY_BRIDGE_MAPPINGS=${OVSVAPP_SECURITY_BRIDGE_MAPPINGS:-br-sec:ethy
 
 # Provide Integration Bridge.
 INTEGRATION_BRIDGE=${INTEGRATION_BRIDGE:-br-int}
+
+# Provide Tunnel Bridge.
+TUNNEL_BRIDGE=${TUNNEL_BRIDGE:-br-tun}
 
 # Provide Security Bridge.
 SECURITY_BRIDGE=${SECURITY_BRIDGE:-br-sec}
