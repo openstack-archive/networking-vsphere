@@ -762,11 +762,11 @@ class NetworkScenarioTest(ScenarioTest):
                          .format(fp=floating_ip, cst=floating_ip.status,
                                  st=status))
 
-    def _check_tenant_network_connectivity(self, server,
-                                           username,
-                                           private_key,
-                                           should_connect=True,
-                                           servers_for_debug=None):
+    def _check_tenant_net_connectivity(self, server,
+                                       username,
+                                       private_key,
+                                       should_connect=True,
+                                       servers_for_debug=None):
         if not CONF.network.tenant_networks_reachable:
             msg = 'Tenant networks not configured to be reachable.'
             LOG.info(msg)
