@@ -1,0 +1,9 @@
+[esx]    
+#The Vcenter ip address
+vcenter_ip
+#The trunk dvswitch name of the Cluster
+trunk_dvswitch_name
+#Username to login to Vcenter
+vcenter_username
+#Password to login to Vcenter
+vcenter_password

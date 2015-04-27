@@ -762,7 +762,7 @@ class NetworkScenarioTest(ScenarioTest):
                          .format(fp=floating_ip, cst=floating_ip.status,
                                  st=status))
 
-    def _check_tenant_network_connectivity(self, server,
+    def _check_tenant_net_connectivity(self, server,
                                            username,
                                            private_key,
                                            should_connect=True,
