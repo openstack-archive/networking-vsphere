@@ -13,11 +13,14 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
+import atexit
 import subprocess
 
 import netaddr
 from oslo_log import log
+from pyVim import connect
+from pyVim.connect import Disconnect
+from pyVmomi import vim
 import six
 from tempest_lib.common.utils import data_utils
 from tempest_lib import exceptions as lib_exc
@@ -70,6 +73,14 @@ class ScenarioTest(networking_vsphere.tests.tempest.test.BaseTestCase):
         cls.servers_client = cls.manager.servers_client
         # Neutron network client
         cls.network_client = cls.manager.network_client
+        try:
+            creds = cls.isolated_creds.get_admin_creds()
+            cls.os_adm = clients.Manager(credentials=creds)
+        except NotImplementedError:
+            msg = ("Missing Administrative Network API credentials "
+                   "in configuration.")
+            raise cls.skipException(msg)
+        cls.admin_client = cls.os_adm.network_client
 
     @classmethod
     def credentials(cls):
@@ -91,6 +102,10 @@ class ScenarioTest(networking_vsphere.tests.tempest.test.BaseTestCase):
     def setUp(self):
         super(ScenarioTest, self).setUp()
         self.cleanup_waits = []
+        self.portgroup_list = []
+        self.segmentid_list = []
+        self.portgroup_deleted_list = []
+        self.segmentid_deleted_list = []
         # NOTE(mtreinish) This is safe to do in setUp instead of setUp class
         # because scenario tests in the same test class should not share
         # resources. If resources were shared between test cases then it
@@ -762,11 +777,11 @@ class NetworkScenarioTest(ScenarioTest):
                          .format(fp=floating_ip, cst=floating_ip.status,
                                  st=status))
 
-    def _check_tenant_network_connectivity(self, server,
-                                           username,
-                                           private_key,
-                                           should_connect=True,
-                                           servers_for_debug=None):
+    def _check_tenant_net_connectivity(self, server,
+                                       username,
+                                       private_key,
+                                       should_connect=True,
+                                       servers_for_debug=None):
         if not CONF.network.tenant_networks_reachable:
             msg = 'Tenant networks not configured to be reachable.'
             LOG.info(msg)
@@ -1149,6 +1164,131 @@ class NetworkScenarioTest(ScenarioTest):
             name=name, image=image, flavor=flavor,
             wait_on_boot=wait_on_boot, wait_on_delete=wait_on_delete,
             create_kwargs=create_kwargs)
+
+    def get_obj(self, content, vimtype, name):
+        """Get the vsphere object associated with a given text name."""
+        obj = None
+        container = content.viewManager.CreateContainerView(content.rootFolder,
+                                                            vimtype, True)
+        for c in container.view:
+                if c.name == name:
+                    obj = c
+                    break
+        return obj
+
+    def vsphere(self, vcenter_ip, vcenter_username, vcenter_password):
+            si = None
+            try:
+                msg = 'Trying to connect .....'
+                LOG.info(msg)
+                si = connect.Connect(vcenter_ip, 443, vcenter_username,
+                                     vcenter_password, service="hostd")
+            except Exception:
+                msg = _('Could not connect to the specified host')
+                raise exceptions.TimeoutException(msg)
+            atexit.register(Disconnect, si)
+            content = si.RetrieveContent()
+            return content
+
+    def _portgroup_verify(self, portgroup, segmentid):
+        vcenter_ip = CONF.network.vcenter_ip
+        trunk_dvswitch_name = CONF.network.trunk_dvswitch_name
+        vcenter_username = CONF.network.vcenter_username
+        vcenter_password = CONF.network.vcenter_password
+        content = self.vsphere(vcenter_ip, vcenter_username, vcenter_password)
+        dvswitch_obj = self.get_obj(content,
+                                    [vim.DistributedVirtualSwitch],
+                                    trunk_dvswitch_name)
+        port_groups = dvswitch_obj.portgroup
+        for port_group in port_groups:
+                portgroupname = port_group.name
+                self.portgroup_list.append(portgroupname)
+                segment_id = port_group.config.defaultPortConfig.vlan.vlanId
+                self.segmentid_list.append(segment_id)
+        self.assertIn(portgroup, self.portgroup_list)
+        self.assertIn(segmentid, self.segmentid_list)
+
+    def _portgroup_verify_after_server_delete(self, portgroup, segmentid):
+        vcenter_ip = CONF.network.vcenter_ip
+        trunk_dvswitch_name = CONF.network.trunk_dvswitch_name
+        vcenter_username = CONF.network.vcenter_username
+        vcenter_password = CONF.network.vcenter_password
+        content = self.vsphere(vcenter_ip, vcenter_username, vcenter_password)
+        dvswitch_obj = self.get_obj(content,
+                                    [vim.DistributedVirtualSwitch],
+                                    trunk_dvswitch_name)
+        port_groups = dvswitch_obj.portgroup
+        for port_group in port_groups:
+                portgroupname = port_group.name
+                segment_id = port_group.config.defaultPortConfig.vlan.vlanId
+                self.portgroup_deleted_list.append(portgroupname)
+                self.segmentid_deleted_list.append(segment_id)
+        self.assertNotIn(portgroup, self.portgroup_deleted_list)
+        self.assertNotIn(segmentid, self.segmentid_deleted_list)
+
+    def _create_server_multiple_nics(self, name, network1, network2):
+        keypair = self.create_keypair()
+        self.keypairs[keypair['name']] = keypair
+        security_groups = [{'name': self.security_group['name']}]
+        create_kwargs = {
+            'networks': [
+                {'uuid': network1.id},
+                {'uuid': network2.id},
+            ],
+            'key_name': keypair['name'],
+            'security_groups': security_groups,
+        }
+        server = self.create_server(name=name, create_kwargs=create_kwargs)
+        self.servers.append(server)
+        return server
+
+    def _create_server_multiple_nics_user_created_port(self, name,
+                                                       port_id1=None,
+                                                       port_id2=None):
+        keypair = self.create_keypair()
+        self.keypairs[keypair['name']] = keypair
+        security_groups = [{'name': self.security_group['name']}]
+        create_kwargs = {
+            'networks': [
+                {'port': port_id1},
+                {'port': port_id2},
+            ],
+            'key_name': keypair['name'],
+            'security_groups': security_groups,
+        }
+        server = self.create_server(name=name, create_kwargs=create_kwargs)
+        self.servers.append(server)
+        return server
+
+    def _fetch_network_segmentid_and_verify_portgroup(self, network=None):
+        net = self.admin_client.show_network(network)
+        net_segmentid = net['network']['provider:segmentation_id']
+        self._portgroup_verify(portgroup=network,
+                               segmentid=net_segmentid)
+
+    def _verify_portgroup_after_vm_delete(self, network=None):
+        net = self.admin_client.show_network(network)
+        net_segmentid = net['network']['provider:segmentation_id']
+        self._portgroup_verify_after_server_delete(portgroup=network,
+                                                   segmentid=net_segmentid)
+
+    def _create_server_multiple_nics_without_deleting(self, name, network1,
+                                                      network2):
+        keypair = self.create_keypair()
+        self.keypairs[keypair['name']] = keypair
+        security_groups = [{'name': self.security_group['name']}]
+        create_kwargs = {
+            'networks': [
+                {'uuid': network1.id},
+                {'uuid': network2.id},
+            ],
+            'key_name': keypair['name'],
+            'security_groups': security_groups,
+        }
+        server = self._create_server_without_deleting(
+            create_kwargs=create_kwargs)
+        self.servers.append(server)
+        return server
 
 
 # power/provision states as of icehouse

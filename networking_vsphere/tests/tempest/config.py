@@ -486,6 +486,14 @@ NetworkGroup = [
                     " with pre-configured ports."
                     " Supported ports are:"
                     " ['normal','direct','macvtap']"),
+    cfg.StrOpt('vcenter_ip',
+               help="The Vcenter ip address "),
+    cfg.StrOpt('trunk_dvswitch_name',
+               help="The trunk dvswitch name "),
+    cfg.StrOpt('vcenter_username',
+               help="Username to login to Vcenter "),
+    cfg.StrOpt('vcenter_password',
+               help="Password to login to Vcenter ")
 ]
 
 network_feature_group = cfg.OptGroup(name='network-feature-enabled',
