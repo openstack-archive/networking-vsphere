@@ -72,11 +72,12 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
 
         The instance['node'] will have the hypervisor_hostname field of the
         compute node on which the instance exists or will be provisioned.
-        This will be of the form.
-        'respool-1001(MyResPoolName)'
-        'domain-1001(MyClusterName)'
+        The name will be of the form:
+            <mo id>.<vcenter uuid>
+        e.g.
+            domain-26.9d51f082-58a4-4449-beed-6fd205a5726b
         """
-        return instance['node'].partition('(')[0]
+        return instance['node'].partition('.')[0]
 
     def _create_virtual_nic(self, instance, image_info, network_info, vm_ref):
         if network_info is None:
