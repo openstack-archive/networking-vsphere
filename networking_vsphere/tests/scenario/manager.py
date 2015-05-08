@@ -1290,6 +1290,91 @@ class NetworkScenarioTest(ScenarioTest):
         self.servers.append(server)
         return server
 
+    def _create_network_subnet_router(self):
+        namestart='network-smoke-'
+        client = self.network_client
+        tenant_id = client.tenant_id
+        name = data_utils.rand_name(namestart)
+        result = client.create_network(name=name, tenant_id=tenant_id)
+        network = net_resources.DeletableNetwork(client=client,
+                                                 **result['network'])
+        self.assertEqual(network.name, name)
+
+        network_id = CONF.network.public_network_id
+        namestart='router-smoke'
+        result = client.create_router(name=name,
+                                      admin_state_up=True,
+                                      tenant_id=tenant_id)
+        router = net_resources.DeletableRouter(client=client,
+                                               **result['router'])
+        self.assertEqual(router.name, name)
+        router.set_gateway(network_id)
+
+        tenant_cidr = netaddr.IPNetwork(CONF.network.tenant_network_cidr)
+        num_bits = CONF.network.tenant_network_mask_bits
+        subnet_kwargs = dict(network=network, client=client)
+        ip_version = '4'
+        str_cidr = None
+        for subnet_cidr in tenant_cidr.subnet(num_bits):
+            str_cidr = str(subnet_cidr)
+
+
+            subnet = dict(
+                name=data_utils.rand_name(namestart),
+                network_id=network.id,
+                tenant_id=network.tenant_id,
+                cidr=str_cidr,
+                ip_version=ip_version,
+
+            )
+            try:
+                result = client.create_subnet(**subnet)
+                break
+            except lib_exc.Conflict as e:
+                is_overlapping_cidr = 'overlaps with another subnet' in str(e)
+                if not is_overlapping_cidr:
+                    raise
+        subnet = net_resources.DeletableSubnet(client=client,
+                                               **result['subnet'])
+        self.assertEqual(subnet.cidr, str_cidr)
+        subnet.add_to_router(router.id)
+        return network, router, subnet
+
+    def _create_server_without_deleting(self, create_kwargs):
+        image = CONF.compute.image_ref
+        flavor = CONF.compute.flavor_ref
+        network = self.get_tenant_network()
+        create_kwargs = fixed_network.set_networks_kwarg(network,
+                                                         create_kwargs)
+        name = data_utils.rand_name('server-smoke')
+        LOG.debug("Creating a server (name: %s, image: %s, flavor: %s)",
+                  name, image, flavor)
+        server = self.servers_client.create_server(name, image, flavor,
+                                                   **create_kwargs)
+        server = self.servers_client.get_server(server['id'])
+        self.assertEqual(server['name'], name)
+        return server
+
+    def _create_sec_group_without_deleting(self):
+        client = self.network_client
+        tenant_id = client.tenant_id
+        namestart='secgroup-smoke'
+        sg_name = data_utils.rand_name(namestart)
+        sg_desc = sg_name + " description"
+        sg_dict = dict(name=sg_name,
+                       description=sg_desc)
+        sg_dict['tenant_id'] = tenant_id
+        result = client.create_security_group(**sg_dict)
+        secgroup = net_resources.DeletableSecurityGroup(
+            client=client,
+            **result['security_group']
+        )
+        self.assertEqual(secgroup.name, sg_name)
+        self.assertEqual(tenant_id, secgroup.tenant_id)
+        self.assertEqual(secgroup.description, sg_desc)
+        rules = self._create_loginable_secgroup_rule(client=client,
+                                                     secgroup=secgroup)
+        return secgroup
 
 # power/provision states as of icehouse
 class BaremetalPowerStates(object):
