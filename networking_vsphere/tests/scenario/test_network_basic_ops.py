@@ -370,3 +370,61 @@ class TestNetworkBasicOps(manager.NetworkScenarioTest):
             should_connect=True)
         self._fetch_network_segmentid_and_verify_portgroup(network1.id)
         self._fetch_network_segmentid_and_verify_portgroup(network2.id)
+
+    @test.attr(type='smoke')
+    @test.services('compute', 'network')
+    def test_create_server_and_verify_port_group(self):
+        self.security_group = (
+            self._create_sec_group_without_deleting())
+        network, router, subnet = self._create_network_subnet_router()
+        keypair = self.create_keypair()
+        self.keypairs[keypair['name']] = keypair
+        security_groups = [{'name': self.security_group['name']}]
+        kwargs = {
+            'networks': [
+                {'uuid': network.id},
+            ],
+            'key_name': keypair['name'],
+            'security_groups': security_groups,
+        }
+        server1 = self._create_server_without_deleting(create_kwargs=kwargs)
+        server2 = self._create_server_without_deleting(create_kwargs=kwargs)
+        time.sleep(10)
+        self.servers.append(server1)
+        floating_ip = self.create_floating_ip(server1)
+        self.floating_ip_tuple = Floating_IP_tuple(floating_ip, server1)
+        time.sleep(10)
+        self._check_tenant_network_connectivity()
+        self.check_public_network_connectivity(
+            should_connect=True)
+        self._fetch_network_segmentid_and_verify_portgroup(network.id)
+        self.servers_client.delete_server(server1['id'])
+        time.sleep(10)
+        self._fetch_network_segmentid_and_verify_portgroup(network.id)
+        self.servers_client.delete_server(server2['id'])
+        time.sleep(10)
+        self._verify_portgroup_after_vm_delete(network.id)
+        self.network_client.remove_router_interface_with_subnet_id(router.id,
+                                                                   subnet.id)
+        self.network_client.delete_router(router['id'])
+        self.network_client.delete_security_group(self.security_group['id'])
+
+    @test.attr(type='smoke')
+    @test.services('compute', 'network')
+    def test_creation_of_server_attached_to_user_created_port(self):
+        self.security_group = (
+            self._create_security_group(tenant_id=self.tenant_id))
+        network, subnet, router = self.create_networks()
+        kwargs = {
+            'security_groups': [self.security_group['id']],
+        }
+
+        port = self._create_port(network.id, **kwargs)
+        name = data_utils.rand_name('server-smoke')
+        server = self._create_server(name, network, port.id)
+        self._check_tenant_network_connectivity()
+        floating_ip = self.create_floating_ip(server)
+        self.floating_ip_tuple = Floating_IP_tuple(floating_ip, server)
+        self.check_public_network_connectivity(
+            should_connect=True)
+	self._fetch_network_segmentid_and_verify_portgroup(network.id)
