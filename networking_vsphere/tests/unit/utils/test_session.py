@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import contextlib
-
 import mock
 from oslo_vmware import api
 from oslo_vmware import vim
@@ -39,44 +37,36 @@ class TestVmwareApiSession(base.TestCase):
                                                        self.wsdl_url,
                                                        create_session=False)
 
-    def test_call_method(self):
-        with contextlib.nested(
-            mock.patch.object(api.VMwareAPISession,
-                              "invoke_api"),
-            mock.patch.object(self.vm_session,
-                              "_is_vim_object",
-                              return_value=True)
-            ) as (invoke_ob, is_vim_ob):
+    @mock.patch.object(api.VMwareAPISession, "invoke_api")
+    def test_call_method(self, mock_invoke_ob):
+        with mock.patch.object(self.vm_session,
+                               "_is_vim_object",
+                               return_value=True):
             self.vm_session._call_method("fake_module",
                                          "get_objects",
                                          "HostSystem", ['name'])
-            self.assertTrue(invoke_ob.called)
+            self.assertTrue(mock_invoke_ob.called)
 
-    def test_call_method_with_vim_object_false(self):
+    @mock.patch.object(api.VMwareAPISession, "invoke_api")
+    @mock.patch.object(api.VMwareAPISession, "vim")
+    def test_call_method_with_vim_object_false(self, mock_vim_prop,
+                                               mock_invoke_ob):
         vim.Vim = mock.Mock()
-        with contextlib.nested(
-            mock.patch.object(api.VMwareAPISession,
-                              "invoke_api"),
-            mock.patch.object(api.VMwareAPISession,
-                              "vim",
-                              return_value=vim.Vim),
-            mock.patch.object(self.vm_session,
-                              "_is_vim_object",
-                              return_value=False)
-            ) as (invoke_ob, vim_prop, is_vim_ob):
+        mock_vim_prop.return_value = vim.Vim
+        with mock.patch.object(self.vm_session,
+                               "_is_vim_object",
+                               return_value=False):
             self.vm_session._call_method("fake_module",
                                          "get_objects",
                                          "HostSystem", ['name'])
-            self.assertTrue(invoke_ob.called)
+            self.assertTrue(mock_invoke_ob.called)
 
-    def test_get_vim(self):
+    @mock.patch.object(api.VMwareAPISession, "vim")
+    def test_get_vim(self, mock_vim_prop):
         vim.Vim = mock.Mock(return_value="fake_vim")
-        with contextlib.nested(
-            mock.patch.object(api.VMwareAPISession,
-                              "vim",
-                              return_value=vim.Vim)):
-            new_vim = self.vm_session._get_vim()
-            self.assertEqual(new_vim, self.vm_session.vim)
+        mock_vim_prop.return_value = vim.Vim
+        new_vim = self.vm_session._get_vim()
+        self.assertEqual(new_vim, self.vm_session.vim)
 
 
 class TestConnectionHandler(base.TestCase):

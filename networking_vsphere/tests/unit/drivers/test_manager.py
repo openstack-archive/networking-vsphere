@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import contextlib
-
 import eventlet
 import mock
 
@@ -45,14 +43,12 @@ class TestVcenterManager(base.TestCase):
         self.assertEqual(len(cluster_dvs_list), 2)
 
     def test_initialize_driver_noconf(self):
-        with contextlib.nested(
-            mock.patch.object(vim_session.ConnectionHandler, "stop",
-                              return_value=None),
-            mock.patch.object(self.LOG, "error")
-        ) as (stop_conn, log_error):
+        with mock.patch.object(vim_session.ConnectionHandler, "stop",
+                               return_value=None), \
+                mock.patch.object(self.LOG, "error") as mock_log_error:
             self.manager.initialize_driver()
             self.assertIsNone(self.manager.driver)
-            self.assertTrue(log_error.called)
+            self.assertTrue(mock_log_error.called)
 
     def test_initialize_driver(self):
         fake_tuple = ["dc/host/cluster1:dvs1"]
@@ -62,16 +58,15 @@ class TestVcenterManager(base.TestCase):
         self.flags(vcenter_api_retry_count="1", group='VMWARE')
         self.flags(wsdl_location="http://fake.test.com", group='VMWARE')
         self.flags(cluster_dvs_mapping=fake_tuple, group='VMWARE')
-        with contextlib.nested(
-            mock.patch.object(vim_session.ConnectionHandler, "stop",
-                              return_value=None),
-            mock.patch.object(eventlet, "spawn"),
-            mock.patch.object(vc_driver.VCNetworkDriver, "add_cluster",
-                              return_value=True)):
-                self.assertEqual(len(self.manager.cluster_switch_mapping), 0)
-                self.manager.initialize_driver()
-                self.assertIsNotNone(self.manager.driver)
-                self.assertEqual(len(self.manager.cluster_switch_mapping), 1)
+        with mock.patch.object(vim_session.ConnectionHandler, "stop",
+                               return_value=None), \
+                mock.patch.object(eventlet, "spawn"), \
+                mock.patch.object(vc_driver.VCNetworkDriver, "add_cluster",
+                                  return_value=True):
+            self.assertEqual(len(self.manager.cluster_switch_mapping), 0)
+            self.manager.initialize_driver()
+            self.assertIsNotNone(self.manager.driver)
+            self.assertEqual(len(self.manager.cluster_switch_mapping), 1)
 
     def test_start(self):
         self.manager.driver = None
@@ -87,12 +82,11 @@ class TestVcenterManager(base.TestCase):
         self.manager.driver = None
         self.assertIsNone(self.manager.pause())
 
-    def test_stop(self):
-        with contextlib.nested(
-            mock.patch.object(vim_session.ConnectionHandler, "stop",
-                              return_value=None),
-            mock.patch.object(dvs_driver.DvsNetworkDriver, "stop")
-        ) as (conn_stop, dvs_stop):
-                self.manager.driver = dvs_driver.DvsNetworkDriver()
-                self.manager.stop()
-                self.assertTrue(dvs_stop.called)
+    @mock.patch.object(vim_session.ConnectionHandler, "stop")
+    def test_stop(self, mock_conn_stop):
+        mock_conn_stop.return_value = None
+        with mock.patch.object(dvs_driver.DvsNetworkDriver, "stop"
+                               ) as mock_dvs_stop:
+            self.manager.driver = dvs_driver.DvsNetworkDriver()
+            self.manager.stop()
+            self.assertTrue(mock_dvs_stop.called)

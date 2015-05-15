@@ -15,8 +15,6 @@
 
 import mock
 
-import contextlib
-
 from networking_vsphere.common import constants
 from networking_vsphere.common import error
 from networking_vsphere.common import model
@@ -200,12 +198,11 @@ class TestDvsDriver(base.TestCase):
         vm_mor = None
         pg_mor = None
         try:
-            with contextlib.nested(
-                mock.path.object(self.vc_driver,
-                                 '_register_vm_for_updates'),
-                mock.patch.object(vim_util, "wait_for_updates_ex",
-                                  side_effect=Exception())):
-                    self.vc_driver._wait_for_port_update_on_vm(vm_mor, pg_mor)
+            with mock.path.object(self.vc_driver,
+                                  '_register_vm_for_updates'), \
+                    mock.patch.object(vim_util, "wait_for_updates_ex",
+                                      side_effect=Exception()):
+                self.vc_driver._wait_for_port_update_on_vm(vm_mor, pg_mor)
         except Exception:
             self.assertFalse(fake_vmware_api.is_task_done(
                 "ReconfigureDVPort_Task"))
@@ -288,19 +285,18 @@ class TestDvsDriver(base.TestCase):
                           vm_id=vm_id,
                           port_status=constants.PORT_STATUS_UP,
                           network_uuid=network_uuid)
-        with contextlib.nested(
-            mock.patch.object(dvs_driver.DvsNetworkDriver,
-                              "_find_cluster_switch_for_vm",
-                              return_value=[None, None, "test_vds"]),
-            mock.patch.object(network_util, "get_portgroup_mor_by_name",
-                              return_value="pg_mor"),
-            mock.patch.object(resource_util, "get_vm_mor_for_uuid",
-                              return_value=None)):
-                self.assertRaises(error_util.RunTimeError,
-                                  self.vc_driver.post_create_port,
-                                  port)
-                self.assertFalse(fake_vmware_api.is_task_done(
-                    "ReconfigureDVPort_Task"))
+        with mock.patch.object(dvs_driver.DvsNetworkDriver,
+                               "_find_cluster_switch_for_vm",
+                               return_value=[None, None, "test_vds"]), \
+                mock.patch.object(network_util, "get_portgroup_mor_by_name",
+                                  return_value="pg_mor"), \
+                mock.patch.object(resource_util, "get_vm_mor_for_uuid",
+                                  return_value=None):
+            self.assertRaises(error_util.RunTimeError,
+                              self.vc_driver.post_create_port,
+                              port)
+            self.assertFalse(fake_vmware_api.is_task_done(
+                             "ReconfigureDVPort_Task"))
 
     def test_post_create_port_excp3(self):
         vm_id = fake_vmware_api.Constants.VM_UUID
