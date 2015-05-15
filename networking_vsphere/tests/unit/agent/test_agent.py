@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import contextlib
-
 import mock
 from oslo_config import cfg
 
@@ -49,16 +47,14 @@ class TestAgent(base.TestCase):
             self.agent.set_node_state(True)
             self.assertTrue(log_info.called)
 
-    def test_set_node_state_up(self):
+    @mock.patch.object(utils, "load_object")
+    def test_set_node_state_up(self, mock_load_obj):
         fake_net_mgr = fake_manager.MockNetworkManager(self.agent)
         self.assertIsNone(fake_net_mgr.get_driver())
-        with contextlib.nested(
-            mock.patch.object(utils, "load_object",
-                              return_value=fake_net_mgr),
-            mock.patch.object(self.LOG, 'info')
-        ) as (load_obj, log_info):
+        mock_load_obj.return_value = fake_net_mgr
+        with mock.patch.object(self.LOG, 'info') as mock_log_info:
             self.agent.set_node_state(True)
-            self.assertTrue(log_info.called)
+            self.assertTrue(mock_log_info.called)
             self.assertTrue(fake_net_mgr.get_driver())
             self.assertTrue("start" in fake_net_mgr.methods)
             self.assertTrue(self.agent.state == constants.AGENT_RUNNING)
