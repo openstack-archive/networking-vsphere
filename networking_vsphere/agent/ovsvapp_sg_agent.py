@@ -78,8 +78,8 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         LOG.info(_("Prepare firewall rules %s."), len(device_ids))
         dev_list = list(device_ids)
         if len(dev_list) > 10:
-            sublists = [dev_list[x:x + 10] for x in xrange(0, len(dev_list),
-                                                           10)]
+            sublists = [dev_list[x:x + 10] for x in range(0, len(dev_list),
+                                                          10)]
         else:
             sublists = [dev_list]
         for dev_ids in sublists:
@@ -106,8 +106,8 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                 return
         dev_list = list(device_ids)
         if len(dev_list) > 10:
-            sublists = [dev_list[x:x + 10] for x in xrange(0, len(dev_list),
-                                                           10)]
+            sublists = [dev_list[x:x + 10] for x in range(0, len(dev_list),
+                                                          10)]
         else:
             sublists = [dev_list]
 
