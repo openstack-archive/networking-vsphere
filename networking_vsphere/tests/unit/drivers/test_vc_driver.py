@@ -117,24 +117,23 @@ class TestVmwareDriver(base.TestCase):
             self.session, "ClusterComputeResource")
         old_clu_id = cluster_mor.value
         object.__setattr__(cluster_mor, 'value', "new_value")
-        with contextlib.nested(
-            mock.patch.object(resource_util, "get_cluster_mor_by_path",
-                              return_value=cluster_mor),
-            mock.patch.object(self.vc_driver,
-                              "_unregister_cluster_for_updates",
-                              return_value=None)):
-                self.assertEqual(cache.VCCache.get_switch_for_cluster_path(
-                    "ClusterComputeResource"), "test_dvs")
-                self.assertIn(old_clu_id,
-                              cache.VCCache.cluster_id_to_path)
-                self.vc_driver.add_cluster("ClusterComputeResource", "new_dvs")
-                self.assertNotIn(old_clu_id,
-                                 cache.VCCache.cluster_id_to_path)
-                self.assertIn("new_value",
-                              cache.VCCache.cluster_id_to_path)
-                self.assertEqual(cache.VCCache.get_switch_for_cluster_path(
-                    "ClusterComputeResource"), "new_dvs")
-                self.assertEqual(self.vc_driver.state, constants.DRIVER_READY)
+        with mock.patch.object(resource_util, "get_cluster_mor_by_path",
+                               return_value=cluster_mor), \
+                mock.patch.object(self.vc_driver,
+                                  "_unregister_cluster_for_updates",
+                                  return_value=None):
+            self.assertEqual(cache.VCCache.get_switch_for_cluster_path(
+                "ClusterComputeResource"), "test_dvs")
+            self.assertIn(old_clu_id,
+                            cache.VCCache.cluster_id_to_path)
+            self.vc_driver.add_cluster("ClusterComputeResource", "new_dvs")
+            self.assertNotIn(old_clu_id,
+                             cache.VCCache.cluster_id_to_path)
+            self.assertIn("new_value",
+                          cache.VCCache.cluster_id_to_path)
+            self.assertEqual(cache.VCCache.get_switch_for_cluster_path(
+                "ClusterComputeResource"), "new_dvs")
+            self.assertEqual(self.vc_driver.state, constants.DRIVER_READY)
 
     def test_is_connected_none(self):
         self.vc_driver.session = None
@@ -313,16 +312,16 @@ class TestVmwareDriver(base.TestCase):
         self.assertEqual(len(events), 0)
 
     def test_delete_stale_portgroups(self):
-        with contextlib.nested(
-            mock.patch.object(
+        with mock.patch.object(
                 self.vc_driver,
                 "get_unused_portgroups",
-                return_value=[fake_vmware_api.Constants.PORTGROUP_NAME]),
-            mock.patch.object(self.vc_driver, "delete_portgroup")
-            ) as (unused_ob, delete_pg_ob):
+                return_value=[fake_vmware_api.Constants.PORTGROUP_NAME]
+                ) as mock_unused_ob, \
+                mock.patch.object(self.vc_driver, "delete_portgroup"
+                                  ) as mock_delete_pg_ob:
             self.vc_driver.delete_stale_portgroups("test_dvs")
-            self.assertTrue(unused_ob.called)
-            self.assertTrue(delete_pg_ob.called)
+            self.assertTrue(mock_unused_ob.called)
+            self.assertTrue(mock_delete_pg_ob.called)
 
     def test_post_delete_vm(self):
         uuid = fake_vmware_api.Constants.VM_UUID
@@ -355,27 +354,25 @@ class TestVmwareDriver(base.TestCase):
             self.assertTrue(unreg_ob.called)
 
     def test_remove_cluster_invalid_cluster_path(self):
-        with contextlib.nested(
-            mock.patch.object(self.vc_driver,
-                              "_unregister_cluster_for_updates"),
-            mock.patch.object(self.vc_driver,
-                              "_find_cluster_id_for_path",
-                              return_value="1234")
-            ) as (unreg_ob, find_ob):
+        with mock.patch.object(self.vc_driver,
+                               "_unregister_cluster_for_updates"
+                               ) as mock_unreg_ob, \
+                mock.patch.object(self.vc_driver,
+                                  "_find_cluster_id_for_path",
+                                  return_value="1234") as mock_find_ob:
             self.vc_driver.remove_cluster("invalid_cluster",
                                           "test_dvs")
-            self.assertFalse(unreg_ob.called)
-            self.assertFalse(find_ob.called)
+            self.assertFalse(mock_unreg_ob.called)
+            self.assertFalse(mock_find_ob.called)
 
     def test_remove_cluster_id_none(self):
-        with contextlib.nested(
-            mock.patch.object(self.vc_driver,
-                              "_unregister_cluster_for_updates"),
-            mock.patch.object(self.vc_driver,
-                              "_find_cluster_id_for_path",
-                              return_value=None)
-            ) as (unreg_ob, find_ob):
+        with mock.patch.object(self.vc_driver,
+                               "_unregister_cluster_for_updates"
+                               ) as mock_unreg_ob, \
+                mock.patch.object(self.vc_driver,
+                                  "_find_cluster_id_for_path",
+                                  return_value=None) as mock_find_ob:
             self.vc_driver.remove_cluster("ClusterComputeResource",
                                           "test_dvs")
-            self.assertFalse(unreg_ob.called)
-            self.assertTrue(find_ob.called)
+            self.assertFalse(mock_unreg_ob.called)
+            self.assertTrue(mock_find_ob.called)
