@@ -29,7 +29,7 @@ def _generate_vcenter_cluster_allocations(session, vcenter, cluster):
     lvid_min = 1
     lvid_max = 4095
 
-    for lvid in xrange(lvid_min, lvid_max):
+    for lvid in range(lvid_min, lvid_max):
         allocs.append({'vcenter_id': vcenter,
                        'cluster_id': cluster,
                        'lvid': lvid})

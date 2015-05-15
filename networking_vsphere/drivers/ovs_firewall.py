@@ -339,8 +339,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             spr_min = -1
             spr_max = -1
 
-        for dport, sport in itertools.product(xrange(pr_min, pr_max + 1),
-                                              xrange(spr_min, spr_max + 1)):
+        for dport, sport in itertools.product(range(pr_min, pr_max + 1),
+                                              range(spr_min, spr_max + 1)):
             if dport >= 0:
                 flow["tp_dst"] = dport
             if sport >= 0:
