@@ -108,11 +108,17 @@ function run_ovsvapp_alembic_migration {
     $NEUTRON_BIN_DIR/neutron-ovsvapp-db-manage --config-file $NEUTRON_CONF --config-file /$Q_PLUGIN_CONF_FILE upgrade head
 }
 
+function install_pyvmomi {
+    echo "Installing pyvmomi for tempest"
+    sudo pip install pyvmomi
+}
+
 function install_ovsvapp_dependency {
     echo "Installing dependencies for OVSvApp"
     install_nova
     install_neutron
     _neutron_ovs_base_install_agent_packages
+    install_pyvmomi
 }
 
 function install_networking_vsphere {
