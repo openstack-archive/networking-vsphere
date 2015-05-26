@@ -1,0 +1,13 @@
+[VCENTER]
+
+# The vCenter ip address
+vCenter_ip
+
+# The trunk dvswitch name of the Cluster
+trunk_dvswitch_name
+
+# Username to login to vCenter
+vCenter_username
+
+# Password to login to vCenter
+vCenter_password
