@@ -51,10 +51,10 @@ class OVSvAppServerRpcCallback(object):
     def plugin(self):
         return manager.NeutronManager.get_plugin()
 
-    def _get_devices_info(self, devices):
+    def _get_devices_info(self, context, devices):
         return dict(
             (port['id'], port)
-            for port in self.plugin.get_ports_from_devices(devices)
+            for port in self.plugin.get_ports_from_devices(context, devices)
             if port and not port['device_owner'].startswith('network:')
         )
 
@@ -139,7 +139,8 @@ class OVSvAppServerRpcCallback(object):
                     # Get the SG rules for the security enabled ports.
                     sg_payload = {}
                     if sg_port_ids:
-                        ports = self._get_devices_info(sg_port_ids)
+                        ports = self._get_devices_info(
+                            rpc_context, sg_port_ids)
                         sg_rules = self.plugin.security_group_rules_for_ports(
                             rpc_context, ports)
                         sg_payload[device_id] = sg_rules
