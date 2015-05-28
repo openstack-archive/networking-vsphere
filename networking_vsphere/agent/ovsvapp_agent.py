@@ -30,6 +30,8 @@ from neutron.common import utils as n_utils
 from neutron import context
 from neutron.openstack.common import loopingcall
 from neutron.plugins.common import constants as p_const
+from neutron.plugins.openvswitch.agent.openflow.ovs_ofctl import br_int
+from neutron.plugins.openvswitch.agent.openflow.ovs_ofctl import br_tun
 from neutron.plugins.openvswitch.agent import ovs_neutron_agent as ovs_agent
 from neutron.plugins.openvswitch.common import constants as ovs_const
 
@@ -117,7 +119,12 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.use_veth_interconnection = False
         self.agent_under_maintenance = CONF.OVSVAPP.agent_maintenance
         self.enable_tunneling = False
-        self.int_br = ovs_lib.OVSBridge(CONF.OVSVAPP.integration_bridge)
+        self.tun_br = None
+        bridge_classes = {'br_int': br_int.OVSIntegrationBridge,
+                          'br_tun': br_tun.OVSTunnelBridge}
+        self.br_int_cls = bridge_classes['br_int']
+        self.br_tun_cls = bridge_classes['br_tun']
+        self.int_br = self.br_int_cls(CONF.OVSVAPP.integration_bridge)
         self.firewall_driver = CONF.SECURITYGROUP.ovsvapp_firewall_driver
         if not self.agent_under_maintenance:
             self.setup_integration_br()
@@ -340,7 +347,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 LOG.error(_("Tunneling cannot be enabled without a valid "
                             "local_ip."))
                 raise SystemExit(1)
-            self.tun_br = None
+            if not self.tun_br:
+                self.tun_br = self.br_tun_cls(CONF.OVSVAPP.tunnel_bridge)
             self.agent_state['configurations']['tunneling_ip'] = self.local_ip
             self.agent_state['configurations']['l2_population'] = self.l2_pop
             if not self.agent_under_maintenance:
