@@ -13,11 +13,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import six
+
 
 class VCCache(object):
 
     cluster_id_to_path = {}
-    vm_to_cluster = {}
     vm_uuid_to_mor = {}
     vm_moid_to_uuid = {}
     vm_uuid_to_model = {}
@@ -102,7 +103,7 @@ class VCCache(object):
     @classmethod
     def get_cluster_id_for_path(cls, cluster_path):
         cluster_id = None
-        for temp_id, temp_path in cls.cluster_id_to_path.iteritems():
+        for temp_id, temp_path in six.iteritems(cls.cluster_id_to_path):
             if cluster_path == temp_path:
                 cluster_id = temp_id
                 break

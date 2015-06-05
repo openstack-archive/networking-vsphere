@@ -20,6 +20,7 @@ import eventlet
 from oslo_config import cfg
 from oslo_log import log
 import oslo_messaging
+import six
 
 from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
@@ -261,7 +262,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.int_ofports = {}
         self.phys_ofports = {}
         ovs_bridges = ovs_lib.get_bridges()
-        for phys_net, bridge in bridge_mappings.iteritems():
+        for phys_net, bridge in six.iteritems(bridge_mappings):
             LOG.info(_("Mapping physical network %(phys_net)s to "
                        "bridge %(bridge)s."), {'phys_net': phys_net,
                                                'bridge': bridge})
@@ -298,7 +299,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         bridge and physical bridge.
         """
         self.int_br.delete_flows(in_port=self.patch_sec_ofport)
-        for phys_net, bridge in bridge_mappings.iteritems():
+        for phys_net, bridge in six.iteritems(bridge_mappings):
             self.int_br.delete_flows(
                 in_port=self.int_ofports[phys_net])
             # Egress FLOWs
