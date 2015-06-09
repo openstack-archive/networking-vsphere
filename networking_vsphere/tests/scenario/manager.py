@@ -22,7 +22,6 @@ sudo pip install pyvmomi
 """
 import atexit
 
-import netaddr
 import six
 
 import subprocess
@@ -211,8 +210,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         return server_id
 
     def _delete_server(self, server=None):
+        region = CONF.compute.region
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           "RegionOne")
+                                           region)
         resp, body = rs_client.delete("servers/%s" % str(server))
         self.wait_for_server_termination(server)
         rest_client.ResponseBody(resp, body)
@@ -423,7 +423,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             LOG.exception(ex_msg)
             raise
 
-    def get_remote_client(self, server_or_ip, username=None):
+    def get_remote_client(self, ip, username=None):
         """Get a SSH client to a remote server
 
         :param server_or_ip: a server object as returned by Tempest compute
@@ -431,20 +431,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         :param username: name of the Linux account on the remote server
         :return: a RemoteClient object
         """
-        if isinstance(server_or_ip, six.string_types):
-            ip = server_or_ip
-        else:
-            addrs = server_or_ip['addresses'][CONF.compute.network_for_ssh]
-            try:
-                ip = (addr['addr'] for addr in addrs if
-                      netaddr.valid_ipv4(addr['addr'])).next()
-            except StopIteration:
-                raise lib_exc.NotFound("No IPv4 addresses to use for SSH to "
-                                       "remote server.")
-
         if username is None:
             username = CONF.scenario.ssh_user
-            password = CONF.compute.image_ssh_password
+        password = CONF.compute.image_ssh_password
         linux_client = ssh.Client(ip, username, password)
 
         try:
@@ -542,7 +531,6 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _create_server_multiple_nic_user_created_port(self, name=None,
                                                       port1=None, port2=None,
-                                                      securitygroup=None,
                                                       wait_on_boot=True):
         region = CONF.compute.region
         image = CONF.compute.image_ref
@@ -552,8 +540,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"port": port1},
-                                        {"port": port2}],
-                           "security_groups": [{"name": securitygroup}]}}
+                                        {"port": port2}]}}
         data = jsonutils.dumps(data)
         resp, body = rs_client.post("/servers", data)
         rs_client.expected_success(202, resp.status)
@@ -592,3 +579,118 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
         return test.call_until_true(ping_remote,
                                     CONF.compute.ping_timeout, 1)
+
+    def _fetch_segment_id_from_db(self, segmentid):
+        cont_ip = cfg.CONF.VCENTER.controller_ip
+        neutron_db = "select lvid from ovsvapp_cluster_vni_allocations " \
+                     "where network_id=\"" + segmentid + "\";"
+        cmd = ['mysql', '-sN', '-h', cont_ip, 'neutron',
+               '-e', neutron_db]
+        proc = subprocess.Popen(cmd,
+                                stdout=subprocess.PIPE)
+        segment_id = proc.communicate()[0]
+        return segment_id
+
+    def _get_vm_name(self, server_id):
+        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
+        vcenter_username = cfg.CONF.VCENTER.vcenter_username
+        vcenter_password = cfg.CONF.VCENTER.vcenter_password
+        content = self._create_connection(vcenter_ip, vcenter_username,
+                                          vcenter_password)
+        vm_name = self.get_obj(content, [vim.VirtualMachine],
+                               server_id)
+        return vm_name
+
+    def _fetch_cluster_in_use_from_server(self, server_id):
+        region = CONF.compute.region
+        auth_provider = manager.get_auth_provider(
+            self.isolated_creds.get_admin_creds())
+        rs_client = rest_client.RestClient(auth_provider, "compute",
+                                           region)
+        resp, body = rs_client.get("servers/%s" % str(server_id))
+        body = jsonutils.loads(body)
+        cst_name = body['server']['OS-EXT-SRV-ATTR:hypervisor_hostname']
+        return cst_name[cst_name.index("(") + 1:cst_name.rindex(")")]
+
+    def _verify_portgroup_vxlan(self, trunk_dvswitch, vm_name, net_id,
+                                segment_id):
+        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
+        vcenter_username = cfg.CONF.VCENTER.vcenter_username
+        vcenter_password = cfg.CONF.VCENTER.vcenter_password
+        content = self._create_connection(vcenter_ip, vcenter_username,
+                                          vcenter_password)
+
+        dvswitch_obj = self.get_obj(content, [vim.DistributedVirtualSwitch],
+                                    trunk_dvswitch)
+        port_groups = dvswitch_obj.portgroup
+        for port_group in port_groups:
+                if vm_name in port_group.vm:
+                        if net_id in port_group.summary.name[0:36]:
+                                seg_id = port_group.config.defaultPortConfig
+                                self.assertEqual(seg_id.vlan.vlanId,
+                                                 segment_id)
+                                return True
+        return False
+
+    def _verify_portgroup_vlan(self, trunk_dvswitch, vm_name, net_id,
+                               segment_id):
+        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
+        vcenter_username = cfg.CONF.VCENTER.vcenter_username
+        vcenter_password = cfg.CONF.VCENTER.vcenter_password
+        content = self._create_connection(vcenter_ip, vcenter_username,
+                                          vcenter_password)
+
+        dvswitch_obj = self.get_obj(content, [vim.DistributedVirtualSwitch],
+                                    trunk_dvswitch)
+        port_groups = dvswitch_obj.portgroup
+        for port_group in port_groups:
+                if vm_name in port_group.vm:
+                        if net_id in port_group.summary.name:
+                                seg_id = port_group.config.defaultPortConfig
+                                self.assertEqual(seg_id.vlan.vlanId,
+                                                 segment_id)
+                                return True
+        return False
+
+    def verify_portgroup(self, net_id, server_id):
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                net = self.admin_client.show_network(net_id)
+                segment_id = net['network']['provider:segmentation_id']
+        else:
+                segment_id = self._fetch_segment_id_from_db(net_id)
+        cluster_name = self._fetch_cluster_in_use_from_server(server_id)
+        vm_name = self._get_vm_name(server_id)
+        trunk_dvswitch_name = cfg.CONF.VCENTER.trunk_dvswitch_name
+        trunk_dvswitch_name = trunk_dvswitch_name.split(',')
+        for trunk_dvswitch in trunk_dvswitch_name:
+            if "vxlan" == tenant_network_type:
+                if str(cluster_name) in trunk_dvswitch:
+                    return (self._verify_portgroup_vxlan(trunk_dvswitch,
+                                                         vm_name,
+                                                         net_id,
+                                                         segment_id))
+            else:
+                return (self._verify_portgroup_vlan(trunk_dvswitch,
+                                                    vm_name,
+                                                    net_id,
+                                                    segment_id))
+        return False
+
+    def verify_portgroup_after_vm_delete(self, net_id):
+        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
+        vcenter_username = cfg.CONF.VCENTER.vcenter_username
+        vcenter_password = cfg.CONF.VCENTER.vcenter_password
+        content = self._create_connection(vcenter_ip, vcenter_username,
+                                          vcenter_password)
+        trunk_dvswitch_name = cfg.CONF.VCENTER.trunk_dvswitch_name
+        trunk_dvswitch_name = trunk_dvswitch_name.split(',')
+        for trunk_dvswitch in trunk_dvswitch_name:
+                dvswitch_obj = self.get_obj(content,
+                                            [vim.DistributedVirtualSwitch],
+                                            trunk_dvswitch)
+                port_groups = dvswitch_obj.portgroup
+                for port_group in port_groups:
+                        if net_id in port_group.summary.name:
+                                return True
+        return False
