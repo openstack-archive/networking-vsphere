@@ -444,7 +444,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
         if username is None:
             username = CONF.scenario.ssh_user
-            password = CONF.compute.image_ssh_password
+        password = CONF.compute.image_ssh_password
         linux_client = ssh.Client(ip, username, password)
 
         try:
