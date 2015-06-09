@@ -22,7 +22,6 @@ sudo pip install pyvmomi
 """
 import atexit
 
-import netaddr
 import six
 
 import subprocess
@@ -423,7 +422,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             LOG.exception(ex_msg)
             raise
 
-    def get_remote_client(self, server_or_ip, username=None):
+    def get_remote_client(self, ip, username=None):
         """Get a SSH client to a remote server
 
         :param server_or_ip: a server object as returned by Tempest compute
@@ -431,20 +430,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         :param username: name of the Linux account on the remote server
         :return: a RemoteClient object
         """
-        if isinstance(server_or_ip, six.string_types):
-            ip = server_or_ip
-        else:
-            addrs = server_or_ip['addresses'][CONF.compute.network_for_ssh]
-            try:
-                ip = (addr['addr'] for addr in addrs if
-                      netaddr.valid_ipv4(addr['addr'])).next()
-            except StopIteration:
-                raise lib_exc.NotFound("No IPv4 addresses to use for SSH to "
-                                       "remote server.")
-
         if username is None:
             username = CONF.scenario.ssh_user
-            password = CONF.compute.image_ssh_password
+        password = CONF.compute.image_ssh_password
         linux_client = ssh.Client(ip, username, password)
 
         try:
