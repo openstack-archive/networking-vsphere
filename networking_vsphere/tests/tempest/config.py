@@ -24,7 +24,10 @@ VCENTER_OPTS = [
     cfg.StrOpt('vcenter_username',
                help="Username to login to vCenter "),
     cfg.StrOpt('vcenter_password',
-               help="Password to login to vCenter ")
+               help="Password to login to vCenter "),
+    cfg.StrOpt('tenant_network_type',
+               default="vlan",
+               help="tenant network type is vlan or vxlan")
 ]
 
 
