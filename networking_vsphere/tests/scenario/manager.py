@@ -431,20 +431,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         :param username: name of the Linux account on the remote server
         :return: a RemoteClient object
         """
-        if isinstance(server_or_ip, six.string_types):
-            ip = server_or_ip
-        else:
-            addrs = server_or_ip['addresses'][CONF.compute.network_for_ssh]
-            try:
-                ip = (addr['addr'] for addr in addrs if
-                      netaddr.valid_ipv4(addr['addr'])).next()
-            except StopIteration:
-                raise lib_exc.NotFound("No IPv4 addresses to use for SSH to "
-                                       "remote server.")
-
         if username is None:
             username = CONF.scenario.ssh_user
-            password = CONF.compute.image_ssh_password
+        password = CONF.compute.image_ssh_password
         linux_client = ssh.Client(ip, username, password)
 
         try:
