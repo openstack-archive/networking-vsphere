@@ -352,7 +352,7 @@ class TestOVSvAppL2Agent(base.TestCase):
                 'segmentation_id': 1232,
                 'lvid': 1,
                 'network_id': 'fake_network',
-                'device': port_id,
+                'device_id': port_id,
                 'admin_state_up': True}
 
     def test_update_port_dict(self):
