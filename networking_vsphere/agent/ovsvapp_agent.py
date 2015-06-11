@@ -395,7 +395,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                                    None, None, None,
                                                    port['admin_state_up'],
                                                    port['network_id'],
-                                                   port['device'])
+                                                   port['device_id'])
+            self.sg_agent.add_devices_to_filter([port])
             if self.tenant_network_type == p_const.TYPE_VXLAN:
                 if port['id'] in self.cluster_host_ports:
                     if port['network_id'] not in self.local_vlan_map:
@@ -406,7 +407,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     self.network_port_count[port['network_id']] = 1
                 else:
                     self.network_port_count[port['network_id']] += 1
-                self.sg_agent.add_devices_to_filter([port])
             return True
         finally:
             ovsvapplock.release()
