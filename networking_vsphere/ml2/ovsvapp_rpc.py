@@ -28,6 +28,7 @@ from neutron.common import topics
 from neutron.db import models_v2
 from neutron.extensions import portbindings
 from neutron import manager
+from neutron.plugins.ml2 import db
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2 import driver_context
 
@@ -221,11 +222,15 @@ class OVSvAppServerRpcCallback(object):
                 continue
             port = self.plugin._make_port_dict(port_db)
             network = self.plugin.get_network(rpc_context, port['network_id'])
+            levels = db.get_binding_levels(rpc_context.session, port_id,
+                                           port_db.port_binding.host)
+
             port_context = driver_context.PortContext(self.plugin,
                                                       rpc_context,
                                                       port,
                                                       network,
-                                                      port_db.port_binding)
+                                                      port_db.port_binding,
+                                                      levels)
             segment = port_context.top_bound_segment
             # Reference: ML2  Driver API changes for hierarchical port binding.
             bound_port = port_context.current
