@@ -18,9 +18,12 @@ from oslo_log import log
 
 from nova import exception
 from nova.virt.vmwareapi import driver as vmware_driver
+from nova.virt.vmwareapi import host
 from nova.virt.vmwareapi import images
+from nova.virt.vmwareapi import ovsvapp_vmops as vmops  # noqa
 from nova.virt.vmwareapi import vim_util
 from nova.virt.vmwareapi import vm_util
+from nova.virt.vmwareapi import volumeops
 
 LOG = log.getLogger(__name__)
 
@@ -40,6 +43,67 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         self.client_factory = self._session.vim.client.factory
         self.old_modified_time = -1
 
+    def _update_resources(self):
+        """This method creates a dictionary of VMOps, VolumeOps and VCState.
+
+        The OVSvAppVMOps, VMwareVolumeOps and VCState object is for each
+        cluster/rp. The dictionary is of the form
+        {
+            'domain-1000.497c514c-ef5e-4e7f-8d93-ec921993b93a' : {
+                'vmops': vmops_obj,
+                'volumeops': volumeops_obj,
+                'vcstate': vcstate_obj,
+                'name': MyCluster},
+            'resgroup-1000.497c514c-ef5e-4e7f-8d93-ec921993b93a' : {
+                'vmops': vmops_obj,
+                'volumeops': volumeops_obj,
+                'vcstate': vcstate_obj,
+                'name': MyRP},
+        }
+        """
+        added_nodes = set(self.dict_mors.keys()) - set(self._resource_keys)
+        for node in added_nodes:
+            _volumeops = volumeops.VMwareVolumeOps(
+                self._session, self.dict_mors[node]['cluster_mor'])
+            _vmops = vmops.OVSvAppVMOps(self._session, self._virtapi,
+                                        _volumeops,
+                                        self.dict_mors[node]['cluster_mor'],
+                                        datastore_regex=self._datastore_regex)
+            name = self.dict_mors.get(node)['name']
+            nodename = self._create_nodename(node)
+            _vc_state = host.VCState(self._session, nodename,
+                                     self.dict_mors.get(node)['cluster_mor'],
+                                     self._datastore_regex)
+            self._resources[nodename] = {'vmops': _vmops,
+                                         'volumeops': _volumeops,
+                                         'vcstate': _vc_state,
+                                         'name': name, }
+            self._resource_keys.add(node)
+
+        deleted_nodes = (set(self._resource_keys) - set(self.dict_mors.keys()))
+        for node in deleted_nodes:
+            nodename = self._create_nodename(node)
+            del self._resources[nodename]
+            self._resource_keys.discard(node)
+
+    def get_available_nodes(self, refresh=False):
+        """Returns nodenames of all nodes managed by the compute service.
+
+        This method is for multi compute-nodes support. If a driver supports
+        multi compute-nodes, this method returns a list of nodenames managed
+        by the service. Otherwise, this method should return
+        [hypervisor_hostname].
+        """
+        self.dict_mors = vm_util.get_all_cluster_refs_by_name(
+            self._session, CONF.vmware.cluster_name)
+        node_list = []
+        self._update_resources()
+        for node in self.dict_mors.keys():
+            nodename = self._create_nodename(node)
+            node_list.append(nodename)
+        LOG.debug("The available nodes are: %s", node_list)
+        return node_list
+
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
         _vmops = self._get_vmops_for_compute_node(instance['node'])
@@ -51,6 +115,7 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                      network_info=None,
                      block_device_info=block_device_info,
                      power_on=False)
+
         vm_ref = vm_util.get_vm_ref(self._session, instance)
         if vm_ref is None:
             raise exception.InstanceNotFound(instance_id=instance['uuid'])

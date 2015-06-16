@@ -36,12 +36,17 @@ NOVA_VCDRIVER=$NOVA_DIR/nova/virt/vmwareapi/
 # OVSvApp VCDriver file path
 OVSVAPP_VCDRIVER=$OVSVAPP_NETWORKING_DIR/networking_vsphere/nova/virt/vmwareapi/ovsvapp_vc_driver.py
 
+# OVSvApp VMops file path
+OVSVAPP_VMOPS=$OVSVAPP_NETWORKING_DIR/networking_vsphere/nova/virt/vmwareapi/ovsvapp_vmops.py
+
+
 # Entry Points
 # ------------
 
 function configure_ovsvapp_compute_driver {
     echo "Configuring Nova VCDriver for OVSvApp"
     cp $OVSVAPP_VCDRIVER $NOVA_VCDRIVER
+    cp $OVSVAPP_VMOPS $NOVA_VCDRIVER
     iniset $NOVA_CONF DEFAULT compute_driver "vmwareapi.ovsvapp_vc_driver.OVSvAppVCDriver"
 }
 
