@@ -87,9 +87,9 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 new_port[key] = port[key]
         return new_port
 
-    def _add_ovs_flow(self, sg_br, pri, table_id, action,
-                      protocol=None, dl_dest=None,
-                      tcp_flag=None, icmp_req_type=None):
+    def _add_ovs_flow(self, sg_br, pri, table_id, action, in_port=None,
+                      protocol=None, dl_dest=None, tcp_flag=None,
+                      icmp_req_type=None):
         """Helper method for adding OVS flows.
 
         Method which will help add an openflow rule with the given
@@ -109,6 +109,9 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             sg_br.add_flow(table=table_id, priority=pri,
                            proto=constants.PROTO_NAME_ICMP,
                            icmp_type=icmp_req_type,
+                           actions=action)
+        elif in_port:
+            sg_br.add_flow(table=table_id, priority=pri, in_port=in_port,
                            actions=action)
         else:
             sg_br.add_flow(table=table_id, priority=pri, actions=action)
@@ -226,7 +229,15 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             self._add_ovs_flow(sec_br, ovsvapp_const.SG_DEFAULT_PRI,
                                ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                "resubmit(,%s)" %
-                               ovsvapp_const.SG_LEARN_TABLE_ID)
+                               ovsvapp_const.SG_LEARN_TABLE_ID,
+                               in_port=self.patch_ofport)
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_DEFAULT_PRI,
+                               ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                               "resubmit(,%s)" %
+                               ovsvapp_const.SG_EGRESS_TABLE_ID,
+                               in_port=self.phy_ofport)
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_DROPALL_PRI,
+                               ovsvapp_const.SG_EGRESS_TABLE_ID, "drop")
             self._add_ovs_flow(sec_br, ovsvapp_const.SG_DROPALL_PRI,
                                ovsvapp_const.SG_LEARN_TABLE_ID, "drop")
             # Allow all ARP, parity with iptables.
@@ -329,7 +340,28 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         elif ethertype == constants.IPv6:
             return ['ipv6']
 
-    def _add_flow_with_range(self, sec_br, flow,
+    def _add_flows_to_sec_br(self, sec_br, port, flow, direction):
+        if direction == EGRESS_DIRECTION:
+            for ip in port['fixed_ips']:
+                sec_br.add_flow(priority=ovsvapp_const.SG_DEFAULT_PRI,
+                                table=ovsvapp_const.SG_EGRESS_TABLE_ID,
+                                dl_src=flow['dl_src'],
+                                dl_vlan=flow['dl_vlan'],
+                                proto=flow['proto'],
+                                nw_src=ip,
+                                in_port=self.phy_ofport,
+                                actions="resubmit(,%s)"
+                                % ovsvapp_const.SG_LEARN_TABLE_ID)
+                flow['nw_src'] = ip
+                flow['table'] = ovsvapp_const.SG_EGRESS_TABLE_ID
+                LOG.debug("OVSF adding flow: %s", flow)
+                sec_br.add_flow(**flow)
+        elif direction == INGRESS_DIRECTION:
+                flow['table'] = ovsvapp_const.SG_DEFAULT_TABLE_ID
+                LOG.debug("OVSF adding flow: %s", flow)
+                sec_br.add_flow(**flow)
+
+    def _add_flow_with_range(self, sec_br, port, flow, direction,
                              pr_min=None, pr_max=None,
                              spr_min=None, spr_max=None):
         if pr_min is None and pr_max is None:
@@ -345,7 +377,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 flow["tp_dst"] = dport
             if sport >= 0:
                 flow["tp_src"] = sport
-            sec_br.add_flow(**flow)
+            self._add_flows_to_sec_br(sec_br, port, flow, direction)
 
     def _add_flows(self, sec_br, port, rules=None):
         egress_action = 'normal'
@@ -369,7 +401,6 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             src_ip_prefix = rule.get('source_ip_prefix')
             dest_ip_prefix = rule.get('dest_ip_prefix')
             flow = dict(priority=ovsvapp_const.SG_RULES_PRI)
-            flow["table"] = ovsvapp_const.SG_DEFAULT_TABLE_ID
             # Using port id as cookie.
             flow["cookie"] = self.get_cookie(port['id'])
             flow["dl_vlan"] = vlan
@@ -405,7 +436,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 else:
                     table_id = ovsvapp_const.SG_UDP_TABLE_ID
                 flow["actions"] = ("resubmit(,%s),%s" % (table_id, action))
-                self._add_flow_with_range(sec_br, flow, pr_min, pr_max,
+                self._add_flow_with_range(sec_br, port, flow, direction,
+                                          pr_min, pr_max,
                                           spr_min, spr_max)
                 # Since we added the required flows in the above method
                 # we just proceed to the next sg rule.
@@ -421,8 +453,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 table_id = ovsvapp_const.SG_IP_TABLE_ID
 
             flow["actions"] = ("resubmit(,%s),%s" % (table_id, action))
-            sec_br.add_flow(**flow)
-            LOG.debug("OVSF adding flow: %s", flow)
+            self._add_flows_to_sec_br(sec_br, port, flow, direction)
 
     def prepare_port_filter(self, port):
         """Method to add OVS rules for a newly created VM port."""
