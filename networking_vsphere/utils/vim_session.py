@@ -22,7 +22,7 @@ from oslo_vmware import vim
 LOG = log.getLogger(__name__)
 
 
-class ConnectionHandler:
+class ConnectionHandler(object):
     session = None
     host_ip = None
     host_username = None

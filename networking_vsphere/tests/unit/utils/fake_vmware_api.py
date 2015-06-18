@@ -23,7 +23,7 @@ _CLASSES = ['session', 'VirtualMachine', 'HostSystem', 'HostNetworkSystem',
 _db_content = {}
 
 
-class Constants:
+class Constants(object):
     VM_UUID = "1111-2222-3333-4444"
     VM_NAME = "TEST_VIRTUAL_MACHINE"
     VM_MAC = "11:22:33:44:55:ef"

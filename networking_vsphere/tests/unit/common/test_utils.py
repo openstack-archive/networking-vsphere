@@ -64,7 +64,7 @@ class CommonUtilsTestCase(base.TestCase):
 
     def test_require_state(self):
 
-        class TestClass:
+        class TestClass(object):
             @utils.require_state(set(["RUNNING"]), True)
             def method_test(self):
                 return "Success"
@@ -75,7 +75,7 @@ class CommonUtilsTestCase(base.TestCase):
 
     def test_require_state_excp(self):
 
-        class TestClass:
+        class TestClass(object):
             @utils.require_state(set(["RUNNING"]), True)
             def method_test(self):
                 return "Success"

@@ -58,7 +58,7 @@ vxlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VXLAN,
                  api.SEGMENTATION_ID: 1234}
 
 
-class FakeContext():
+class FakeContext(object):
 
     def __init__(self, current, bound_segment):
         self.current = current
@@ -69,7 +69,7 @@ class FakeContext():
         return [self.bound_segment]
 
 
-class FakePlugin():
+class FakePlugin(object):
 
     def get_agents(self):
         return
