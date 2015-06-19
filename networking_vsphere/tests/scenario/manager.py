@@ -36,7 +36,7 @@ from oslo_serialization import jsonutils
 from oslo_utils import importutils
 
 from neutron.common import exceptions
-from neutron.i18n import _LI
+from neutron.i18n import _LI, _LW
 from neutron.tests.api import base
 from neutron.tests.api import base_security_groups
 from neutron.tests.api import clients
@@ -562,3 +562,33 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         if wait_on_boot:
                 self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
+
+    def ping_host(self, source, host):
+        client = self.get_remote_client(source)
+        addr = netaddr.IPAddress(host)
+        cmd = 'ping6' if addr.version == 6 else 'ping'
+        cmd += ' -c{0} -w{0} -s{1} {2}'.format(1, 56, host)
+        cmd = "set -eu -o pipefail; PATH=$PATH:/sbin; " + cmd
+        return client.exec_command(cmd)
+
+    def _check_remote_connectivity(self, source, dest, should_succeed=True):
+        """check ping server via source ssh connection
+
+        :param source: RemoteClient: an ssh connection from which to ping
+        :param dest: and IP to ping against
+        :param should_succeed: boolean should ping succeed or not
+        :returns: boolean -- should_succeed == ping
+        :returns: ping is false if ping failed
+        """
+        def ping_remote():
+            try:
+                self.ping_host(source, dest)
+            except lib_exc.SSHExecCommandFailed:
+                LOG.warn(_LW('Failed to ping IP: %(dest)s '
+                             'via a ssh connection from: %(source)s.') %
+                         {'dest': dest, 'source': source})
+                return not should_succeed
+            return should_succeed
+
+        return test.call_until_true(ping_remote,
+                                    CONF.compute.ping_timeout, 1)
