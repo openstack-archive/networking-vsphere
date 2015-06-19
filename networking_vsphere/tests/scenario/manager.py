@@ -592,3 +592,76 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
         return test.call_until_true(ping_remote,
                                     CONF.compute.ping_timeout, 1)
+
+    def _create_server_user_created_port(self, name=None,
+                                         port1=None,
+                                         wait_on_boot=True):
+        region = CONF.compute.region
+        image = CONF.compute.image_ref
+        flavor = CONF.compute.flavor_ref
+        rs_client = rest_client.RestClient(self.auth_provider, "compute",
+                                           region)
+        data = {"server": {"name": name, "imageRef": image,
+                "flavorRef": flavor, "max_count": 1, "min_count": 1,
+                           "networks": [{"port": port1}]}}
+        data = jsonutils.dumps(data)
+        resp, body = rs_client.post("/servers", data)
+        rs_client.expected_success(202, resp.status)
+        body = jsonutils.loads(body)
+        server_id = body['server']['id']
+        if wait_on_boot:
+                self.wait_for_server_status(server_id, 'ACTIVE')
+        return server_id
+
+    def _get_vm_info(self, vm, depth=1):
+        maxdepth = 10
+        if hasattr(vm, 'childEntity'):
+            if depth > maxdepth:
+                return
+            vmList = vm.childEntity
+            for c in vmList:
+                self._get_vm_info(c, depth + 1)
+            return
+
+        summary = vm.summary
+        vm_name = summary.config.name
+        host_name = summary.runtime.host
+        return {'vm_name': vm_name, 'host_name': host_name}
+
+    def _get_host_name(self, server_id):
+        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
+        vcenter_username = cfg.CONF.VCENTER.vcenter_username
+        vcenter_password = cfg.CONF.VCENTER.vcenter_password
+        content = self._create_connection(vcenter_ip, vcenter_username,
+                                          vcenter_password)
+        for child in content.rootFolder.childEntity:
+            if hasattr(child, 'vmFolder'):
+                datacenter = child
+                vmFolder = datacenter.vmFolder
+                vmList = vmFolder.childEntity
+                for vm in vmList:
+                    host_name = self._get_vm_info(vm)
+                    if host_name is not None:
+                        if server_id == host_name['vm_name']:
+                            return host_name
+
+    def _create_multiple_server_on_different_host(self):
+        group_create_body_update, _ = self._create_security_group()
+        server = {}
+        count = 0
+        while count < 3:
+            name = data_utils.rand_name('server-with-security-group')
+            server_id = self._create_server_with_sec_group(
+                name, self.network['id'],
+                group_create_body_update['security_group']['id'])
+            self.addCleanup(self._delete_server, server_id)
+            serv = self._get_host_name(server_id)
+
+            if count is not 0:
+                if str(serv['host_name']) == str(server['host_name']):
+                    if count == 2:
+                        return False, False, False
+                else:
+                    return str(serv['vm_name']), str(server['vm_name']), True
+            server = serv
+            count += 1
