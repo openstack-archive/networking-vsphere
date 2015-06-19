@@ -592,3 +592,23 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
         return test.call_until_true(ping_remote,
                                     CONF.compute.ping_timeout, 1)
+
+    def _create_server_user_created_port(self, name=None,
+                                         port1=None,
+                                         wait_on_boot=True):
+        region = CONF.compute.region
+        image = CONF.compute.image_ref
+        flavor = CONF.compute.flavor_ref
+        rs_client = rest_client.RestClient(self.auth_provider, "compute",
+                                           region)
+        data = {"server": {"name": name, "imageRef": image,
+                "flavorRef": flavor, "max_count": 1, "min_count": 1,
+                           "networks": [{"port": port1}]}}
+        data = jsonutils.dumps(data)
+        resp, body = rs_client.post("/servers", data)
+        rs_client.expected_success(202, resp.status)
+        body = jsonutils.loads(body)
+        server_id = body['server']['id']
+        if wait_on_boot:
+                self.wait_for_server_status(server_id, 'ACTIVE')
+        return server_id
