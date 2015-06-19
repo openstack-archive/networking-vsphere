@@ -299,6 +299,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         Add the new flow to allow all the packets between integration
         bridge and physical bridge.
         """
+        self.phys_brs = {}
         self.int_br.delete_flows(in_port=self.patch_sec_ofport)
         for phys_net, bridge in six.iteritems(bridge_mappings):
             self.int_br.delete_flows(
@@ -324,6 +325,9 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.int_br.add_flow(priority=2,
                                  in_port=self.int_ofports[phys_net],
                                  actions="output:%s" % self.patch_sec_ofport)
+            self.phys_brs[phys_net] = {}
+            self.phys_brs[phys_net]['br'] = br
+            self.phys_brs[phys_net]['eth_ofport'] = eth_ofport
 
     def setup_ovs_bridges(self):
         self.tenant_network_type = CONF.OVSVAPP.tenant_network_type
@@ -362,6 +366,22 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 LOG.info(_("Tunnel bridge successfully set."))
             else:
                 self.recover_tunnel_bridge(CONF.OVSVAPP.tunnel_bridge)
+
+    def _add_physical_bridge_flows(self, port):
+        for phys_net in self.phys_brs:
+            br = self.phys_brs[phys_net]['br']
+            eth_ofport = self.phys_brs[phys_net]['eth_ofport']
+            br.add_flow(priority=4,
+                        in_port=eth_ofport,
+                        dl_src=port['mac_address'],
+                        dl_vlan=port['segmentation_id'],
+                        actions="drop")
+
+    def _delete_physical_bridge_flows(self, port):
+        for phys_net in self.phys_brs:
+            br = self.phys_brs[phys_net]['br']
+            br.delete_flows(dl_src=port.mac_addr,
+                            dl_vlan=port.vlanid)
 
     def _ofport_set_to_str(self, ofport_set):
         return ",".join(map(str, ofport_set))
@@ -408,6 +428,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     self.network_port_count[port['network_id']] = 1
                 else:
                     self.network_port_count[port['network_id']] += 1
+                self._add_physical_bridge_flows(port)
             return True
         finally:
             ovsvapplock.release()
@@ -848,6 +869,11 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     self.sg_agent.remove_devices_filter(port_id)
                     # Clean up ports_dict for the deleted port.
                     self.ports_dict.pop(port_id)
+                    # Delete the physical bridge flows related to this port.
+                    if self.tenant_network_type == p_const.TYPE_VLAN:
+                        if host == self.esx_hostname:
+                            self._delete_physical_bridge_flows(
+                                self.ports_dict[port_id])
                     # Remove port count tracking per network when
                     # last VM associated with the network is deleted.
                     if port_count == 0:
@@ -881,8 +907,10 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         finally:
             ovsvapplock.release()
             self.net_mgr.get_driver().post_delete_vm(vm)
-            if port_count == 0:
-                if host == self.esx_hostname:
+            if host == self.esx_hostname:
+                # Delete the physical bridge flows related to this port.
+                self._delete_physical_bridge_flows(del_port)
+                if port_count == 0:
                     self._delete_portgroup(del_port.network_id)
 
     def _process_delete_vxlan_portgroup(self, host, vm, del_port):
@@ -1128,6 +1156,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
         if host == self.esx_hostname:
             for element in ports_list:
+                # Add physical bridge flows
+                self._add_physical_bridge_flows(element)
                 # Create a portgroup at vCenter and set it in enabled state.
                 self._create_portgroup(element, host)
                 LOG.debug("Invoking update_device_up for port %s.",
