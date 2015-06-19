@@ -361,12 +361,15 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.network_port_count = {}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
-                               ) as mock_add_devices:
+                               ) as mock_add_devices, \
+                mock.patch.object(self.agent, '_add_physical_bridge_flows'
+                                  ) as mock_add_phy_br_flows:
             status = self.agent._update_port_dict(fakeport)
             self.assertIn('fakeId', self.agent.ports_dict)
             self.assertTrue(status)
             self.assertEqual(1, self.agent.network_port_count['fake_network'])
             mock_add_devices.assert_called_with([fakeport])
+            mock_add_phy_br_flows.assert_called_with(fakeport)
 
     def test_update_port_dict_existing_network(self):
         fakeport = self._get_fake_port('fakeId')
@@ -374,12 +377,15 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.network_port_count = {'fake_network': 6}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
-                               ) as mock_add_devices:
+                               ) as mock_add_devices, \
+                mock.patch.object(self.agent, '_add_physical_bridge_flows'
+                                  ) as mock_add_phy_br_flows:
             status = self.agent._update_port_dict(fakeport)
             self.assertIn('fakeId', self.agent.ports_dict)
             self.assertTrue(status)
             self.assertEqual(7, self.agent.network_port_count['fake_network'])
             mock_add_devices.assert_called_with([fakeport])
+            mock_add_phy_br_flows.assert_called_with(fakeport)
 
     def test_update_firewall(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)
@@ -391,12 +397,14 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.vcenter_id = FAKE_VCENTER
         self.agent.cluster_id = FAKE_CLUSTER_1
-        with contextlib.nested(
-            mock.patch.object(self.agent.ovsvapp_rpc,
-                              'get_ports_details_list',
-                              return_value=[fakeport_2]),
-            mock.patch.object(self.agent.sg_agent, 'refresh_firewall'),
-        ) as (mock_get_ports_details_list, mock_refresh_firewall):
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               'get_ports_details_list',
+                               return_value=[fakeport_2]
+                               ) as mock_get_ports_details_list, \
+                mock.patch.object(self.agent.sg_agent, 'refresh_firewall'
+                                  ) as mock_refresh_firewall, \
+                mock.patch.object(self.agent, '_add_physical_bridge_flows'
+                                  ):
             self.agent._update_firewall()
             self.assertFalse(self.agent.refresh_firewall_required)
             self.assertFalse(self.agent.devices_to_filter)
@@ -677,18 +685,19 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
         self.agent.net_mgr.initialize_driver()
-        with contextlib.nested(
-            mock.patch.object(self.agent.net_mgr.get_driver(),
-                              "post_delete_vm",
-                              return_value=True),
-            mock.patch.object(self.agent.net_mgr.get_driver(),
-                              "delete_network"),
-        ) as (post_del_vm, del_net):
+        with mock.patch.object(self.agent.net_mgr.get_driver(),
+                               "post_delete_vm",
+                               return_value=True) as mock_post_del_vm, \
+                mock.patch.object(self.agent.net_mgr.get_driver(),
+                                  "delete_network") as mock_del_net, \
+                mock.patch.object(self.agent, '_delete_physical_bridge_flows'
+                                  ) as mock_del_phy_br_flows:
             self.agent.process_event(event)
             for vnic in vm.vnics:
                 self.assertNotIn(vnic.port_uuid, self.agent.cluster_host_ports)
-            self.assertTrue(post_del_vm.called)
-            self.assertTrue(del_net.called)
+            self.assertTrue(mock_post_del_vm.called)
+            self.assertTrue(mock_del_net.called)
+            self.assertTrue(mock_del_phy_br_flows.called)
             self.assertNotIn(del_port.network_id,
                              self.agent.network_port_count.keys())
 
@@ -914,25 +923,27 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
         self.agent.net_mgr.initialize_driver()
-        with contextlib.nested(
-            mock.patch.object(self.agent.plugin_rpc, 'update_device_up',
-                              return_value=True),
-            mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'),
-            mock.patch.object(self.agent.sg_agent, 'ovsvapp_sg_update'),
-            mock.patch.object(self.LOG, 'debug')
-        ) as (update_device_up, mock_add_devices_fn, mock_sg_update_fn,
-              logger_debug):
+        with mock.patch.object(self.agent.plugin_rpc, 'update_device_up',
+                               return_value=True) as mock_update_device_up, \
+                mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
+                                  ) as mock_add_devices_fn, \
+                mock.patch.object(self.agent.sg_agent, 'ovsvapp_sg_update'
+                                  ) as mock_sg_update_fn, \
+                mock.patch.object(self.agent, '_add_physical_bridge_flows'
+                                  ) as mock_add_phy_br_flows, \
+                mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
                                      sg_rules=FAKE_SG_RULES)
-            self.assertTrue(logger_debug.called)
+            self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             mock_add_devices_fn.assert_called_with(ports)
             mock_sg_update_fn.assert_called_with(
                 FAKE_SG_RULES.get(FAKE_DEVICE_ID))
-            self.assertTrue(update_device_up.called)
+            self.assertTrue(mock_add_phy_br_flows.called)
+            self.assertTrue(mock_update_device_up.called)
 
     def test_device_create_hosted_vm_vxlan(self):
         ports = [self._build_port()]
@@ -976,25 +987,27 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.net_mgr.initialize_driver()
         self.agent.net_mgr.get_driver().create_port = mock.Mock(
             side_effect=Exception())
-        with contextlib.nested(
-            mock.patch.object(self.agent.plugin_rpc, 'update_device_up'),
-            mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'),
-            mock.patch.object(self.agent.sg_agent, 'ovsvapp_sg_update'),
-            mock.patch.object(self.LOG, 'debug'),
-            mock.patch.object(self.LOG, 'exception'),
-        ) as (update_device, mock_add_devices_fn, mock_sg_update_fn,
-              logger_debug, log_excep):
+        with mock.patch.object(self.agent.plugin_rpc, 'update_device_up'
+                               ) as mock_update_device, \
+                mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
+                                  ), \
+                mock.patch.object(self.agent, '_add_physical_bridge_flows'
+                                  ), \
+                mock.patch.object(self.agent.sg_agent, 'ovsvapp_sg_update'
+                                  ) as mock_sg_update_fn, \
+                mock.patch.object(self.LOG, 'debug') as mock_logger_debug, \
+                mock.patch.object(self.LOG, 'exception') as mock_log_excep:
             self.assertRaises(
                 error.OVSvAppNeutronAgentError,
                 self.agent.device_create,
                 FAKE_CONTEXT, device=DEVICE,
                 ports=ports, sg_rules=FAKE_SG_RULES)
-            self.assertTrue(logger_debug.called)
+            self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
-            self.assertFalse(update_device.called)
+            self.assertFalse(mock_update_device.called)
             self.assertFalse(mock_sg_update_fn.called)
-            self.assertTrue(log_excep.called)
+            self.assertTrue(mock_log_excep.called)
 
     def test_device_create_hosted_vm_update_device_exception(self):
         ports = [self._build_port()]
@@ -1004,27 +1017,29 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
         self.agent.net_mgr.initialize_driver()
-        with contextlib.nested(
-            mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'),
-            mock.patch.object(self.agent.sg_agent, 'ovsvapp_sg_update'),
-            mock.patch.object(self.agent.plugin_rpc, 'update_device_up',
-                              side_effect=Exception()),
-            mock.patch.object(self.LOG, 'debug'),
-            mock.patch.object(self.LOG, 'exception'),
-        ) as (mock_add_devices_fn, mock_sg_update_fn, update_device,
-              logger_debug, log_excep):
+        with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
+                               ) as mock_add_devices_fn, \
+                mock.patch.object(self.agent.sg_agent, 'ovsvapp_sg_update'
+                                  ) as mock_sg_update_fn, \
+                mock.patch.object(self.agent.plugin_rpc, 'update_device_up',
+                                  side_effect=Exception()
+                                  ) as mock_update_device, \
+                mock.patch.object(self.agent, '_add_physical_bridge_flows'
+                                  ), \
+                mock.patch.object(self.LOG, 'debug') as mock_logger_debug, \
+                mock.patch.object(self.LOG, 'exception') as mock_log_excep:
             self.assertRaises(
                 error.OVSvAppNeutronAgentError,
                 self.agent.device_create,
                 FAKE_CONTEXT, device=DEVICE,
                 ports=ports, sg_rules=FAKE_SG_RULES)
-            self.assertTrue(logger_debug.called)
+            self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             mock_add_devices_fn.assert_called_with(ports)
             self.assertFalse(mock_sg_update_fn.called)
-            self.assertTrue(update_device.called)
-            self.assertTrue(log_excep.called)
+            self.assertTrue(mock_update_device.called)
+            self.assertTrue(mock_log_excep.called)
 
     def test_port_update_admin_state_up(self):
         port = self._build_port()
