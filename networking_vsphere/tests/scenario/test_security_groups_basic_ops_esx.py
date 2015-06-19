@@ -91,3 +91,128 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
             should_succeed=True)
+
+    def test_port_creation_with_multiple_security_group(self):
+        """Validate port creation with multiple security group.
+
+        This test verifies the traffic after creating a port with
+        multiple security groups.
+        """
+        # Create security groups
+        first_security_group, _ = self._create_security_group()
+        second_security_group, _ = self._create_security_group()
+        post_body = {
+            "name": data_utils.rand_name('port-'),
+            "security_groups": [first_security_group['security_group']['id'],
+                                second_security_group['security_group']['id']],
+            "network_id": self.network['id'],
+            "admin_state_up": True}
+
+        # Create port with multiple security group
+        body = self.client.create_port(**post_body)
+        self.addCleanup(self.client.delete_port, body['port']['id'])
+        self.client.create_security_group_rule(
+            security_group_id=first_security_group['security_group']['id'],
+            protocol='icmp',
+            direction='ingress',
+            ethertype=self.ethertype)
+        self.client.create_security_group_rule(
+            security_group_id=second_security_group['security_group']['id'],
+            protocol='tcp',
+            direction='ingress',
+            ethertype=self.ethertype)
+
+        # Create server with given port
+        name = data_utils.rand_name('server_with_user_created_port')
+        port_id = body['port']['id']
+
+        serverid = self._create_server_user_created_port(
+            name, port_id)
+        self.addCleanup(self._delete_server, serverid)
+        floating_ip = self._associate_floating_ips(
+            port_id=port_id)
+        self.ping_ip_address(
+            floating_ip['floatingip']['floating_ip_address'],
+            should_succeed=False)
+        self._check_public_network_connectivity(
+            floating_ip['floatingip']['floating_ip_address'])
+
+    def test_validate_addition_of_ingress_rule(self):
+        """test_validate_addition_of_ingress_rule
+
+        This test case is used for validating addition ofingress rule
+        """
+        # Create security group to update the server
+        group_create_body_new, _ = self._create_security_group()
+        sg_body, _ = self._create_security_group()
+        # Create server with default security group
+        name = data_utils.rand_name('server-smoke')
+        group_id = group_create_body_new['security_group']['id']
+        serverid = self._create_server_with_sec_group(name,
+                                                      self.network['id'],
+                                                      group_id)
+        self.addCleanup(self._delete_server, serverid)
+        self._fetch_network_segmentid_and_verify_portgroup(self.network['id'])
+        device_port = self.client.list_ports(device_id=serverid)
+        port_id = device_port['ports'][0]['id']
+        floating_ip = self._associate_floating_ips(port_id=port_id)
+
+        # Now ping the server with the default security group & it should fail.
+        self.ping_ip_address(floating_ip['floatingip']['floating_ip_address'],
+                             should_succeed=False)
+        self._check_public_network_connectivity(
+            floating_ip['floatingip']['floating_ip_address'],
+            should_connect=False, should_check_floating_ip_status=False)
+
+        protocols = ['icmp', 'tcp']
+        for protocol in protocols:
+            self.client.create_security_group_rule(
+                security_group_id=sg_body['security_group']['id'],
+                protocol=protocol,
+                direction='ingress',
+                ethertype=self.ethertype
+            )
+        update_body = {"security_groups": [sg_body['security_group']['id']]}
+        self.client.update_port(port_id, **update_body)
+
+        # Now ping & SSH to recheck the connectivity & verify.
+        self.ping_ip_address(
+            floating_ip['floatingip']['floating_ip_address'],
+            should_succeed=True)
+        self._check_public_network_connectivity(
+            floating_ip['floatingip']['floating_ip_address'])
+
+    def test_port_update_with_no_security_group(self):
+        """Validate port update with no security group.
+
+        This test verifies the traffic after updating the vm port with no
+        security group
+        """
+        # Create security group for the server
+        group_create_body_update, _ = self._create_security_group()
+
+        # Create server with security group
+        name = data_utils.rand_name('server-with-security-group')
+        server_id = self._create_server_with_sec_group(
+            name, self.network['id'],
+            group_create_body_update['security_group']['id'])
+        self.addCleanup(self._delete_server, server_id)
+        self._fetch_network_segmentid_and_verify_portgroup(self.network['id'])
+        device_port = self.client.list_ports(device_id=server_id)
+        port_id = device_port['ports'][0]['id']
+        floating_ip = self._associate_floating_ips(port_id=port_id)
+
+        # Update security group rule for the existing security group
+        self.client.create_security_group_rule(
+            security_group_id=group_create_body_update['security_group']['id'],
+            protocol='icmp',
+            direction='ingress',
+            ethertype=self.ethertype
+        )
+        self.ping_ip_address(
+            floating_ip['floatingip']['floating_ip_address'],
+            should_succeed=True)
+        self.client.update_port(port_id, security_groups=[])
+        self.ping_ip_address(
+            floating_ip['floatingip']['floating_ip_address'],
+            should_succeed=False)
