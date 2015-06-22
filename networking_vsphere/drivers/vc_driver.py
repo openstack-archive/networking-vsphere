@@ -63,10 +63,13 @@ class VCNetworkDriver(driver.NetworkDriver):
     def delete_stale_portgroups(self, switch):
         LOG.info(_("Deleting unused portgroups on %s."), switch)
         port_group_names = self.get_unused_portgroups(switch)
-        uuid_regex = ("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}"
-                      "-[0-9a-f]{4}-[0-9a-f]{12}")
+        uuid_regex_vlan = ("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}"
+                           "-[0-9a-f]{4}-[0-9a-f]{12}")
+        uuid_regex_vxlan = ("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}"
+                            "-[0-9a-f]{4}-[0-9a-f]{12}-domain-c[0-9]*")
         for port_group in port_group_names:
-            if re.match(uuid_regex, port_group, re.IGNORECASE):
+            if (re.match(uuid_regex_vlan, port_group, re.IGNORECASE) or
+                    re.match(uuid_regex_vxlan, port_group, re.IGNORECASE)):
                 self.delete_portgroup(switch, port_group)
 
     def validate_cluster_switch_mapping(self, cluster_path, switch):
