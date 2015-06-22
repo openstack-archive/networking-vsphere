@@ -20,6 +20,7 @@ import oslo_messaging
 from sqlalchemy.orm import exc as sa_exc
 
 from networking_vsphere.common import constants as ovsvapp_const
+from networking_vsphere.common import utils as ovsvapp_utils
 from networking_vsphere.db import ovsvapp_db
 
 from neutron.common import exceptions as exc
@@ -146,7 +147,8 @@ class OVSvAppServerRpcCallback(object):
                             rpc_context, ports)
                         sg_payload[device_id] = sg_rules
                     self.notifier.device_create(rpc_context, device,
-                                                device_ports, sg_payload)
+                                                device_ports, sg_payload,
+                                                cluster_id)
                     return True
         except Exception:
             LOG.exception(_("Failed to retrieve port details for "
@@ -301,19 +303,23 @@ class OVSvAppAgentNotifyAPI(object):
         self.client = n_rpc.get_client(target)
         self.topic = topic
 
-    def _get_device_topic(self, action):
+    def _get_device_topic(self, action, cluster_id):
+        cluster_device_topic = ovsvapp_utils.get_cluster_based_topic(
+            cluster_id, ovsvapp_const.DEVICE)
         return topics.get_topic_name(self.topic,
-                                     ovsvapp_const.DEVICE,
+                                     cluster_device_topic,
                                      action)
 
-    def device_create(self, context, device, ports, sg_rules):
+    def device_create(self, context, device, ports, sg_rules, cluster_id):
         cctxt = self.client.prepare(
-            topic=self._get_device_topic(topics.CREATE), fanout=True)
+            topic=self._get_device_topic(topics.CREATE, cluster_id),
+            fanout=True)
         cctxt.cast(context, 'device_create', device=device, ports=ports,
-                   sg_rules=sg_rules)
+                   sg_rules=sg_rules, cluster_id=cluster_id)
 
-    def device_delete(self, context, network_info, host):
+    def device_delete(self, context, network_info, host, cluster_id):
         cctxt = self.client.prepare(
-            topic=self._get_device_topic(topics.DELETE))
+            topic=self._get_device_topic(topics.DELETE, cluster_id))
         return cctxt.call(context, 'device_delete',
-                          network_info=network_info, host=host)
+                          network_info=network_info, host=host,
+                          cluster_id=cluster_id)
