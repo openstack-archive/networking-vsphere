@@ -134,7 +134,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.sg_agent = sgagent.OVSVAppSecurityGroupAgent(self.context,
                                                           self.sg_plugin_rpc,
                                                           defer_apply)
-        self.setup_report_states()
 
     def check_integration_br(self):
         """Check if the integration bridge is still existing."""
@@ -593,6 +592,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
     def start(self):
         LOG.info(_("Starting OVSvApp L2 Agent."))
         self.set_node_state(True)
+        self.setup_report_states()
         t = eventlet.spawn(self.check_for_updates)
         if self.tenant_network_type == p_const.TYPE_VXLAN:
             # A daemon loop which invokes tunnel_sync_rpc_loop
