@@ -88,12 +88,12 @@ class OVSvAppAgentDriver(object):
 
     def _notify_agent(self, network_info):
         host = None
+        cluster_id = network_info['cluster_id']
         if 'host' in network_info:
             host = network_info['host']
         else:
-            cluster = network_info['cluster_id']
             agent = self._get_ovsvapp_agent_from_cluster(self.context,
-                                                         cluster)
+                                                         cluster_id)
             if agent and 'host' in agent:
                 host = agent['host']
             else:
@@ -102,10 +102,11 @@ class OVSvAppAgentDriver(object):
                             "for %(cluster)s in vCenter %(vcenter)s."),
                           {'host': host,
                            'vcenter': network_info['vcenter_id'],
-                           'cluster': cluster})
+                           'cluster': cluster_id})
                 return
         try:
-            self.notifier.device_delete(self.context, network_info, host)
+            self.notifier.device_delete(self.context, network_info, host,
+                                        cluster_id)
         except Exception:
             LOG.exception(_("Failed to notify agent to delete port group "))
 
