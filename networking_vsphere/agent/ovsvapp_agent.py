@@ -635,12 +635,15 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.context = context.get_admin_context_without_session()
         # Handle updates from service.
         self.endpoints = [self]
+        cluster_device_topic = utils.get_cluster_based_topic(
+            self.cluster_id, ovsvapp_const.DEVICE)
         # Define the listening consumers for the agent.
         consumers = [
             [topics.PORT, topics.UPDATE],
-            [ovsvapp_const.DEVICE, topics.CREATE],
-            [ovsvapp_const.DEVICE, topics.UPDATE],
-            [ovsvapp_const.DEVICE, topics.DELETE],
+            [cluster_device_topic, topics.CREATE],
+            [cluster_device_topic, topics.UPDATE],
+            [cluster_device_topic, topics.DELETE],
+            [ovs_const.TUNNEL, topics.UPDATE],
             [topics.SECURITY_GROUP, topics.UPDATE]
         ]
         self.connection = agent_rpc.create_consumers(self.endpoints,
