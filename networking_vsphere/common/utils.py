@@ -90,3 +90,10 @@ def require_state(state=None, excp=True):
             return f(obj, *args, **kw)
         return inner
     return outer
+
+
+def get_cluster_based_topic(cluster, device):
+    if cluster:
+        return cluster.replace('/', '_') + '_' + device
+    else:
+        return device
