@@ -768,6 +768,12 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     # this VM_UPDATED event is because of a vMotion.
                     if host_changed:
                         if self.tenant_network_type == p_const.TYPE_VLAN:
+                            # Updated the physical bridge flows.
+                            updated_port = self.ports_dict[vnic.port_uuid]
+                            port = {}
+                            port['mac_address'] = updated_port.mac_addr
+                            port['segmentation_id'] = updated_port.vlanid
+                            self._add_physical_bridge_flows(port)
                             LOG.debug("Invoking update_port_binding for port: "
                                       " %s.", vnic.port_uuid)
                             self.ovsvapp_rpc.update_port_binding(
@@ -818,6 +824,13 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                   vm.uuid)
             else:
                 for vnic in vm.vnics:
+                    if host_changed:
+                        if self.tenant_network_type == p_const.TYPE_VLAN:
+                            if vnic.port_uuid in self.cluster_host_ports:
+                                # Delete the physical bridge flows.
+                                updated_port = self.ports_dict[vnic.port_uuid]
+                                self._delete_physical_bridge_flows(
+                                    updated_port)
                     self._add_ports_to_host_ports([vnic.port_uuid], False)
                     if vnic.port_uuid in self.ports_to_bind:
                         ovsvapplock.acquire()
