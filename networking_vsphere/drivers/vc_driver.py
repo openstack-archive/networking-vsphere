@@ -241,9 +241,12 @@ class VCNetworkDriver(driver.NetworkDriver):
                             "wait_for_updates_ex",
                             version)
                         if self.state != constants.DRIVER_RUNNING:
+                            LOG.error(_("Driver is not in running state."))
                             break
                     except error_util.SocketTimeoutException:
                         # Ignore timeout.
+                        LOG.warn(_("Ignoring socket timeouts while monitoring "
+                                   "for vCenter updates."))
                         continue
                     if updateSet:
                         version = updateSet.version
@@ -267,6 +270,8 @@ class VCNetworkDriver(driver.NetworkDriver):
                             clu_id = cluster_mor.value
                             self.cluster_id_to_filter[clu_id] = pfo
                         continue
+                    LOG.exception(_("VimFaultException while processing "
+                                    "update set %s."), e)
                 except Exception:
                     LOG.exception(_("Exception while processing update set."))
                 time.sleep(0)
