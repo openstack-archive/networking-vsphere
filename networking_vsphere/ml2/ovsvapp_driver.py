@@ -46,6 +46,7 @@ class OVSvAppAgentDriver(object):
         self._start_rpc_listeners()
         self._plugin = None
         self._pool = None
+        LOG.info(_("Successfully initialized OVSvApp Mechanism driver."))
 
     @property
     def plugin(self):
@@ -94,6 +95,7 @@ class OVSvAppAgentDriver(object):
         else:
             agent = self._get_ovsvapp_agent_from_cluster(self.context,
                                                          cluster_id)
+            LOG.debug("Agent chosen for notification: %s.", agent)
             if agent and 'host' in agent:
                 host = agent['host']
             else:
@@ -105,10 +107,13 @@ class OVSvAppAgentDriver(object):
                            'cluster': cluster_id})
                 return
         try:
+            LOG.info(_("Initiating device_delete RPC for network "
+                       "%(network)s to OVSvApp agent on host %(host)s."),
+                     {'host': host, 'network': network_info})
             self.notifier.device_delete(self.context, network_info, host,
                                         cluster_id)
         except Exception:
-            LOG.exception(_("Failed to notify agent to delete port group "))
+            LOG.exception(_("Failed to notify agent to delete port group."))
 
     def delete_port_postcommit(self, context):
         """Delete port non-database commit event."""
@@ -116,6 +121,8 @@ class OVSvAppAgentDriver(object):
         if port and port['device_owner'].startswith('compute'):
             segment = context.bound_segment
             if segment and segment[api.NETWORK_TYPE] == p_const.TYPE_VXLAN:
+                LOG.debug("OVSvApp Mech driver - delete_port_postcommit for "
+                          "port: %s.", port['id'])
                 host = port[portbindings.HOST_ID]
                 vcenter = None
                 cluster = None
@@ -138,6 +145,9 @@ class OVSvAppAgentDriver(object):
                         LOG.debug("Spawning thread for releasing network "
                                   "VNI allocations for %s.", net_info)
                         self.threadpool.spawn_n(self._notify_agent, net_info)
+                        LOG.info(_("Spawned a thread for releasing network "
+                                   "vni allocations for network: %s."),
+                                 net_info)
                 except Exception:
                     LOG.exception(_("Failed to check for reclaiming "
                                     "local vlan."))
@@ -167,6 +177,8 @@ class OVSvAppAgentDriver(object):
                     LOG.debug("Spawning thread for releasing network "
                               "VNI allocations for %s.", network_info)
                     self.threadpool.spawn_n(self._notify_agent, network_info)
+                    LOG.info(_("Spawned a thread for releasing network "
+                               "vni allocations for network: %s."),
+                             network_info)
         except Exception:
-            LOG.exception(_("Failed to check for stale "
-                            "local vlan allocations."))
+            LOG.exception(_("Failed checking stale local vlan allocations."))

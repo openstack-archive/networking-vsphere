@@ -113,8 +113,8 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
                                   return_value=network), \
                 mock.patch.object(self.ovsvapp_callbacks.notifier,
                                   'device_create') as mock_device_create, \
-                mock.patch.object(ovsvapp_rpc.LOG, 'debug'
-                                  ) as mock_log_debug, \
+                mock.patch.object(ovsvapp_rpc.LOG, 'info'
+                                  ) as mock_log_info, \
                 mock.patch.object(self.plugin, 'get_ports_from_devices'
                                   ) as mock_get_ports_from_devices, \
                 mock.patch.object(self.plugin, 'security_group_rules_for_ports'
@@ -126,7 +126,7 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
             self.assertTrue(self.ovsvapp_callbacks.get_ports_for_device(
                             'fake_context', **kwargs))
             self.assertTrue(mock_device_create.called)
-            self.assertEqual(2, mock_log_debug.call_count)
+            self.assertEqual(1, mock_log_info.call_count)
             mock_get_ports_from_devices.assert_called_with('fake_context',
                                                            set([FAKE_PORT_ID]))
             self.assertTrue(mock_sg_rules_for_ports.called)
@@ -160,14 +160,14 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
             self.assertTrue(self.ovsvapp_callbacks.get_ports_for_device(
                             'fake_context', **kwargs))
             self.assertTrue(mock_device_create.called)
-            self.assertEqual(2, mock_log_debug.call_count)
+            self.assertEqual(1, mock_log_debug.call_count)
             self.assertFalse(mock_get_ports_from_devices.called)
             self.assertTrue(mock_update_port_binding.called)
 
-    @mock.patch.object(ovsvapp_rpc.LOG, 'debug')
+    @mock.patch.object(ovsvapp_rpc.LOG, 'info')
     @mock.patch.object(ovsvapp_rpc.LOG, 'exception')
     def test_get_ports_for_device_without_port(self, mock_log_exception,
-                                               mock_log_debug):
+                                               mock_log_info):
         self.plugin.get_ports.return_value = None
         self.assertFalse(self.ovsvapp_callbacks.get_ports_for_device(
                          'fake_context', agent_id=FAKE_AGENT_ID,
@@ -175,7 +175,7 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
                          device={'id': 1,
                                  'cluster_id': FAKE_CLUSTER_ID,
                                  'vcenter': FAKE_VCENTER}))
-        self.assertEqual(2, mock_log_debug.call_count)
+        self.assertEqual(1, mock_log_info.call_count)
         self.assertTrue(mock_log_exception.called)
 
     def test_get_ports_for_device_without_device_id(self):
@@ -184,10 +184,10 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
                   'device': {'id': None,
                              'cluster_id': FAKE_CLUSTER_ID,
                              'vcenter': FAKE_VCENTER}}
-        with mock.patch.object(ovsvapp_rpc.LOG, 'debug') as log_debug:
+        with mock.patch.object(ovsvapp_rpc.LOG, 'info') as log_info:
             self.assertFalse(self.ovsvapp_callbacks.get_ports_for_device(
                              'fake_context', **kwargs))
-            self.assertTrue(log_debug.called)
+            self.assertTrue(log_info.called)
 
     def test_update_port_binding(self):
         kwargs = {'port_id': FAKE_PORT_ID, 'host': FAKE_HOST,
