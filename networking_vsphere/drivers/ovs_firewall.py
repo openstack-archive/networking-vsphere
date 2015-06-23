@@ -58,7 +58,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
     def __init__(self):
         self.filtered_ports = {}
         if sg_conf.security_bridge_mapping is None:
-            LOG.debug("Security_bridge_mapping not configured.")
+            LOG.warn(_("Security bridge mapping not configured."))
             return
         secbr_list = (sg_conf.security_bridge_mapping).split(':')
         secbr_name = secbr_list[0]
