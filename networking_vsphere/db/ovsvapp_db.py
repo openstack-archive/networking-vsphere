@@ -83,6 +83,8 @@ def _try_to_obtain_local_vlan(session, port_info, assign):
         if assign:
             count = allocation.network_port_count + 1
             allocation.update({'network_port_count': count})
+            LOG.debug("Incremented the allocated port count for network "
+                      "%s.", res)
     except sa_exc.NoResultFound:
         if not assign:
             raise Exception()
@@ -173,8 +175,11 @@ def check_to_reclaim_local_vlan(port_info):
             if count >= 1:
                 count -= 1
                 allocation.update({'network_port_count': count})
+                LOG.debug("Decremented the allocated port count for network "
+                          "%s.", res)
             if count == 0:
                 lvid = allocation.lvid
+                LOG.info(_("lvid can be released for network: %s."), res)
         except sa_exc.NoResultFound:
             # Nothing to do, may be another controller cleared the record
             # We will just log and return back status as False.
@@ -201,6 +206,7 @@ def release_local_vlan(net_info):
                 allocation.update({'network_id': None,
                                    'allocated': False,
                                    'network_port_count': 0})
+                LOG.info(_("Released lvid for network: %s."), res)
             else:
                 LOG.info(_("Unable to release local vlan for network_id %s "
                            "because ports are available on network."),
@@ -229,6 +235,8 @@ def get_stale_local_vlans_for_network(network_id):
                     vcenter_clusters.append((alloc.vcenter_id,
                                              alloc.cluster_id,
                                              alloc.lvid))
+                LOG.info(_("Found stale allocations for network "
+                           "%s."), network_id)
         except Exception:
             # Nothing to do, port-deletions have properly cleaned up
             # the records. We will just log and return back empty list.
