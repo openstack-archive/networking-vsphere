@@ -72,9 +72,9 @@ class OVSvAppServerRpcCallback(object):
         device_id = device['id']
         vcenter_id = device['vcenter']
         cluster_id = device['cluster_id']
-        LOG.debug("Device %(device_id)s details requested by agent "
-                  "%(agent_id)s running on host %(host)s.",
-                  {'device_id': device_id, 'agent_id': agent_id, 'host': host})
+        LOG.info(_("Device %(device_id)s details requested by agent "
+                   "%(agent_id)s running on host %(host)s."),
+                 {'device_id': device_id, 'agent_id': agent_id, 'host': host})
         if not device_id:
             return False
         try_count = 3
@@ -132,8 +132,8 @@ class OVSvAppServerRpcCallback(object):
                     device_ports.append(port)
                 if not device_ports:
                     try_count -= 1
-                    LOG.debug("Port details could not be retrieved for "
-                              "device %s ..retrying.", device_id)
+                    LOG.warn(_("Port details could not be retrieved for "
+                               "device %s ..retrying."), device_id)
                     time.sleep(3)
                 else:
                     LOG.debug("Device details returned by server: "
@@ -153,7 +153,7 @@ class OVSvAppServerRpcCallback(object):
         except Exception:
             LOG.exception(_("Failed to retrieve port details for "
                             "device: %s."), device_id)
-        LOG.debug("Failed to retrieve ports for device: %s.", device_id)
+        LOG.error(_("Failed to retrieve ports for device: %s."), device_id)
         return False
 
     def update_port_binding(self, rpc_context, **kwargs):
