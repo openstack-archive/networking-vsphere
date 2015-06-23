@@ -137,6 +137,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             if "OVSFirewallDriver" in self.firewall_driver:
                 self.setup_security_br()
         else:
+            LOG.info(_("Agent has undergone some maintenance - "
+                       "Attempting to recover the state of OVS bridges."))
             self.check_integration_br()
             if "OVSFirewallDriver" in self.firewall_driver:
                 self.recover_security_br()
@@ -252,6 +254,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                         "of OVS does not support tunnels or patch ports. "
                         "Agent terminated!"))
             raise SystemExit(1)
+        LOG.info(_("Tunnel bridge successfully recovered"))
 
     def recover_physical_bridges(self, bridge_mappings):
         """Recover data from the physical network bridges.
@@ -291,6 +294,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 raise SystemExit(1)
             self.int_ofports[phys_net] = int_ofport
             self.phys_ofports[phys_net] = phys_ofport
+        LOG.info(_("Physical bridges successfully recovered"))
 
     def _init_ovs_flows(self, bridge_mappings):
         """Delete the drop flow created by OVSvApp Agent code.
@@ -303,7 +307,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         for phys_net, bridge in six.iteritems(bridge_mappings):
             self.int_br.delete_flows(
                 in_port=self.int_ofports[phys_net])
-            # Egress FLOWs
+            # Egress FLOWs.
             self.int_br.add_flow(priority=2,
                                  in_port=self.patch_sec_ofport,
                                  actions="output:%s"
@@ -317,7 +321,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 br.add_flow(priority=2,
                             in_port=self.phys_ofports[phys_net],
                             actions="normal")
-                # Ingress FLOWs
+                # Ingress FLOWs.
                 br.add_flow(priority=2,
                             in_port=eth_ofport,
                             actions="normal")
@@ -327,10 +331,12 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.phys_brs[phys_net] = {}
             self.phys_brs[phys_net]['br'] = br
             self.phys_brs[phys_net]['eth_ofport'] = eth_ofport
+        LOG.info(_("OVS flows set on physical bridges"))
 
     def setup_ovs_bridges(self):
         self.tenant_network_type = CONF.OVSVAPP.tenant_network_type
-
+        LOG.info(_("Network type supported by agent: %s."),
+                 self.tenant_network_type)
         if self.tenant_network_type == p_const.TYPE_VLAN:
             if not self.agent_under_maintenance:
                 self.setup_physical_bridges(self.bridge_mappings)
@@ -435,13 +441,15 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
     def _update_port_bindings(self):
         ovsvapplock.acquire()
         ports_to_update = self.ports_to_bind
+        LOG.info(_("Update_ports_binding RPC called for %s number of ports."),
+                 len(ports_to_update))
         self.ports_to_bind = set()
         ovsvapplock.release()
         try:
             # Update port binding with the host set as OVSvApp
             # VM's hostname.
-            LOG.debug("Going to update port binding for %s ports.",
-                      len(ports_to_update))
+            LOG.info(_("Invoking update_ports_binding RPC for %s."),
+                     ports_to_update)
             success_ports = self.ovsvapp_rpc.update_ports_binding(
                 self.context,
                 agent_id=self.agent_id,
@@ -451,9 +459,9 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 LOG.debug("Port binding updates finished successfully")
             else:
                 failed_ports = ports_to_update - success_ports
-                LOG.debug("Port binding update failed for %s ports."
-                          "Will be retried in the next cycle",
-                          len(failed_ports))
+                LOG.info(_("RPC update_ports_binding failed for %s ports."
+                           "Will be retried in the next cycle"),
+                         len(failed_ports))
                 ovsvapplock.acquire()
                 self.ports_to_bind |= failed_ports
                 ovsvapplock.release()
@@ -483,6 +491,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if devices_to_filter:
             try:
                 ovsvapplock.acquire()
+                LOG.info(_("RPC get_ports_details_list is called with "
+                           "port_ids %s."), devices_to_filter)
                 ports = self.ovsvapp_rpc.get_ports_details_list(
                     self.context, devices_to_filter, self.agent_id,
                     self.vcenter_id, self.cluster_id)
@@ -492,8 +502,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                         status = self._update_port_dict(port)
                         if status:
                             device_list.add(port['id'])
-            except Exception:
-                LOG.exception(_("get_ports_details_list rpc failed."))
+            except Exception as e:
+                LOG.exception(_("RPC get_ports_details_list failed %s."), e)
                 # Process the ports again in the next iteration.
                 self.devices_to_filter |= devices_to_filter
                 self.refresh_firewall_required = True
@@ -556,7 +566,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         """
         ovs_restarted = self.check_ovs_status()
         if ovs_restarted == ovs_const.OVS_RESTARTED:
-            LOG.info(_("OpenvSwitch restarted..going to mitigate."))
             self.mitigate_ovs_restart()
         # Case where devices_to_filter is having some entries.
         if self.refresh_firewall_required:
@@ -624,6 +633,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def setup_rpc(self):
         # Ensure that the control exchange is set correctly.
+        LOG.info(_("Started setting up RPC topics and endpoints"))
         self.agent_id = "ovsvapp-agent %s" % self.hostname
         self.topic = topics.AGENT
         self.plugin_rpc = RpcPluginApi()
@@ -649,7 +659,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.connection = agent_rpc.create_consumers(self.endpoints,
                                                      self.topic,
                                                      consumers)
-        LOG.debug("Finished Setup RPC.")
+        LOG.info(_("Finished setting up RPC."))
 
     def _report_state(self):
         """Reporting agent state to neutron server."""
@@ -682,20 +692,26 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
          """
 
         try:
-            LOG.debug("Handling event %(event_type)s for %(src_obj)s.",
-                      {'event_type': event.event_type,
-                       'src_obj': event.src_obj})
             vm = event.src_obj
             host = event.host_name
             if event.event_type == ovsvapp_const.VM_CREATED:
+                LOG.info(_("Handling event %(event_type)s for %(src_obj)s."),
+                         {'event_type': event.event_type,
+                          'src_obj': event.src_obj})
                 if not self.cluster_moid:
                     self.cluster_moid = event.cluster_id
                     LOG.info(_("Setting the cluster moid: %s."),
                              self.cluster_moid)
                 self._notify_device_added(vm, host)
             elif event.event_type == ovsvapp_const.VM_UPDATED:
+                LOG.info(_("Handling event %(event_type)s for %(src_obj)s."),
+                         {'event_type': event.event_type,
+                          'src_obj': event.src_obj})
                 self._notify_device_updated(vm, host, event.host_changed)
             elif event.event_type == ovsvapp_const.VM_DELETED:
+                LOG.info(_("Handling event %(event_type)s for %(src_obj)s."),
+                         {'event_type': event.event_type,
+                          'src_obj': event.src_obj})
                 self._notify_device_deleted(vm, host)
             else:
                 LOG.debug("Ignoring event: %s.", event)
@@ -739,21 +755,25 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           'vcenter': self.vcenter_id}
                 retry = True
                 iteration = 1
+                LOG.info(_("Invoking get_ports_for_device RPC for device: "
+                           "%s."), device['id'])
                 while retry:
                     try:
                         # Make RPC call to plugin to get port details.
                         status = self.ovsvapp_rpc.get_ports_for_device(
                             self.context, device, self.agent_id, self.hostname)
                         if status:
+                            LOG.info(_("Successfully obtained ports details "
+                                       "for device %s."), device['id'])
                             retry = False
                         else:
-                            time.sleep(5 + iteration)
+                            time.sleep(2)
                             iteration += 1
-                            # Stop if we reached 10 iterations.
-                            if iteration > 10:
+                            # Stop if we reached 3 iterations.
+                            if iteration > 3:
                                 retry = False
                     except Exception as e:
-                        LOG.exception(_("Failed to get port details for "
+                        LOG.exception(_("RPC get_ports_for_device failed for "
                                         "device: %s.") % device['id'])
                         raise error.OVSvAppNeutronAgentError(e)
 
@@ -774,8 +794,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             port['mac_address'] = updated_port.mac_addr
                             port['segmentation_id'] = updated_port.vlanid
                             self._add_physical_bridge_flows(port)
-                            LOG.debug("Invoking update_port_binding for port: "
-                                      " %s.", vnic.port_uuid)
+                            LOG.info(_("Invoking update_port_binding RPC for "
+                                       "port: %s."), vnic.port_uuid)
                             self.ovsvapp_rpc.update_port_binding(
                                 self.context, agent_id=self.agent_id,
                                 port_id=vnic.port_uuid, host=self.hostname)
@@ -791,8 +811,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                         # this OVSvAPP agent.
                         ovsvapp_l2pop_lock.acquire()
                         try:
-                            LOG.debug("Invoking update_port_binding for port: "
-                                      " %s.", vnic.port_uuid)
+                            LOG.info(_("Invoking update_port_binding RPC for "
+                                       "port: %s."), vnic.port_uuid)
                             self.ovsvapp_rpc.update_port_binding(
                                 self.context, agent_id=self.agent_id,
                                 port_id=vnic.port_uuid, host=self.hostname)
@@ -800,6 +820,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             # to BUILD, just to mimic the way Nova does it
                             # in kvm. For that we invoke get_device_details
                             # to transition the port status to BUILD.
+                            LOG.info(_("Invoking get_device_details RPC for "
+                                       "port: %s."), vnic.port_uuid)
                             self.plugin_rpc.get_device_details(
                                 self.context,
                                 agent_id=self.agent_id,
@@ -808,6 +830,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             # Now make the port status to ACTIVE again for
                             # this host, so that L2POP rules ensure tunnel to
                             # this new host from others.
+                            LOG.info(_("Invoking update_device_up RPC for "
+                                       "port: %s."), vnic.port_uuid)
                             self.plugin_rpc.update_device_up(
                                 self.context,
                                 vnic.port_uuid,
@@ -876,8 +900,10 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     if network_id in self.network_port_count:
                         self.network_port_count[network_id] -= 1
                         port_count = self.network_port_count[network_id]
-                        LOG.debug("Port count per network details after VM "
-                                  "deletion: %s.", self.network_port_count)
+                        LOG.info(_("Network: %(net_id)s - Port Count: "
+                                   "%(port_count)s"),
+                                 {'net_id': network_id,
+                                  'port_count': port_count})
                     if port_id in self.cluster_host_ports:
                         self.cluster_host_ports.remove(port_id)
                     elif port_id in self.cluster_other_ports:
@@ -909,6 +935,10 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             if del_port.network_id in self.network_port_count.keys():
                 self.network_port_count[del_port.network_id] -= 1
                 port_count = self.network_port_count[del_port.network_id]
+                LOG.info(_("Network: %(net_id)s - Port Count: "
+                           "%(port_count)s"),
+                         {'net_id': del_port.network_id,
+                          'port_count': port_count})
                 # Remove port count tracking per network when
                 # last VM associated with the network is deleted.
                 if port_count == 0:
@@ -947,8 +977,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         # When a last VM associated with a given network is deleted
         # then portgroup associated with the network is deleted and hence
         # network_delete RPC call is not consumed by the OVSvApp agent.
-        LOG.debug("Deleting VM %s.", vm.uuid)
         if not vm.vnics:
+            LOG.info(_("Deletion of VM with no vnics %s"), vm.uuid)
             self._process_delete_pg_novnic(host, vm)
             return
 
@@ -956,7 +986,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.info(_("Deleting port %(port)s with mac address %(mac)s."),
                      {'port': vnic.port_uuid, 'mac': vnic.mac_address})
             if not vnic.port_uuid:
-                LOG.info(_("Port id for VM %s not present."), vm.uuid)
+                LOG.warn(_("Port id for VM %s not present."), vm.uuid)
             else:
                 try:
                     ovsvapplock.acquire()
@@ -970,15 +1000,10 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             self.cluster_other_ports.remove(vnic.port_uuid)
 
                         self.sg_agent.remove_devices_filter(vnic.port_uuid)
-                        LOG.info(_("Delete port %(port)s with mac %(mac)s for "
-                                   "VM %(vm)s finished."),
-                                 {'port': vnic.port_uuid,
-                                  'mac': vnic.mac_address,
-                                  'vm': vm.uuid})
                         del_port = self.ports_dict[vnic.port_uuid]
                     else:
-                        LOG.debug("Port id %s is not available in "
-                                  "ports_dict.", vnic.port_uuid)
+                        LOG.warn(_("Port id %s is not available in "
+                                   "ports_dict."), vnic.port_uuid)
                 finally:
                     ovsvapplock.release()
                 if del_port:
@@ -1048,8 +1073,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             network, port = self._map_port_to_common_model(port_info,
                                                            local_vlan_id)
             retry_count = 3
-            LOG.debug("Trying to create port group for network %s.",
-                      network.name)
+            LOG.info(_("Trying to create port group for network %s."),
+                     network.name)
             while retry_count > 0:
                 try:
                     self.net_mgr.get_driver().create_port(network, port, None)
@@ -1071,8 +1096,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                             "thrice."), network.name)
                             raise error.OVSvAppNeutronAgentError(e)
                         time.sleep(2)
-            LOG.debug("Finished creating port group for network %s.",
-                      network.name)
+            LOG.info(_("Finished creating port group for network %s."),
+                     network.name)
             return local_vlan_id
 
     def _process_create_portgroup_vxlan(self, context, ports_list, host,
@@ -1091,7 +1116,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                                                 local_vlan_id,
                                                                 pg_name)
                             if local_vlan_id != pg_vlan_id:
-                                LOG.error(_("Local Vlan id Mismatch."
+                                LOG.error(_("Local vlan id mismatch."
                                             "Expected local_vlan_id %(lvid)s. "
                                             "Retrieved pg_vlan_id %(pg_vid)s "
                                             "for network %(net_id)s for port "
@@ -1144,13 +1169,15 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     # l2pop mech driver.
                     ovsvapp_l2pop_lock.acquire()
                     try:
+                        LOG.info(_("Invoking update_device_up RPC for port: "
+                                   "%s."), port['id'])
                         self.plugin_rpc.update_device_up(self.context,
                                                          port['id'],
                                                          self.agent_id,
                                                          self.hostname)
                     except Exception as e:
-                        LOG.exception(_("Update device up failed for "
-                                        "port: %s"), port['id'])
+                        LOG.exception(_("RPC update_device_up failed for "
+                                        "port: %s."), port['id'])
                         raise error.OVSvAppNeutronAgentError(e)
                     finally:
                         ovsvapp_l2pop_lock.release()
@@ -1165,6 +1192,10 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     self.network_port_count[element['network_id']] = 1
                 else:
                     self.network_port_count[element['network_id']] += 1
+                LOG.info(_("Network: %(net_id)s - Port Count: %(port_count)s"),
+                         {'net_id': element['network_id'],
+                          'port_count': self.network_port_count[
+                          element['network_id']]})
         finally:
             LOG.debug("Port count per network details after VM creation: %s.",
                       self.network_port_count)
@@ -1172,22 +1203,24 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
         if host == self.esx_hostname:
             for element in ports_list:
-                # Add physical bridge flows
+                # Add physical bridge flows.
                 self._add_physical_bridge_flows(element)
                 # Create a portgroup at vCenter and set it in enabled state.
                 self._create_portgroup(element, host)
-                LOG.debug("Invoking update_device_up for port %s.",
-                          element['id'])
+                LOG.info(_("Invoking update_device_up RPC for port %s."),
+                         element['id'])
                 try:
-                    # set admin_state to True
+                    # set admin_state to True.
                     self.plugin_rpc.update_device_up(
                         self.context,
                         element['id'],
                         self.agent_id,
                         self.agent_state['host'])
+                    LOG.info(_("Successfully set admin_state for port: %s."),
+                             element['id'])
                 except Exception as e:
-                    LOG.exception(_("update_device_up failed for port: %s."),
-                                  element['id'])
+                    LOG.exception(_("RPC update_device_up failed for port: "
+                                    "%s."), element['id'])
                     raise error.OVSvAppNeutronAgentError(e)
         else:
             ovsvapplock.acquire()
@@ -1198,13 +1231,13 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def device_create(self, context, **kwargs):
         """Gets the port details from plugin using RPC call."""
-
-        LOG.info(_("OVSvApp Agent - device create RPC received."))
         device = kwargs.get('device')
+        LOG.info(_("RPC device_create received for device: %s."), device)
         device_id = device['id']
         cluster_id = device['cluster_id']
         vcenter_id = device['vcenter']
-        LOG.debug("device_create notification for VM %s.", device_id)
+        LOG.info(_("Received device_create notification for VM %s."),
+                 device_id)
         if cluster_id != self.cluster_id or vcenter_id != self.vcenter_id:
             LOG.debug('Cluster/vCenter mismatch..ignoring device_create rpc.')
             return
@@ -1236,14 +1269,19 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def _port_update_status_change(self, network_model, port_model):
         retry_count = 3
+        LOG.info(_("Updating port state at vCenter for port %s"),
+                 port_model.uuid)
         while retry_count > 0:
             try:
                 self.net_mgr.get_driver().update_port(network_model,
                                                       port_model,
                                                       None)
+                LOG.info(_("Successfully updated port state at vCenter for "
+                           "port %s"), port_model.uuid)
                 break
             except Exception as e:
-                LOG.exception(_("Failed to update port %s."),
+                LOG.exception(_("Failed to update port at vCenter for "
+                                "port: %s even after trying thrice."),
                               port_model.uuid)
                 retry_count -= 1
                 if retry_count == 0:
@@ -1252,10 +1290,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def port_update(self, context, **kwargs):
         """Update the port details from plugin using RPC call."""
-
-        LOG.info(_("OVSvApp Agent - port update RPC received."))
-        LOG.debug("port_update arguments : %s.", kwargs)
         new_port = kwargs.get('port')
+        LOG.info(_("RPC port_update received for port: %s."), new_port)
         local_vlan_id = kwargs.get('segmentation_id')
         ovsvapplock.acquire()
         old_port_object = None
@@ -1284,10 +1320,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             # controller only from the agent who is owning this port.
             cluster_host_port = new_port['id'] in self.cluster_host_ports
             if not cluster_host_port:
-                LOG.debug("Port_update: Agent does not own this port %s",
-                          new_port['id'])
-                LOG.info(_("OVSvApp Agent - port update RPC for port %s "
-                           "exited."), new_port['id'])
+                LOG.info(_("RPC port_update for port %s exited "
+                           "as agent does not own it."), new_port['id'])
                 return
             if cmp(old_port_object.admin_state_up,
                    new_port_object.admin_state_up) != 0:
@@ -1299,35 +1333,39 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 # All update device calls from the same
                 # OVSvApp agent, to be serialized for VXLAN case
                 # in order to workaround races that arise in default
-                # l2pop mech driver
+                # l2pop mech driver.
                 if self.tenant_network_type == p_const.TYPE_VXLAN:
                     ovsvapp_l2pop_lock.acquire()
                 try:
                     if new_port['admin_state_up']:
-                        LOG.debug("Invoking update_device_up for %s.",
-                                  new_port['id'])
+                        LOG.info(_("Invoking update_device_up RPC for %s."),
+                                 new_port['id'])
                         self.plugin_rpc.update_device_up(self.context,
                                                          new_port['id'],
                                                          self.agent_id,
                                                          self.hostname)
+                        LOG.info(_("Successfully updated the status UP for "
+                                   "port: %s."), new_port['id'])
                     else:
-                        LOG.debug("Invoking update_device_down for %s.",
-                                  new_port['id'])
+                        LOG.info(_("Invoking update_device_down RPC for %s."),
+                                 new_port['id'])
                         self.plugin_rpc.update_device_down(self.context,
                                                            new_port['id'],
                                                            self.agent_id,
                                                            self.hostname)
+                        LOG.info(_("Successfully updated the status DOWN for "
+                                   "port: %s."), new_port['id'])
                 except Exception as e:
-                    LOG.exception(_("update device up/down failed for port: "
-                                    " %s."), new_port['id'])
+                    LOG.exception(_("RPC update device up/down failed for "
+                                    "port: %s."), new_port['id'])
                     raise error.OVSvAppNeutronAgentError(e)
                 finally:
                     if self.tenant_network_type == p_const.TYPE_VXLAN:
                         ovsvapp_l2pop_lock.release()
         else:
-            LOG.debug("Old and New port objects not available for port %s.",
-                      new_port['id'])
-        LOG.info(_("OVSvApp Agent - port update for %s finished!"),
+            LOG.info(_("Old and New port objects not available for port %s."),
+                     new_port['id'])
+        LOG.info(_("RPC port_update for port %s finished!"),
                  new_port['id'])
 
     def _remove_tunnel_flows_for_network(self, lvm):
@@ -1338,12 +1376,12 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def device_delete(self, context, **kwargs):
         """Delete the portgroup, flows and reclaim lvid for a VXLAN network."""
-
-        LOG.info(_("OVSvApp Agent - device delete RPC received."))
         host = kwargs.get('host')
         network_info = kwargs.get('network_info')
         cluster_id = network_info['cluster_id']
         network_id = network_info['network_id']
+        LOG.info(_("RPC device_delete received for network: %s."),
+                 network_info)
         if cluster_id != self.cluster_id:
             LOG.error(_("Skipping device delete RPC, since "
                         "port group doesn't belong to cluster."))
@@ -1351,11 +1389,15 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if host == self.hostname:
             try:
                 self._delete_portgroup(network_id)
+                LOG.info(_("Invoking update_lvid_assignment RPC for "
+                           "network %s."), network_info)
                 self.ovsvapp_rpc.update_lvid_assignment(self.context,
                                                         network_info)
+                LOG.info(_("lvid assignment done successfully for "
+                           "network %s."), network_info)
             except Exception:
                 LOG.error(_("Exception occurred while processing "
-                            " device delete RPC."))
+                            "device_delete RPC."))
 
         ovsvapplock.acquire()
         try:
@@ -1398,8 +1440,6 @@ class OVSvAppPluginApi(object):
 
     def get_ports_for_device(self, context, device, agent_id, host):
         cctxt = self.client.prepare()
-        LOG.info(_("RPC get_ports_for_device is called for device_id: %s."),
-                 device['id'])
         return cctxt.call(context, 'get_ports_for_device', device=device,
                           agent_id=agent_id, host=host)
 
@@ -1416,8 +1456,6 @@ class OVSvAppPluginApi(object):
     def get_ports_details_list(self, context, port_ids, agent_id,
                                vcenter_id, cluster_id):
         cctxt = self.client.prepare()
-        LOG.info(_("RPC get_ports_details_list is called with port_ids: %s."),
-                 port_ids)
         return cctxt.call(context, 'get_ports_details_list', port_ids=port_ids,
                           agent_id=agent_id, vcenter_id=vcenter_id,
                           cluster_id=cluster_id)
