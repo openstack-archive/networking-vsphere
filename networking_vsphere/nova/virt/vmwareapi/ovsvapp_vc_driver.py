@@ -107,12 +107,12 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         self._power_on_vm(instance, vm_ref)
 
     def _power_on_vm(self, instance, vm_ref):
-        LOG.debug("Powering on the VM: %s.", instance)
+        LOG.info(_("Powering on the VM: %s."), instance)
         power_on_task = self._session._call_method(self._session.vim,
                                                    "PowerOnVM_Task", vm_ref)
 
         self._session._wait_for_task(power_on_task)
-        LOG.debug("Powered on the VM: %s.", instance)
+        LOG.info(_("Powered on the VM: %s."), instance)
 
     def _get_mo_id_from_instance(self, instance):
         """Return the managed object ID from the instance.
@@ -180,13 +180,13 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
 
         config_spec.extraConfig = extra_config
 
-        LOG.debug("Reconfiguring VM instance to attach NIC.")
+        LOG.info(_("Reconfiguring VM instance to attach NIC."))
         reconfig_task = self._session._call_method(self._session.vim,
                                                    "ReconfigVM_Task", vm_ref,
                                                    spec=config_spec)
 
         self._session._wait_for_task(reconfig_task)
-        LOG.debug("Reconfigured VM instance to attach NIC.")
+        LOG.info(_("Reconfigured VM instance to attach NIC."))
 
     def _wait_and_get_portgroup_details(self, session, vm_ref,
                                         port_group_name):
@@ -195,8 +195,8 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         max_counts = CONF.vmware.vmwareapi_nic_attach_retry_count
         count = 0
         network_obj = {}
-        LOG.debug("Waiting for the portgroup %s to be created.",
-                  port_group_name)
+        LOG.info(_("Waiting for the portgroup %s to be created."),
+                 port_group_name)
         while count < max_counts:
             host = session._call_method(vim_util, "get_dynamic_property",
                                         vm_ref, "VirtualMachine",
@@ -216,7 +216,7 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                                                      network._type,
                                                      "config")
                         if props.name in port_group_name:
-                            LOG.debug("DistributedVirtualPortgroup created.")
+                            LOG.info(_("DistributedVirtualPortgroup created."))
                             network_obj['type'] = 'DistributedVirtualPortgroup'
                             network_obj['dvpg'] = props.key
                             dvs_props = session._call_method(
@@ -235,12 +235,12 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                                                        network._type,
                                                        "name")
                         if netname in port_group_name:
-                            LOG.debug("Standard Switch Portgroup created.")
+                            LOG.info(_("Standard Switch Portgroup created."))
                             network_obj['type'] = 'Network'
                             network_obj['name'] = port_group_name
                             return network_obj
                 count = count + 1
-                LOG.debug("Portgroup not created. Retrying again "
-                          "after 2 seconds.")
+                LOG.info(_("Portgroup not created. Retrying again "
+                           "after 2 seconds."))
                 greenthread.sleep(2)
         return None

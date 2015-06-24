@@ -67,7 +67,7 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
                                  vm_ref=vm_ref)
 
         # Set the vnc configuration of the instance, vnc port starts from 5900
-        if CONF.vnc_enabled:
+        if CONF.vnc.enabled:
             self._get_and_set_vnc_config(client_factory, instance, vm_ref)
 
         block_device_mapping = []
