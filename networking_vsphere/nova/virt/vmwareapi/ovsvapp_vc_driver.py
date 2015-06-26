@@ -18,6 +18,7 @@ from oslo_log import log
 
 from nova import exception
 from nova.i18n import _LI
+from nova import objects
 from nova.virt.vmwareapi import driver as vmware_driver
 from nova.virt.vmwareapi import host
 from nova.virt.vmwareapi import images
@@ -89,6 +90,7 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
+        image_meta = objects.ImageMeta.from_dict(image_meta)
         _vmops = self._get_vmops_for_compute_node(instance['node'])
         _vmops.spawn(context=context,
                      instance=instance,
