@@ -15,9 +15,9 @@
 
 import mock
 from oslo_config import cfg
+from oslo_utils import uuidutils
 
 from neutron.agent import securitygroups_rpc
-from neutron.openstack.common import uuidutils
 
 from networking_vsphere.agent import ovsvapp_sg_agent
 from networking_vsphere.tests import base
