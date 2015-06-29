@@ -89,8 +89,8 @@ class TestOVSvAppL2Agent(base.TestCase):
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.OVSvAppPluginApi')
     @mock.patch('neutron.context.get_admin_context_without_session')
     @mock.patch('neutron.agent.rpc.create_consumers')
-    @mock.patch('neutron.plugins.openvswitch.agent.ovs_neutron_agent.'
-                'OVSNeutronAgent.setup_integration_br')
+    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent.'
+                'ovs_neutron_agent.OVSNeutronAgent.setup_integration_br')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
                 'OVSvAppL2Agent.setup_ovs_bridges')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'

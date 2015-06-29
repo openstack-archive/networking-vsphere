@@ -31,11 +31,11 @@ from neutron.common import utils as n_utils
 from neutron import context
 from neutron.openstack.common import loopingcall
 from neutron.plugins.common import constants as p_const
-from neutron.plugins.openvswitch.agent.openflow.ovs_ofctl import br_int
-from neutron.plugins.openvswitch.agent.openflow.ovs_ofctl import br_phys
-from neutron.plugins.openvswitch.agent.openflow.ovs_ofctl import br_tun
-from neutron.plugins.openvswitch.agent import ovs_neutron_agent as ovs_agent
-from neutron.plugins.openvswitch.common import constants as ovs_const
+from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ovs_const  # noqa
+from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_int  # noqa
+from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_phys  # noqa
+from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_tun  # noqa
+from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa
 
 from networking_vsphere.agent import agent
 from networking_vsphere.agent import ovsvapp_sg_agent as sgagent

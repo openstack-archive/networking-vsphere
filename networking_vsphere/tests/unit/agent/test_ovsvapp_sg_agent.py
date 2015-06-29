@@ -22,7 +22,8 @@ from neutron.agent import securitygroups_rpc
 from networking_vsphere.agent import ovsvapp_sg_agent
 from networking_vsphere.tests import base
 
-cfg.CONF.import_group('AGENT', 'neutron.plugins.openvswitch.common.config')
+cfg.CONF.import_group('AGENT', 'neutron.plugins.ml2.drivers.openvswitch.agent.'
+                      'common.config')
 
 fake_port = {'security_group_source_groups': 'abc',
              'mac_address': '00:11:22:33:44:55',
