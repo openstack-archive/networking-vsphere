@@ -123,21 +123,28 @@ class OVSvAppAgentDriver(object):
             if segment and segment[api.NETWORK_TYPE] == p_const.TYPE_VXLAN:
                 LOG.debug("OVSvApp Mech driver - delete_port_postcommit for "
                           "port: %s.", port['id'])
+                vni = segment[api.SEGMENTATION_ID]
                 host = port[portbindings.HOST_ID]
+                agent = None
                 vcenter = None
                 cluster = None
+                net_info = None
                 agents = self.plugin.get_agents(
                     self.context,
                     filters={'agent_type': [constants.AGENT_TYPE_OVSVAPP],
                              'host': [host]})
-                agent = agents[0]
-                vcenter = agent['configurations']['vcenter']
-                cluster = agent['configurations']['cluster_id']
-                net_info = {'vcenter_id': vcenter,
-                            'cluster_id': cluster,
-                            'network_id': port['network_id'],
-                            'segmentation_id': segment[api.SEGMENTATION_ID],
-                            'host': host}
+                if agents:
+                    agent = agents[0]
+                    vcenter = agent['configurations']['vcenter']
+                    cluster = agent['configurations']['cluster_id']
+                    net_info = {'vcenter_id': vcenter,
+                                'cluster_id': cluster,
+                                'network_id': port['network_id'],
+                                'segmentation_id': vni,
+                                'host': host}
+                else:
+                    # Not a valid ESX port
+                    return
                 try:
                     lvid = ovsvapp_db.check_to_reclaim_local_vlan(net_info)
                     if lvid >= 1:
