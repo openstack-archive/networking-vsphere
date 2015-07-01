@@ -342,6 +342,9 @@ class TestOVSvAppL2Agent(base.TestCase):
     def _get_fake_port(self, port_id):
         return {'id': port_id,
                 'port_id': port_id,
+                'mac_address': MAC_ADDRESS,
+                'fixed_ips': [{'subnet_id': 'subnet_uuid',
+                               'ip_address': '1.1.1.1'}],
                 'segmentation_id': 1232,
                 'lvid': 1,
                 'network_id': 'fake_network',
