@@ -353,6 +353,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.ports_dict = {}
         self.agent.network_port_count = {}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
+        self.agent.cluster_host_ports.add('fakeId')
         with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
                                ) as mock_add_devices, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
@@ -369,6 +370,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.ports_dict = {}
         self.agent.network_port_count = {'fake_network': 6}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
+        self.agent.cluster_host_ports.add('fakeId')
         with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
                                ) as mock_add_devices, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
