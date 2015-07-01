@@ -420,7 +420,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     self.network_port_count[port['network_id']] = 1
                 else:
                     self.network_port_count[port['network_id']] += 1
-                self._add_physical_bridge_flows(port)
+                if port['id'] in self.cluster_host_ports:
+                    self._add_physical_bridge_flows(port)
             return True
         finally:
             ovsvapplock.release()
