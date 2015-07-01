@@ -527,6 +527,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         """
         try:
             self.setup_integration_br()
+            self.setup_security_br()
             if self.enable_tunneling:
                 self.reset_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
                 self.setup_tunnel_br()
@@ -534,10 +535,9 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             else:
                 self.setup_physical_bridges(self.bridge_mappings)
                 self._init_ovs_flows(self.bridge_mappings)
-        # TODO(garigant): We need to add the DVR related resets
-        # once it is enabled for vApp, similar to what is being
-        # done in ovs_neutron_agent.
-            self.setup_security_br()
+            # TODO(garigant): We need to add the DVR related resets
+            # once it is enabled for vApp, similar to what is being
+            # done in ovs_neutron_agent.
             ovsvapplock.acquire()
             try:
                 self.sg_agent.init_firewall(True)
