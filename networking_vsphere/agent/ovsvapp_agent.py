@@ -405,7 +405,9 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         try:
             self.ports_dict[port['id']] = PortInfo(port['id'],
                                                    port['lvid'],
-                                                   None, None, None,
+                                                   port['mac_address'],
+                                                   None,
+                                                   port['fixed_ips'],
                                                    port['admin_state_up'],
                                                    port['network_id'],
                                                    port['device_id'])
