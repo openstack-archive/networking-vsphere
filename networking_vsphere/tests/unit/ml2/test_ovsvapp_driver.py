@@ -209,6 +209,20 @@ class OVSvAppAgentDriverTestCase(base.AgentMechanismBaseTestCase):
             spawn_thread.assert_called_with(
                 self.driver._notify_agent, net_info_with_host)
 
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'check_to_reclaim_local_vlan')
+    @mock.patch('eventlet.GreenPool.spawn_n')
+    def test_delete_port_postcommit_vxlan_invalid_port(
+            self, mock_spawn_thread, mock_reclaim_local_vlan):
+        port_context = FakeContext(compute_port, vxlan_segment)
+        mock_reclaim_local_vlan.return_value = 1
+        with mock.patch.object(self.driver._plugin, 'get_agents',
+                               return_value=None) as mock_get_agents:
+            self.driver.delete_port_postcommit(port_context)
+            self.assertTrue(mock_get_agents.called)
+            self.assertFalse(mock_reclaim_local_vlan.called)
+            self.assertFalse(mock_spawn_thread.called)
+
     def test_delete_network_postcommit_no_stale(self):
         net_context = FakeContext(network, vxlan_segment)
         with contextlib.nested(
