@@ -31,7 +31,11 @@ VCENTER_OPTS = [
     cfg.StrOpt('controller_ip',
                help="The controller ip under test"),
     cfg.StrOpt('cluster_in_use',
-               help="The Cluster in use for the test")
+               help="The Cluster in use for the test"),
+    cfg.StrOpt('vapp_username',
+               help="Username to login to OVSvApp "),
+    cfg.StrOpt('vapp_password',
+               help="Password to login to OVSvApp")
 ]
 
 
