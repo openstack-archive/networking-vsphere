@@ -29,7 +29,11 @@ VCENTER_OPTS = [
                default="vlan",
                help="tenant network type is vlan or vxlan"),
     cfg.StrOpt('controller_ip',
-               help="The controller ip under test")
+               help="The controller ip under test"),
+    cfg.StrOpt('vapp_username',
+               help="Username to login to OVSvApp "),
+    cfg.StrOpt('vapp_password',
+               help="Password to login to OVSvApp")
 ]
 
 
