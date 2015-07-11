@@ -1,5 +1,5 @@
 [gerrit]
 host=review.openstack.org
 port=29418
-project=stackforge/networking-vsphere.git
+project=openstack/networking-vsphere.git
 defaultbranch=stable/kilo
