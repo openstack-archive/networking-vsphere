@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: Romil Gupta <romilg@hp.com>
+Workflow+1: Romil Gupta <romilg@hp.com>
+Submitted-by: Jenkins
+Submitted-at: Sun, 12 Jul 2015 07:25:34 +0000
+Reviewed-on: https://review.openstack.org/200831
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/kilo
