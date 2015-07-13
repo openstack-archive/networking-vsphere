@@ -1,0 +1,10 @@
+Verified+2: Jenkins
+Code-Review+2: Raghuveer Shenoy <rshenoy@hp.com>
+Workflow+1: Raghuveer Shenoy <rshenoy@hp.com>
+Code-Review+1: Rashmi P <prashmi@hp.com>
+Code-Review+1: Sudhakar Babu Gariganti <sudhakar-babu.gariganti@hp.com>
+Submitted-by: Jenkins
+Submitted-at: Mon, 13 Jul 2015 10:34:58 +0000
+Reviewed-on: https://review.openstack.org/194074
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
