@@ -328,27 +328,31 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
 
 class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
 
+    cluster_device_topic = FAKE_CLUSTER_ID + '_' + ovsvapp_const.DEVICE
+
     def test_device_create(self):
         rpcapi = ovsvapp_rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
         self._test_rpc_api(rpcapi,
                            topics.get_topic_name(topics.AGENT,
-                                                 ovsvapp_const.DEVICE,
+                                                 self.cluster_device_topic,
                                                  topics.CREATE),
                            'device_create', rpc_method='cast',
                            fanout=True,
                            device='fake_device',
                            ports='fake_ports',
-                           sg_rules='fake_sg_rules')
+                           sg_rules='fake_sg_rules',
+                           cluster_id=FAKE_CLUSTER_ID)
 
     def test_device_delete(self):
         rpcapi = ovsvapp_rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
         self._test_rpc_api(rpcapi,
                            topics.get_topic_name(topics.AGENT,
-                                                 ovsvapp_const.DEVICE,
+                                                 self.cluster_device_topic,
                                                  topics.DELETE),
                            'device_delete', rpc_method='call',
                            network_info='fake_network_info',
-                           host=FAKE_HOST)
+                           host=FAKE_HOST,
+                           cluster_id=FAKE_CLUSTER_ID)
 
     def test_get_ports_for_device(self):
         rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
