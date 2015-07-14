@@ -20,6 +20,14 @@ from tempest_lib.common.utils import data_utils
 
 class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
 
+    def _check_connectivity(self, source_ip, dest_ip, should_succeed=True):
+        if should_succeed:
+            msg = "Timed out waiting for %s to become reachable" % dest_ip
+        else:
+            msg = "%s is reachable" % dest_ip
+        self.assertTrue(self._check_remote_connectivity(source_ip, dest_ip,
+                                                        should_succeed), msg)
+
     def test_port_runtime_update_new_security_group_rule(self):
         """Validate new security group rule update.
 
@@ -50,6 +58,36 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             direction='ingress',
             ethertype=self.ethertype
         )
+        self.ping_ip_address(
+            floating_ip['floatingip']['floating_ip_address'],
+            should_succeed=True)
+
+    def test_port_update_new_security_group(self):
+        """This test verifies the traffic after updating.
+
+        the vm port with new security group having appropriate rule.
+        """
+        # Create security group to update the server
+        sg_body, _ = self._create_security_group()
+        self.client.create_security_group_rule(
+            security_group_id=sg_body['security_group']['id'], protocol='icmp',
+            direction='ingress', ethertype=self.ethertype)
+
+        # Create server with default security group
+        name = data_utils.rand_name('server-with-default-security-group')
+        server_id = self._create_server(name,
+                                        self.network['id'])
+        self.addCleanup(self._delete_server, server_id)
+        self._fetch_network_segmentid_and_verify_portgroup(self.network['id'])
+        device_port = self.client.list_ports(device_id=server_id)
+        port_id = device_port['ports'][0]['id']
+        floating_ip = self._associate_floating_ips(port_id=port_id)
+        self.ping_ip_address(
+            floating_ip['floatingip']['floating_ip_address'],
+            should_succeed=False)
+        # update port with new security group and check connectivity
+        update_body = {"security_groups": [sg_body['security_group']['id']]}
+        self.client.update_port(port_id, **update_body)
         self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
             should_succeed=True)
