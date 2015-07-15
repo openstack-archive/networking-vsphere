@@ -461,16 +461,16 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             if len(success_ports) == len(ports_to_update):
                 LOG.debug("Port binding updates finished successfully.")
             else:
-                failed_ports = ports_to_update - success_ports
-                LOG.info(_("RPC update_ports_binding failed for %s ports."
+                failed_ports = ports_to_update - set(success_ports)
+                LOG.info(_("Port binding updates failed for %s ports."
                            "Will be retried in the next cycle."),
                          len(failed_ports))
                 ovsvapplock.acquire()
                 self.ports_to_bind |= failed_ports
                 ovsvapplock.release()
         except Exception as e:
-            LOG.exception(_("Update ports binding failed. All ports will be "
-                            "retried in the next iteration."))
+            LOG.exception(_("RPC update_ports_binding failed. All ports will "
+                            "be retried in the next iteration."))
             ovsvapplock.acquire()
             self.ports_to_bind |= ports_to_update
             ovsvapplock.release()
