@@ -38,6 +38,7 @@ FAKE_CLUSTER_MOID = 'fake_cluster_moid'
 FAKE_CLUSTER_1 = 'fake_cluster_1'
 FAKE_CLUSTER_2 = 'fake_cluster_2'
 FAKE_VCENTER = 'fake_vcenter'
+FAKE_PORT_ID = 'fake_port_id'
 FAKE_PORT_1 = 'fake_port_1'
 FAKE_PORT_2 = 'fake_port_2'
 MAC_ADDRESS = '01:02:03:04:05:06'
@@ -348,42 +349,175 @@ class TestOVSvAppL2Agent(base.TestCase):
                 'segmentation_id': 1232,
                 'lvid': 1,
                 'network_id': 'fake_network',
-                'device_id': port_id,
+                'device_id': FAKE_DEVICE_ID,
                 'admin_state_up': True}
 
     def test_update_port_dict(self):
-        fakeport = self._get_fake_port('fakeId')
+        fakeport = self._get_fake_port(FAKE_PORT_ID)
         self.agent.ports_dict = {}
         self.agent.network_port_count = {}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
-        self.agent.cluster_host_ports.add('fakeId')
+        self.agent.cluster_host_ports.add(FAKE_PORT_ID)
         with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
                                ) as mock_add_devices, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
                                   ) as mock_add_phy_br_flows:
             status = self.agent._update_port_dict(fakeport)
-            self.assertIn('fakeId', self.agent.ports_dict)
+            self.assertIn(FAKE_PORT_ID, self.agent.ports_dict)
             self.assertTrue(status)
             self.assertEqual(1, self.agent.network_port_count['fake_network'])
             mock_add_devices.assert_called_with([fakeport])
             mock_add_phy_br_flows.assert_called_with(fakeport)
 
     def test_update_port_dict_existing_network(self):
-        fakeport = self._get_fake_port('fakeId')
+        fakeport = self._get_fake_port(FAKE_PORT_ID)
         self.agent.ports_dict = {}
         self.agent.network_port_count = {'fake_network': 6}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
-        self.agent.cluster_host_ports.add('fakeId')
+        self.agent.cluster_host_ports.add(FAKE_PORT_ID)
         with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
                                ) as mock_add_devices, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
                                   ) as mock_add_phy_br_flows:
             status = self.agent._update_port_dict(fakeport)
-            self.assertIn('fakeId', self.agent.ports_dict)
+            self.assertIn(FAKE_PORT_ID, self.agent.ports_dict)
             self.assertTrue(status)
             self.assertEqual(7, self.agent.network_port_count['fake_network'])
             mock_add_devices.assert_called_with([fakeport])
             mock_add_phy_br_flows.assert_called_with(fakeport)
+
+    def test_process_uncached_devices_with_few_devices(self):
+        devices = set(['123', '234', '345', '456', '567', '678',
+                       '1123', '1234', '1345', '1456', '1567', '1678'])
+        with mock.patch('eventlet.GreenPool.spawn_n') as mock_spawn_thread, \
+                mock.patch.object(self.LOG, 'exception') as mock_log_exception:
+            self.agent._process_uncached_devices(devices)
+            self.assertTrue(mock_spawn_thread.called)
+            self.assertEqual(1, mock_spawn_thread.call_count)
+            self.assertFalse(mock_log_exception.called)
+
+    def test_process_uncached_devices_with_more_devices(self):
+        devices = set(['123', '234', '345', '456', '567', '678',
+                       '1123', '1234', '1345', '1456', '1567', '1678',
+                       '2123', '2234', '2345', '2456', '2567', '2678',
+                       '3123', '3234', '3345', '3456', '3567', '3678',
+                       '4123', '4234', '4345', '4456', '4567', '4678',
+                       '5123', '5234', '5345', '5456', '5567', '5678',
+                       '6123', '6234', '6345', '6456', '6567', '6678'])
+        with mock.patch('eventlet.GreenPool.spawn_n') as mock_spawn_thread, \
+                mock.patch.object(self.LOG, 'exception') as mock_log_exception:
+            self.agent._process_uncached_devices(devices)
+            self.assertTrue(mock_spawn_thread.called)
+            self.assertEqual(2, mock_spawn_thread.call_count)
+            self.assertFalse(mock_log_exception.called)
+
+    def test_process_uncached_devices_sublist_single_port_vlan(self):
+        fakeport_1 = self._get_fake_port(FAKE_PORT_1)
+        self.agent.ports_dict = {}
+        self.agent.network_port_count = {}
+        self.agent.tenant_network_type = p_const.TYPE_VLAN
+        self.agent.cluster_host_ports.add(FAKE_PORT_1)
+        devices = [FAKE_PORT_1]
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               'get_ports_details_list',
+                               return_value=[fakeport_1]
+                               ) as mock_get_ports_details_list, \
+                mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
+                                  ) as mock_add_devices_to_filter, \
+                mock.patch.object(self.agent.sg_agent, 'refresh_firewall'
+                                  )as mock_refresh_firewall, \
+                mock.patch.object(self.agent, '_add_physical_bridge_flows'
+                                  ) as mock_add_physical_bridge_flows, \
+                mock.patch.object(self.LOG, 'exception') as mock_log_exception:
+            self.agent._process_uncached_devices_sublist(devices)
+            self.assertTrue(mock_get_ports_details_list.called)
+            self.assertEqual(1, mock_add_devices_to_filter.call_count)
+            self.assertTrue(mock_refresh_firewall.called)
+            self.assertTrue(mock_add_physical_bridge_flows.called)
+            self.assertFalse(mock_log_exception.called)
+
+    def test_process_uncached_devices_sublist_multiple_port_vlan(self):
+        fakeport_1 = self._get_fake_port(FAKE_PORT_1)
+        fakeport_2 = self._get_fake_port(FAKE_PORT_2)
+        self.agent.ports_dict = {}
+        self.agent.network_port_count = {}
+        self.agent.tenant_network_type = p_const.TYPE_VLAN
+        self.agent.cluster_host_ports.add(FAKE_PORT_1)
+        self.agent.cluster_host_ports.add(FAKE_PORT_2)
+        devices = [FAKE_PORT_1, FAKE_PORT_2]
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               'get_ports_details_list',
+                               return_value=[fakeport_1, fakeport_2]
+                               ) as mock_get_ports_details_list, \
+                mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
+                                  ) as mock_add_devices_to_filter, \
+                mock.patch.object(self.agent.sg_agent, 'refresh_firewall'
+                                  )as mock_refresh_firewall, \
+                mock.patch.object(self.agent, '_add_physical_bridge_flows'
+                                  ) as mock_add_physical_bridge_flows, \
+                mock.patch.object(self.LOG, 'exception') as mock_log_exception:
+            self.agent._process_uncached_devices_sublist(devices)
+            self.assertTrue(mock_get_ports_details_list.called)
+            self.assertEqual(2, mock_add_devices_to_filter.call_count)
+            self.assertTrue(mock_refresh_firewall.called)
+            self.assertTrue(mock_add_physical_bridge_flows.called)
+            self.assertFalse(mock_log_exception.called)
+
+    def test_process_uncached_devices_sublist_single_port_vxlan(self):
+        fakeport_1 = self._get_fake_port(FAKE_PORT_1)
+        self.agent.ports_dict = {}
+        self.agent.network_port_count = {}
+        self.agent.local_vlan_map = {}
+        self.agent.tenant_network_type = p_const.TYPE_VXLAN
+        self.agent.cluster_host_ports.add(FAKE_PORT_1)
+        devices = [FAKE_PORT_1]
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               'get_ports_details_list',
+                               return_value=[fakeport_1]
+                               ) as mock_get_ports_details_list, \
+                mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
+                                  ) as mock_add_devices_to_filter, \
+                mock.patch.object(self.agent.sg_agent, 'refresh_firewall'
+                                  )as mock_refresh_firewall, \
+                mock.patch.object(self.agent, '_populate_lvm'), \
+                mock.patch.object(self.agent, '_populate_tunnel_flows_for_port'
+                                  ) as mock_populate_tunnel_flows_for_port, \
+                mock.patch.object(self.LOG, 'exception') as mock_log_exception:
+            self.agent._process_uncached_devices_sublist(devices)
+            self.assertTrue(mock_get_ports_details_list.called)
+            self.assertTrue(mock_populate_tunnel_flows_for_port.called)
+            self.assertEqual(1, mock_add_devices_to_filter.call_count)
+            self.assertTrue(mock_refresh_firewall.called)
+            self.assertFalse(mock_log_exception.called)
+
+    def test_process_uncached_devices_sublist_multiple_port_vxlan(self):
+        fakeport_1 = self._get_fake_port(FAKE_PORT_1)
+        fakeport_2 = self._get_fake_port(FAKE_PORT_2)
+        self.agent.ports_dict = {}
+        self.agent.network_port_count = {}
+        self.agent.local_vlan_map = {}
+        self.agent.tenant_network_type = p_const.TYPE_VXLAN
+        self.agent.cluster_host_ports.add(FAKE_PORT_1)
+        self.agent.cluster_host_ports.add(FAKE_PORT_2)
+        devices = [FAKE_PORT_1, FAKE_PORT_2]
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               'get_ports_details_list',
+                               return_value=[fakeport_1, fakeport_2]
+                               ) as mock_get_ports_details_list, \
+                mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
+                                  ) as mock_add_devices_to_filter, \
+                mock.patch.object(self.agent.sg_agent, 'refresh_firewall'
+                                  )as mock_refresh_firewall, \
+                mock.patch.object(self.agent, '_populate_lvm'), \
+                mock.patch.object(self.agent, '_populate_tunnel_flows_for_port'
+                                  ) as mock_populate_tunnel_flows_for_port, \
+                mock.patch.object(self.LOG, 'exception') as mock_log_exception:
+            self.agent._process_uncached_devices_sublist(devices)
+            self.assertTrue(mock_get_ports_details_list.called)
+            self.assertTrue(mock_populate_tunnel_flows_for_port.called)
+            self.assertEqual(2, mock_add_devices_to_filter.call_count)
+            self.assertTrue(mock_refresh_firewall.called)
+            self.assertFalse(mock_log_exception.called)
 
     def test_update_firewall(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)
@@ -409,12 +543,11 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertIn(FAKE_PORT_2, self.agent.ports_dict)
             mock_get_ports_details_list.assert_called_with(
                 self.agent.context,
-                set([FAKE_PORT_2]),
+                [FAKE_PORT_2],
                 self.agent.agent_id,
                 self.agent.vcenter_id,
                 self.agent.cluster_id)
-            mock_refresh_firewall.assert_called_with(set([FAKE_PORT_1,
-                                                          FAKE_PORT_2]))
+            mock_refresh_firewall.assert_called_with(set([FAKE_PORT_2]))
 
     def test_update_firewall_get_ports_exception(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)
@@ -436,7 +569,7 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertNotIn(FAKE_PORT_2, self.agent.ports_dict)
             mock_get_ports_details_list.assert_called_with(
                 self.agent.context,
-                set([FAKE_PORT_2]),
+                [FAKE_PORT_2],
                 self.agent.agent_id,
                 self.agent.vcenter_id,
                 self.agent.cluster_id)

@@ -52,6 +52,8 @@ CONF = cfg.CONF
 # we use this per-thread recursive lock i.e., ovsvapplock
 ovsvapplock = threading.RLock()
 ovsvapp_l2pop_lock = threading.RLock()
+THREAD_POOL_SIZE = 5
+RESTART_BATCH_SIZE = 30
 
 
 class LocalVLANMapping(object):
@@ -96,6 +98,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.cluster_other_ports = set()
         self.ports_to_bind = set()
         self.refresh_firewall_required = False
+        self._pool = None
         self.run_check_for_updates = True
         self.use_call = True
         self.hostname = cfg.CONF.host
@@ -476,46 +479,79 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             ovsvapplock.release()
             raise error.OVSvAppNeutronAgentError(e)
 
+    @property
+    def threadpool(self):
+        if self._pool is None:
+            self._pool = eventlet.GreenPool(THREAD_POOL_SIZE)
+        return self._pool
+
+    def _process_uncached_devices_sublist(self, devices):
+        device_list = set()
+        try:
+            LOG.info(_("RPC get_ports_details_list is called with "
+                       "port_ids: %s."), devices)
+            ports = self.ovsvapp_rpc.get_ports_details_list(
+                self.context, devices, self.agent_id, self.vcenter_id,
+                self.cluster_id)
+            for port in ports:
+                if port and 'port_id' in port:
+                    port['id'] = port['port_id']
+                    status = self._update_port_dict(port)
+                    if status:
+                        device_list.add(port['id'])
+            if device_list:
+                LOG.info(_("Going to update firewall for ports: "
+                           "%s."), device_list)
+                self.sg_agent.refresh_firewall(device_list)
+        except Exception as e:
+            LOG.exception(_("RPC get_ports_details_list failed %s."), e)
+            # Process the ports again in the next iteration.
+            self.devices_to_filter |= set(devices)
+            self.refresh_firewall_required = True
+
+    def _process_uncached_devices(self, devices):
+        dev_list = list(devices)
+        if len(dev_list) > RESTART_BATCH_SIZE:
+            sublists = ([dev_list[x:x + RESTART_BATCH_SIZE]
+                        for x in six.moves.range(0, len(dev_list),
+                                                 RESTART_BATCH_SIZE)])
+        else:
+            sublists = [dev_list]
+        for dev_ids in sublists:
+            LOG.debug("Spawning a thread to process ports - %s.", dev_ids)
+            try:
+                self.threadpool.spawn_n(self._process_uncached_devices_sublist,
+                                        dev_ids)
+                eventlet.sleep(0)
+            except Exception:
+                LOG.exception(_("Exception occured while spawning thread "
+                                "to process ports."))
+
     def _update_firewall(self):
         """Helper method to monitor devices added.
 
         If devices_to_filter is not empty, we update the OVS firewall
         for those devices.
         """
-        devices_to_filter = self.devices_to_filter
-        self.devices_to_filter = set()
-        self.refresh_firewall_required = False
-        device_list = set()
-        for device in devices_to_filter:
-            if device in self.ports_dict:
-                device_list.add(device)
-        devices_to_filter = devices_to_filter - device_list
-        ports = []
-        if devices_to_filter:
-            try:
-                ovsvapplock.acquire()
-                LOG.info(_("RPC get_ports_details_list is called with "
-                           "port_ids: %s."), devices_to_filter)
-                ports = self.ovsvapp_rpc.get_ports_details_list(
-                    self.context, devices_to_filter, self.agent_id,
-                    self.vcenter_id, self.cluster_id)
-                for port in ports:
-                    if port and 'port_id' in port:
-                        port['id'] = port['port_id']
-                        status = self._update_port_dict(port)
-                        if status:
-                            device_list.add(port['id'])
-            except Exception as e:
-                LOG.exception(_("RPC get_ports_details_list failed %s."), e)
-                # Process the ports again in the next iteration.
-                self.devices_to_filter |= devices_to_filter
-                self.refresh_firewall_required = True
-            finally:
-                ovsvapplock.release()
-            if device_list:
-                LOG.info(_("Going to update firewall for ports: "
-                           "%s."), device_list)
-                self.sg_agent.refresh_firewall(device_list)
+        try:
+            ovsvapplock.acquire()
+            devices_to_filter = self.devices_to_filter
+            self.devices_to_filter = set()
+            self.refresh_firewall_required = False
+            device_list = set()
+            for device in devices_to_filter:
+                if device in self.ports_dict:
+                    device_list.add(device)
+            uncached_devices = set()
+            uncached_devices = devices_to_filter - device_list
+        finally:
+            ovsvapplock.release()
+        if device_list:
+            LOG.info(_("Going to update firewall for ports: "
+                       "%s."), device_list)
+            self.sg_agent.refresh_firewall(device_list)
+        if uncached_devices:
+            self._process_uncached_devices(uncached_devices)
 
     def mitigate_ovs_restart(self):
         """Mitigates OpenvSwitch process restarts.
