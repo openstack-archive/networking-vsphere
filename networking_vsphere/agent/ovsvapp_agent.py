@@ -481,6 +481,13 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             ports = self.ovsvapp_rpc.get_ports_details_list(
                 self.context, devices, self.agent_id, self.vcenter_id,
                 self.cluster_id)
+            # Stale VM's ports handling.
+            if len(ports) != len(devices):
+                # Remove the stale ports from update port bindings list.
+                port_ids = set([port['port_id'] for port in ports])
+                stale_ports = set(devices) - port_ids
+                LOG.debug("Stale ports: %s.", stale_ports)
+                self.ports_to_bind = self.ports_to_bind - stale_ports
             for port in ports:
                 if port and 'port_id' in port:
                     port['id'] = port['port_id']
