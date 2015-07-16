@@ -1150,7 +1150,7 @@ class TestOVSvAppL2Agent(base.TestCase):
             mock_add_devices_fn.assert_called_with(ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_host_ports)
-            self.assertFalse(mock_sg_update_fn.called)
+            self.assertTrue(mock_sg_update_fn.called)
             self.assertFalse(mock_update_device_up.called)
 
     def test_device_create_hosted_vm_vlan(self):

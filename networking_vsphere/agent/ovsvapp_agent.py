@@ -1199,13 +1199,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
         if valid_ports:
             self.sg_agent.add_devices_to_filter(valid_ports)
-            if host != self.esx_hostname:
-                port_ids = [port['id'] for port in valid_ports]
-                ovsvapplock.acquire()
-                self.devices_to_filter |= set(port_ids)
-                self.refresh_firewall_required = True
-                ovsvapplock.release()
-
             for port in valid_ports:
                 self._populate_tunnel_flows_for_port(port)
                 if host == self.esx_hostname:
@@ -1268,12 +1261,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     LOG.exception(_("RPC update_device_up failed for port: "
                                     "%s."), element['id'])
                     raise error.OVSvAppNeutronAgentError(e)
-        else:
-            ovsvapplock.acquire()
-            port_ids = [element['id'] for element in ports_list]
-            self.devices_to_filter |= set(port_ids)
-            self.refresh_firewall_required = True
-            ovsvapplock.release()
 
     def device_create(self, context, **kwargs):
         """Gets the port details from plugin using RPC call."""
@@ -1307,9 +1294,9 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             # with the lvid.
             self._process_create_portgroup_vxlan(context, ports_list, host,
                                                  device_id)
-        if host == self.esx_hostname:
-            if sg_rules:
-                self.sg_agent.ovsvapp_sg_update(sg_rules[device_id])
+        if sg_rules:
+            self.sg_agent.ovsvapp_sg_update(sg_rules[device_id])
+        LOG.info(_("device_create processed for VM: %s."), device_id)
 
     def _port_update_status_change(self, network_model, port_model):
         retry_count = 3
