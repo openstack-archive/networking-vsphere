@@ -175,8 +175,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network}],
@@ -196,8 +204,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network}]}}
@@ -213,8 +229,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _delete_server(self, server=None):
         region = CONF.compute.region
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         resp, body = rs_client.delete("servers/%s" % str(server))
         self.wait_for_server_termination(server)
         rest_client.ResponseBody(resp, body)
@@ -255,8 +279,19 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         while True:
             try:
                 region = CONF.compute.region
+                endpoint_type = CONF.compute.endpoint_type
+                build_interval = CONF.compute.build_interval
+                build_timeout = CONF.compute.build_timeout
+                disable_ssl_cert = \
+                    CONF.identity.disable_ssl_certificate_validation
+                ca_certs = CONF.identity.ca_certificates_file
                 rs_client = rest_client.RestClient(self.auth_provider,
-                                                   "compute", region)
+                                                   "compute", region,
+                                                   endpoint_type,
+                                                   build_interval,
+                                                   build_timeout,
+                                                   disable_ssl_cert,
+                                                   ca_certs)
                 resp, body = rs_client.get("servers/%s" % str(server_id))
                 body = jsonutils.loads(body)
             except lib_exc.NotFound:
@@ -271,14 +306,21 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def wait_for_server_status(self, server_id, status, ready_wait=True,
                                extra_timeout=0, raise_on_error=True):
         """Waits for a server to reach a given status."""
-        build_timeout = CONF.compute.build_timeout
         build_interval = CONF.boto.build_interval
 
         def _get_task_state(body):
             return body.get('OS-EXT-STS:task_state', None)
         region = CONF.compute.region
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         resp, body = rs_client.get("servers/%s" % str(server_id))
         body = jsonutils.loads(body)
         old_status = server_status = body['server']['status']
@@ -515,8 +557,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network1},
@@ -537,8 +587,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"port": port1},
@@ -607,8 +665,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         auth_provider = manager.get_auth_provider(
             self.isolated_creds.get_admin_creds())
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         resp, body = rs_client.get("servers/%s" % str(server_id))
         body = jsonutils.loads(body)
         cst_name = body['server']['OS-EXT-SRV-ATTR:hypervisor_hostname']
@@ -705,8 +771,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"port": port1}]}}
