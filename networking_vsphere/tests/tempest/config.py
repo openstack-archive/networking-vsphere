@@ -29,7 +29,9 @@ VCENTER_OPTS = [
                default="vlan",
                help="tenant network type is vlan or vxlan"),
     cfg.StrOpt('controller_ip',
-               help="The controller ip under test")
+               help="The controller ip under test"),
+    cfg.StrOpt('cluster_in_use',
+               help="The Cluster in use for the test")
 ]
 
 

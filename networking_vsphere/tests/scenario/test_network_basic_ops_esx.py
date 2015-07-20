@@ -135,7 +135,6 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             "network_id": network1['id'],
             "admin_state_up": True}
         port_body1 = self.client.create_port(**post_body1)
-        self.addCleanup(self.client.delete_port, port_body1['port']['id'])
         network2 = self.create_network()
         sub_cidr = netaddr.IPNetwork(CONF.network.tenant_network_cidr).next()
         subnet2 = self.create_subnet(network2, cidr=sub_cidr)
@@ -150,7 +149,6 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             "network_id": network2['id'],
             "admin_state_up": True}
         port_body2 = self.client.create_port(**post_body2)
-        self.addCleanup(self.client.delete_port, port_body2['port']['id'])
         name = data_utils.rand_name('server-smoke')
         group_create_body, _ = self._create_security_group()
         serverid = self._create_server_multiple_nic_user_created_port(
