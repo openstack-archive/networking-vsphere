@@ -44,8 +44,16 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.compute.disable_ssl_certificate_validation
+        ca_certs = CONF.compute.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network}],
@@ -61,11 +69,17 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
 
     def wait_for_server_status_to_active(self, server_id, status):
         """Waits for a server to reach a given status."""
-        build_timeout = CONF.compute.build_timeout
-        build_interval = CONF.boto.build_interval
         region = CONF.compute.region
-        rs_client = rest_client.RestClient(self.auth_provider,
-                                           "compute", region)
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.compute.disable_ssl_certificate_validation
+        ca_certs = CONF.compute.ca_certificates_file
+        rs_client = rest_client.RestClient(self.auth_provider, "compute",
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         resp, body = rs_client.get("servers/%s" % str(server_id))
         body = jsonutils.loads(body)
         server_status = body['server']['status']
@@ -74,7 +88,12 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
         while server_status != status:
             time.sleep(build_interval)
             rs_client = rest_client.RestClient(self.auth_provider,
-                                               "compute", region)
+                                               "compute", region,
+                                               endpoint_type,
+                                               build_interval,
+                                               build_timeout,
+                                               disable_ssl_cert,
+                                               ca_certs)
             resp, body = rs_client.get("servers/%s" % str(server_id))
             body = jsonutils.loads(body)
             server_status = body['server']['status']
