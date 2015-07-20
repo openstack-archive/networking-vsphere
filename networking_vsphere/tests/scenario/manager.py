@@ -810,23 +810,52 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                      {'dest': ip_addr})
             raise
 
-    def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac, port):
+    def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac, port,
+                              net_id):
         vapp_username = cfg.CONF.VCENTER.vapp_username
         vapp_password = cfg.CONF.VCENTER.vapp_password
         session = self._create_remote_session(vapp_ipadd, vapp_username,
                                               vapp_password)
-        cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
-               str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-               str(vlan) + ',tp_dst=' + str(port))
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',tp_dst=' + str(port))
+        else:
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',tp_dst=' + str(port))
         session.sendline(cmd)
         session.prompt()
         output = session.before
         session.logout()
-        session.status
-        check_list = [protocol, vlan, mac, port]
-        if session.status is 0:
-            for checks in check_list:
-                    if output.count(str(checks)) < 2:
-                        raise Exception('Security group rule is not added')
+        check = 'tp_dst=' + str(port)
+        self.assertIn(check, output)
+
+    def _dump_flows_on_br_sec_for_icmp_rule(self, vapp_ipadd, protocol, vlan,
+                                            mac, icmp_type, icmp_code, net_id):
+        vapp_username = cfg.CONF.VCENTER.vapp_username
+        vapp_password = cfg.CONF.VCENTER.vapp_password
+        session = self._create_remote_session(vapp_ipadd, vapp_username,
+                                              vapp_password)
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',icmp_type=' + str(icmp_type) +
+                       ',icmp_code=' + str(icmp_code))
         else:
-            raise Exception('Security group rule is not added')
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',icmp_type=' + str(icmp_type) +
+                       ',icmp_code=' + str(icmp_code))
+        session.sendline(cmd)
+        session.prompt()
+        output = session.before
+        session.logout()
+        check_list = ['icmp_type=' + str(icmp_type),
+                      'icmp_code=' + str(icmp_code)]
+        for checks in check_list:
+                self.assertIn(checks, output)
