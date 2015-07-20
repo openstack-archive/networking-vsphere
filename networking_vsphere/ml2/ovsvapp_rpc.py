@@ -23,6 +23,7 @@ from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import utils as ovsvapp_utils
 from networking_vsphere.db import ovsvapp_db
 
+from neutron.common import constants as common_const
 from neutron.common import exceptions as exc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
@@ -129,6 +130,12 @@ class OVSvAppServerRpcCallback(object):
                         continue
                     if 'security_groups' in port:
                         sg_port_ids.add(port['id'])
+                    new_status = (common_const.PORT_STATUS_BUILD
+                                  if port['admin_state_up'] else
+                                  common_const.PORT_STATUS_DOWN)
+                    if port['status'] != new_status:
+                        self.plugin.update_port_status(rpc_context, port['id'],
+                                                       new_status, host)
                     device_ports.append(port)
                 if not device_ports:
                     try_count -= 1
@@ -323,3 +330,13 @@ class OVSvAppAgentNotifyAPI(object):
         return cctxt.call(context, 'device_delete',
                           network_info=network_info, host=host,
                           cluster_id=cluster_id)
+
+    def enhanced_sg_provider_updated(self, context, network_id):
+        sg_topic = ovsvapp_const.OVSVAPP + '_' + topics.SECURITY_GROUP
+        cctxt = self.client.prepare(
+            topic=topics.get_topic_name(self.topic,
+                                        sg_topic,
+                                        topics.UPDATE),
+            fanout=True)
+        cctxt.cast(context, 'enhanced_sg_provider_updated',
+                   network_id=network_id)

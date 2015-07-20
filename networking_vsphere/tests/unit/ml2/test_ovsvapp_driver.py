@@ -43,14 +43,24 @@ fake_agent = {'configurations': {'vcenter': 'fake_vcenter',
               'host': 'fake_host'}
 
 compute_port = {'id': 'fake_id',
-                'device_owner': 'compute-nova',
+                'device_owner': 'compute:nova',
                 'network_id': 'net_id',
                 portbindings.HOST_ID: 'fake_host'}
 
 dhcp_port = {'id': 'fake_id',
-             'device_owner': 'network_dhcp',
+             'device_owner': 'network:dhcp',
              'network_id': 'net_id',
              portbindings.HOST_ID: 'fake_host'}
+
+router_port_ipv4 = {'id': 'fake_id',
+                    'device_owner': 'network:router_interface',
+                    'network_id': 'net_id',
+                    'fixed_ips': [{'ip_address': '10.10.10.1'}]}
+
+router_port_ipv6 = {'id': 'fake_id',
+                    'device_owner': 'network:router_interface',
+                    'network_id': 'net_id',
+                    'fixed_ips': [{'ip_address': 'FE80::0202:B3FF:FE1E:8329'}]}
 
 vlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VLAN}
 
@@ -60,7 +70,7 @@ vxlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VXLAN,
 
 class FakeContext(object):
 
-    def __init__(self, current, bound_segment):
+    def __init__(self, current, bound_segment=None):
         self.current = current
         self.bound_segment = bound_segment
 
@@ -145,6 +155,42 @@ class OVSvAppAgentDriverTestCase(base.AgentMechanismBaseTestCase):
             self.assertTrue(mock_device_delete_rpc.called)
             self.assertFalse(mock_release_local_vlan.called)
 
+    def test_create_port_postcommit_dhcp_port(self):
+        port_context = FakeContext(dhcp_port, vlan_segment)
+        with mock.patch.object(self.driver.notifier,
+                               'enhanced_sg_provider_updated'
+                               ) as mock_sg_provider_updated_rpc:
+            self.driver.create_port_postcommit(port_context)
+            self.assertTrue(mock_sg_provider_updated_rpc.called)
+            mock_sg_provider_updated_rpc.assert_called_with(
+                self.driver.context, dhcp_port['network_id'])
+
+    def test_create_port_postcommit_ipv6_router_port(self):
+        port_context = FakeContext(router_port_ipv6)
+        with mock.patch.object(self.driver.notifier,
+                               'enhanced_sg_provider_updated'
+                               ) as mock_sg_provider_updated_rpc:
+            self.driver.create_port_postcommit(port_context)
+            self.assertTrue(mock_sg_provider_updated_rpc.called)
+            mock_sg_provider_updated_rpc.assert_called_with(
+                self.driver.context, router_port_ipv6['network_id'])
+
+    def test_create_port_postcommit_ipv4_router_port(self):
+        port_context = FakeContext(router_port_ipv4)
+        with mock.patch.object(self.driver.notifier,
+                               'enhanced_sg_provider_updated'
+                               ) as mock_sg_provider_updated_rpc:
+            self.driver.create_port_postcommit(port_context)
+            self.assertFalse(mock_sg_provider_updated_rpc.called)
+
+    def test_create_port_postcommit_compute_port(self):
+        port_context = FakeContext(compute_port, vlan_segment)
+        with mock.patch.object(self.driver.notifier,
+                               'enhanced_sg_provider_updated'
+                               ) as mock_sg_provider_updated_rpc:
+            self.driver.create_port_postcommit(port_context)
+            self.assertFalse(mock_sg_provider_updated_rpc.called)
+
     @mock.patch('networking_vsphere.db.ovsvapp_db.'
                 'check_to_reclaim_local_vlan')
     @mock.patch('eventlet.GreenPool.spawn_n')
@@ -153,11 +199,15 @@ class OVSvAppAgentDriverTestCase(base.AgentMechanismBaseTestCase):
         port_context = FakeContext(compute_port, vlan_segment)
         mock_reclaim_local_vlan.return_value = 1
         with mock.patch.object(self.driver._plugin, 'get_agents'
-                               ) as mock_get_agents:
+                               ) as mock_get_agents, \
+                mock.patch.object(self.driver.notifier,
+                                  'enhanced_sg_provider_updated'
+                                  ) as mock_sg_provider_updated_rpc:
             self.driver.delete_port_postcommit(port_context)
             self.assertFalse(mock_get_agents.called)
             self.assertFalse(mock_reclaim_local_vlan.called)
             self.assertFalse(mock_spawn_thread.called)
+            self.assertFalse(mock_sg_provider_updated_rpc.called)
 
     @mock.patch('networking_vsphere.db.ovsvapp_db.'
                 'check_to_reclaim_local_vlan')
@@ -167,11 +217,17 @@ class OVSvAppAgentDriverTestCase(base.AgentMechanismBaseTestCase):
         port_context = FakeContext(dhcp_port, vlan_segment)
         mock_reclaim_local_vlan.return_value = 1
         with mock.patch.object(self.driver._plugin, 'get_agents',
-                               return_value=[fake_agent]) as mock_get_agents:
+                               return_value=[fake_agent]) as mock_get_agents, \
+                mock.patch.object(self.driver.notifier,
+                                  'enhanced_sg_provider_updated'
+                                  ) as mock_sg_provider_updated_rpc:
             self.driver.delete_port_postcommit(port_context)
             self.assertFalse(mock_get_agents.called)
             self.assertFalse(mock_reclaim_local_vlan.called)
             self.assertFalse(mock_spawn_thread.called)
+            self.assertTrue(mock_sg_provider_updated_rpc.called)
+            mock_sg_provider_updated_rpc.assert_called_with(
+                self.driver.context, dhcp_port['network_id'])
 
     @mock.patch('networking_vsphere.db.ovsvapp_db.'
                 'check_to_reclaim_local_vlan')

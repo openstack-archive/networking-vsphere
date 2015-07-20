@@ -52,8 +52,6 @@ CONF = cfg.CONF
 # we use this per-thread recursive lock i.e., ovsvapplock
 ovsvapplock = threading.RLock()
 ovsvapp_l2pop_lock = threading.RLock()
-THREAD_POOL_SIZE = 5
-RESTART_BATCH_SIZE = 30
 
 
 class LocalVLANMapping(object):
@@ -148,7 +146,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.setup_ovs_bridges()
         self.setup_rpc()
         defer_apply = CONF.SECURITYGROUP.defer_apply
-        self.sg_agent = sgagent.OVSVAppSecurityGroupAgent(self.context,
+        self.sg_agent = sgagent.OVSvAppSecurityGroupAgent(self.context,
                                                           self.sg_plugin_rpc,
                                                           defer_apply)
 
@@ -482,7 +480,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
     @property
     def threadpool(self):
         if self._pool is None:
-            self._pool = eventlet.GreenPool(THREAD_POOL_SIZE)
+            self._pool = eventlet.GreenPool(ovsvapp_const.THREAD_POOL_SIZE)
         return self._pool
 
     def _process_uncached_devices_sublist(self, devices):
@@ -518,10 +516,10 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def _process_uncached_devices(self, devices):
         dev_list = list(devices)
-        if len(dev_list) > RESTART_BATCH_SIZE:
-            sublists = ([dev_list[x:x + RESTART_BATCH_SIZE]
+        if len(dev_list) > ovsvapp_const.RESTART_BATCH_SIZE:
+            sublists = ([dev_list[x:x + ovsvapp_const.RESTART_BATCH_SIZE]
                         for x in six.moves.range(0, len(dev_list),
-                                                 RESTART_BATCH_SIZE)])
+                        ovsvapp_const.RESTART_BATCH_SIZE)])
         else:
             sublists = [dev_list]
         for dev_ids in sublists:
@@ -619,8 +617,10 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         # Case where sgagent's devices_to_refilter is having some
         # entries or global_refresh_firewall flag is set to True.
         if self.sg_agent.firewall_refresh_needed():
+            LOG.info(_("Starting refresh_port_filters."))
             self.sg_agent.refresh_port_filters(
                 self.cluster_host_ports, self.cluster_other_ports)
+            LOG.info(_("Finished refresh_port_filters."))
         # Check if there are any pending port bindings to be made.
         if self.ports_to_bind:
             self._update_port_bindings()
@@ -700,7 +700,9 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             [cluster_device_topic, topics.UPDATE],
             [cluster_device_topic, topics.DELETE],
             [ovs_const.TUNNEL, topics.UPDATE],
-            [topics.SECURITY_GROUP, topics.UPDATE]
+            [topics.SECURITY_GROUP, topics.UPDATE],
+            [ovsvapp_const.OVSVAPP + '_' + topics.SECURITY_GROUP,
+             topics.UPDATE]
         ]
         self.connection = agent_rpc.create_consumers(self.endpoints,
                                                      self.topic,

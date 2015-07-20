@@ -20,6 +20,7 @@ from oslo_utils import uuidutils
 from neutron.agent import securitygroups_rpc
 
 from networking_vsphere.agent import ovsvapp_sg_agent
+from networking_vsphere.drivers import ovs_firewall
 from networking_vsphere.tests import base
 
 cfg.CONF.import_group('AGENT', 'neutron.plugins.ml2.drivers.openvswitch.agent.'
@@ -43,12 +44,16 @@ fake_port = {'security_group_source_groups': 'abc',
                   "dest_ip_prefix": "170.1.1.0/22"}]}
 
 
+class FakeFirewall(ovs_firewall.OVSFirewallDriver):
+    pass
+
+
 class FakePlugin(securitygroups_rpc.SecurityGroupServerRpcApi):
     def __init__(self, topic):
         self.topic = topic
 
 
-class TestOVSVAppSecurityGroupAgent(base.TestCase):
+class TestOVSvAppSecurityGroupAgent(base.TestCase):
 
     @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
                 'setup_base_flows')
@@ -57,15 +62,20 @@ class TestOVSVAppSecurityGroupAgent(base.TestCase):
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
     def setUp(self, mock_get_port_ofport, mock_set_secure_mode,
               mock_create_ovs_bridge, mock_setup_base_flows):
-        super(TestOVSVAppSecurityGroupAgent, self).setUp()
+        super(TestOVSvAppSecurityGroupAgent, self).setUp()
         self.context = mock.Mock()
         self.plugin = FakePlugin('fake_topic')
         cfg.CONF.set_override('security_bridge_mapping',
                               "br-fake:fake_if", 'SECURITYGROUP')
 
         mock_get_port_ofport.return_value = 5
-        self.agent = ovsvapp_sg_agent.OVSVAppSecurityGroupAgent(
+        self.agent = ovsvapp_sg_agent.OVSvAppSecurityGroupAgent(
             self.context, self.plugin, True)
+        self.agent.firewall = FakeFirewall()
+        self.agent.defer_refresh_firewall = True
+        self.agent.devices_to_refilter = set()
+        self.agent.global_refresh_firewall = False
+        self.agent._use_enhanced_rpc = None
         self.LOG = ovsvapp_sg_agent.LOG
 
     def test_add_devices_to_filter(self):
@@ -133,85 +143,71 @@ class TestOVSVAppSecurityGroupAgent(base.TestCase):
             ports[id] = port
         return ports
 
-    def test_prepare_firewall(self):
+    def test_fetch_and_apply_rules_for_prepare(self):
         port_ids = self._get_fake_portids(2)
         ret_val = self._get_fake_ports(port_ids)
         with mock.patch.object(self.agent.plugin_rpc,
                                'security_group_rules_for_devices',
                                return_value=ret_val) as mock_plugin_rpc, \
                 mock.patch.object(self.agent.firewall,
-                                  'prepare_port_filter') as mock_prep:
-            self.agent.prepare_firewall(set(port_ids))
+                                  'prepare_port_filter') as mock_prep, \
+                mock.patch.object(self.agent.firewall,
+                                  'update_port_filter') as mock_update:
+            self.agent._fetch_and_apply_rules(set(port_ids))
             self.assertEqual(1, mock_plugin_rpc.call_count)
             self.assertEqual(2, mock_prep.call_count)
+            self.assertFalse(mock_update.called)
 
-    def test_prepare_firewall_many_ports(self):
-        # Since we batch the ports before firing RPC to the neutron server
-        # the number of RPCs should be lower. To be specific, we should be
-        # firing one RPC call for every 10 ports.
-        port_ids = self._get_fake_portids(25)
-        ret_val = self._get_fake_ports(port_ids)
-        with mock.patch.object(self.agent.plugin_rpc,
-                               'security_group_rules_for_devices',
-                               return_value=ret_val) as mock_plugin_rpc, \
-                mock.patch.object(self.agent.firewall,
-                                  'prepare_port_filter') as mock_prep:
-            self.agent.prepare_firewall(set(port_ids))
-            self.assertEqual(3, mock_plugin_rpc.call_count)
-            self.assertEqual(25, mock_prep.call_count)
-
-    def test_refresh_firewall_specific_ports(self):
+    def test_fetch_and_apply_rules_for_refresh(self):
         port_ids = self._get_fake_portids(2)
         ret_val = self._get_fake_ports(port_ids)
         with mock.patch.object(self.agent.plugin_rpc,
                                'security_group_rules_for_devices',
                                return_value=ret_val) as mock_plugin_rpc, \
                 mock.patch.object(self.agent.firewall,
+                                  'prepare_port_filter') as mock_prep, \
+                mock.patch.object(self.agent.firewall,
                                   'update_port_filter') as mock_update:
-            self.agent.refresh_firewall(set(port_ids))
+            self.agent._fetch_and_apply_rules(set(port_ids), True)
             self.assertEqual(1, mock_plugin_rpc.call_count)
             self.assertEqual(2, mock_update.call_count)
+            self.assertFalse(mock_prep.called)
 
-    def test_refresh_firewall_many_ports(self):
-        # Since we batch the ports before firing RPC to the neutron server
-        # the number of RPCs should be lower. To be specific, we should be
-        # firing one RPC call for every 10 ports.
+    def test_process_port_set(self):
+        port_ids = self._get_fake_portids(25)
+        with mock.patch.object(self.agent.t_pool, 'spawn_n') as mock_spawn:
+            self.agent._process_port_set(set(port_ids))
+            self.assertEqual(3, mock_spawn.call_count)
+
+    def test_prepare_firewall(self):
+        port_ids = self._get_fake_portids(25)
+        with mock.patch.object(self.agent, '_process_port_set'
+                               ) as mock_process:
+            self.agent.prepare_firewall(set(port_ids))
+            mock_process.assert_called_with(set(port_ids))
+
+    def test_refresh_firewall(self):
         port_ids = self._get_fake_portids(30)
-        ret_val = self._get_fake_ports(port_ids)
-        with mock.patch.object(self.agent.plugin_rpc,
-                               'security_group_rules_for_devices',
-                               return_value=ret_val) as mock_plugin_rpc, \
-                mock.patch.object(self.agent.firewall,
-                                  'update_port_filter') as mock_update:
+        with mock.patch.object(self.agent, '_process_port_set'
+                               ) as mock_process:
             self.agent.refresh_firewall(set(port_ids))
-            self.assertEqual(3, mock_plugin_rpc.call_count)
-            self.assertEqual(30, mock_update.call_count)
+            mock_process.assert_called_with(set(port_ids), True)
 
     def test_refresh_firewall_no_input(self):
-        port_ids = self._get_fake_portids(20)
-        ret_val = self._get_fake_ports(port_ids)
-        self.agent.firewall.filtered_ports = ret_val
-        with mock.patch.object(self.agent.plugin_rpc,
-                               'security_group_rules_for_devices',
-                               return_value=ret_val) as mock_plugin_rpc, \
-                mock.patch.object(self.agent.firewall,
-                                  'update_port_filter') as mock_update:
+        port_ids = self._get_fake_portids(10)
+        ports_data = self._get_fake_ports(port_ids)
+        self.agent.firewall.filtered_ports = ports_data
+        with mock.patch.object(self.agent, '_process_port_set'
+                               ) as mock_process:
             self.agent.refresh_firewall()
-            self.assertEqual(2, mock_plugin_rpc.call_count)
-            self.assertEqual(20, mock_update.call_count)
+            mock_process.assert_called_with(set(port_ids), True)
 
     def test_refresh_firewall_no_input_firewall_empty(self):
-        port_ids = self._get_fake_portids(20)
-        ret_val = self._get_fake_ports(port_ids)
         self.agent.firewall.filtered_ports = {}
-        with mock.patch.object(self.agent.plugin_rpc,
-                               'security_group_rules_for_devices',
-                               return_value=ret_val) as mock_plugin_rpc, \
-                mock.patch.object(self.agent.firewall,
-                                  'update_port_filter') as mock_update:
+        with mock.patch.object(self.agent, '_process_port_set'
+                               ) as mock_process:
             self.agent.refresh_firewall()
-            self.assertFalse(mock_plugin_rpc.called)
-            self.assertFalse(mock_update.called)
+            self.assertFalse(mock_process.called)
 
     def test_refresh_port_filters_case1(self):
         # Global refresh firewall is false devices_to_refilter has few ports
