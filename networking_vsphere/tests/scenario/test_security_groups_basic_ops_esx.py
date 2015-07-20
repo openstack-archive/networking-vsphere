@@ -40,7 +40,8 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         host_name = host_dic['host_name']
         vapp_ipadd = self._get_vapp_ip(str(host_name), binding_host)
         security_group = group_create_body_update['security_group']['id']
-        return (security_group, vapp_ipadd, segment_id, mac_addr)
+        return (security_group, vapp_ipadd, segment_id, mac_addr,
+                self.network['id'])
 
     def _check_connectivity(self, source_ip, dest_ip, should_succeed=True):
         if should_succeed:
@@ -67,7 +68,8 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             direction='ingress',
             ethertype=self.ethertype
         )
-        remote_prefix_ip = self.get_server_ip(access_server)
+        remote_prefix_ip = self.get_server_ip(access_server,
+                                              self.network['id'])
         return (sg_test_sever, sg_access_server, dest_ip, fip,
                 port_id1, port_id2, remote_prefix_ip)
 
@@ -375,7 +377,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         This test verifies the flow creation on br-sec
         for udp security group at OVSvApp L2 Agent.
         """
-        security_group, vapp_ipadd, segment_id, mac_addr = \
+        security_group, vapp_ipadd, segment_id, mac_addr, net_id = \
             self._create_security_group_rule_with_specified_port_range()
         self.client.create_security_group_rule(
             security_group_id=security_group,
@@ -386,7 +388,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             port_range_max=22,
             )
         self._dump_flows_on_br_sec(vapp_ipadd, 'udp',
-                                   segment_id, mac_addr, '22')
+                                   segment_id, mac_addr, '22', net_id)
 
     def test_create_security_group_rule_with_specified_tcp_port_range(self):
 
@@ -395,7 +397,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         This test verifies the tcp rules for a given range based on the flow
         creation on br-sec at the OVSvApp L2 Agent.
         """
-        security_group, vapp_ipadd, segment_id, mac_addr = \
+        security_group, vapp_ipadd, segment_id, mac_addr, net_id = \
             self._create_security_group_rule_with_specified_port_range()
 
         self.client.create_security_group_rule(
@@ -408,4 +410,24 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             )
         for key in range(20, 24):
             self._dump_flows_on_br_sec(vapp_ipadd, 'tcp', segment_id,
-                                       mac_addr, key)
+                                       mac_addr, key, net_id)
+
+    def test_icmp_security_group_rule_with_port_range(self):
+        """Validate upd security group rule with port range.
+
+        This test verifies the flow creation on br-sec
+        for icmp security group at OVSvApp L2 Agent.
+        """
+        security_group, vapp_ipadd, segment_id, mac_addr, net_id = \
+            self._create_security_group_rule_with_specified_port_range()
+        self.client.create_security_group_rule(
+            security_group_id=security_group,
+            protocol='icmp',
+            direction='ingress',
+            ethertype=self.ethertype,
+            port_range_min=22,
+            port_range_max=23,
+            )
+        self._dump_flows_on_br_sec_for_icmp_rule(vapp_ipadd, 'icmp',
+                                                 segment_id, mac_addr, '22',
+                                                 '23', net_id)
