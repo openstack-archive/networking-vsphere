@@ -36,7 +36,8 @@ from oslo_serialization import jsonutils
 from oslo_utils import importutils
 
 from neutron.common import exceptions
-from neutron.i18n import _LI, _LW
+from neutron.i18n import _LI
+from neutron.i18n import _LW
 from neutron.tests.api import base
 from neutron.tests.api import base_security_groups
 from neutron.tests.api import clients
@@ -175,8 +176,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network}],
@@ -196,8 +205,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network}]}}
@@ -213,8 +230,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _delete_server(self, server=None):
         region = CONF.compute.region
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         resp, body = rs_client.delete("servers/%s" % str(server))
         self.wait_for_server_termination(server)
         rest_client.ResponseBody(resp, body)
@@ -255,8 +280,19 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         while True:
             try:
                 region = CONF.compute.region
+                endpoint_type = CONF.compute.endpoint_type
+                build_interval = CONF.compute.build_interval
+                build_timeout = CONF.compute.build_timeout
+                disable_ssl_cert = \
+                    CONF.identity.disable_ssl_certificate_validation
+                ca_certs = CONF.identity.ca_certificates_file
                 rs_client = rest_client.RestClient(self.auth_provider,
-                                                   "compute", region)
+                                                   "compute", region,
+                                                   endpoint_type,
+                                                   build_interval,
+                                                   build_timeout,
+                                                   disable_ssl_cert,
+                                                   ca_certs)
                 resp, body = rs_client.get("servers/%s" % str(server_id))
                 body = jsonutils.loads(body)
             except lib_exc.NotFound:
@@ -271,14 +307,21 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def wait_for_server_status(self, server_id, status, ready_wait=True,
                                extra_timeout=0, raise_on_error=True):
         """Waits for a server to reach a given status."""
-        build_timeout = CONF.compute.build_timeout
         build_interval = CONF.boto.build_interval
 
         def _get_task_state(body):
             return body.get('OS-EXT-STS:task_state', None)
         region = CONF.compute.region
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         resp, body = rs_client.get("servers/%s" % str(server_id))
         body = jsonutils.loads(body)
         old_status = server_status = body['server']['status']
@@ -515,8 +558,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network1},
@@ -537,8 +588,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"port": port1},
@@ -607,8 +666,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         auth_provider = manager.get_auth_provider(
             self.isolated_creds.get_admin_creds())
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         resp, body = rs_client.get("servers/%s" % str(server_id))
         body = jsonutils.loads(body)
         cst_name = body['server']['OS-EXT-SRV-ATTR:hypervisor_hostname']
@@ -705,8 +772,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"port": port1}]}}
@@ -812,23 +887,71 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                      {'dest': ip_addr})
             raise
 
-    def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac, port):
+    def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac,
+                              port, net_id):
         vapp_username = cfg.CONF.VCENTER.vapp_username
         vapp_password = cfg.CONF.VCENTER.vapp_password
         session = self._create_remote_session(vapp_ipadd, vapp_username,
                                               vapp_password)
-        cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
-               str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-               str(vlan) + ',tp_dst=' + str(port))
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',tp_dst=' + str(port))
+        else:
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',tp_dst=' + str(port))
         session.sendline(cmd)
         session.prompt()
         output = session.before
         session.logout()
-        session.status
-        check_list = [protocol, vlan, mac, port]
-        if session.status is 0:
-            for checks in check_list:
-                    if output.count(str(checks)) < 2:
-                        raise Exception('Security group rule is not added')
+        check = 'tp_dst=' + str(port)
+        self.assertIn(check, output)
+
+    def _dump_flows_on_br_sec_for_icmp_rule(self, vapp_ipadd, protocol, vlan,
+                                            mac, icmp_type, icmp_code, net_id):
+        vapp_username = cfg.CONF.VCENTER.vapp_username
+        vapp_password = cfg.CONF.VCENTER.vapp_password
+        session = self._create_remote_session(vapp_ipadd, vapp_username,
+                                              vapp_password)
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',icmp_type=' + str(icmp_type) +
+                       ',icmp_code=' + str(icmp_code))
         else:
-            raise Exception('Security group rule is not added')
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',icmp_type=' + str(icmp_type) +
+                       ',icmp_code=' + str(icmp_code))
+        session.sendline(cmd)
+        session.prompt()
+        output = session.before
+        session.logout()
+        check_list = ['icmp_type=' + str(icmp_type),
+                      'icmp_code=' + str(icmp_code)]
+        for checks in check_list:
+                self.assertIn(checks, output)
+
+    def get_server_ip(self, server_id, net_name):
+        region = CONF.compute.region
+        auth_provider = manager.get_auth_provider(
+            self.isolated_creds.get_admin_creds())
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
+        rs_client = rest_client.RestClient(auth_provider, "compute",
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
+        resp, body = rs_client.get("servers/%s" % str(server_id))
+        body = jsonutils.loads(body)
+        ipaddress = body['server']['addresses'][net_name][0]['addr']
+        return ipaddress
