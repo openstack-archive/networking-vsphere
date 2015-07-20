@@ -79,7 +79,7 @@ OVSVAPP_OPTS = [
                help='Driver Manager implementation for '
                     'NetworkDriver.'),
     cfg.IntOpt('report_interval',
-               default=4,
+               default=30,
                help='Seconds between nodes reporting state to server.'),
     cfg.IntOpt('polling_interval',
                default=2,
