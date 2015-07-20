@@ -177,8 +177,12 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         group_create_body = self._create_custom_security_group()
         serverid1 = self._create_server_with_sec_group(
             name, net_id, group_create_body['security_group']['id'])
+        self.addCleanup(self._try_delete_resource, self._delete_server,
+                        serverid1)
         serverid2 = self._create_server_with_sec_group(
             name, net_id, group_create_body['security_group']['id'])
+        self.addCleanup(self._try_delete_resource, self._delete_server,
+                        serverid2)
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid1))
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid2))
         deviceport = self.client.list_ports(device_id=serverid1)
@@ -214,6 +218,8 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         serverid = self._create_server_multiple_nic(
             name, self.network['id'], network2['id'],
             group_create_body['security_group']['id'])
+        self.addCleanup(self._try_delete_resource, self._delete_server,
+                        serverid)
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid))
         deviceport = self.client.list_ports(device_id=serverid)
