@@ -16,7 +16,6 @@
 
 import mock
 
-import contextlib
 from neutron.extensions import portbindings
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api as api
@@ -44,14 +43,24 @@ fake_agent = {'configurations': {'vcenter': 'fake_vcenter',
               'host': 'fake_host'}
 
 compute_port = {'id': 'fake_id',
-                'device_owner': 'compute-nova',
+                'device_owner': 'compute:nova',
                 'network_id': 'net_id',
                 portbindings.HOST_ID: 'fake_host'}
 
 dhcp_port = {'id': 'fake_id',
-             'device_owner': 'network_dhcp',
+             'device_owner': 'network:dhcp',
              'network_id': 'net_id',
              portbindings.HOST_ID: 'fake_host'}
+
+router_port_ipv4 = {'id': 'fake_id',
+                    'device_owner': 'network:router_interface',
+                    'network_id': 'net_id',
+                    'fixed_ips': [{'ip_address': '10.10.10.1'}]}
+
+router_port_ipv6 = {'id': 'fake_id',
+                    'device_owner': 'network:router_interface',
+                    'network_id': 'net_id',
+                    'fixed_ips': [{'ip_address': 'FE80::0202:B3FF:FE1E:8329'}]}
 
 vlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VLAN}
 
@@ -61,7 +70,7 @@ vxlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VXLAN,
 
 class FakeContext():
 
-    def __init__(self, current, bound_segment):
+    def __init__(self, current, bound_segment=None):
         self.current = current
         self.bound_segment = bound_segment
 
@@ -84,129 +93,170 @@ class OVSvAppAgentDriverTestCase(base.AgentMechanismBaseTestCase):
         self.driver.initialize()
         self.driver._plugin = FakePlugin()
 
-    def test_notify_agent_without_host(self):
-        with contextlib.nested(
-            mock.patch.object(self.driver,
-                              '_get_ovsvapp_agent_from_cluster',
-                              return_value=fake_agent),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'check_to_reclaim_local_vlan', return_value=1),
-            mock.patch.object(self.driver.notifier,
-                              'device_delete', return_value=True),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'release_local_vlan'),
-        ) as (get_agent, check_to_reclaim_local_vlan, device_delete_rpc,
-              release_local_vlan):
+    @mock.patch('networking_vsphere.db.ovsvapp_db.check_to_reclaim_local_vlan')
+    @mock.patch('networking_vsphere.db.ovsvapp_db.release_local_vlan')
+    def test_notify_agent_without_host(self, mock_release_local_vlan,
+                                       mock_reclaim_local_vlan):
+        mock_reclaim_local_vlan.return_value = 1
+        with mock.patch.object(self.driver,
+                               '_get_ovsvapp_agent_from_cluster',
+                               return_value=fake_agent) as mock_get_agent, \
+                mock.patch.object(self.driver.notifier,
+                                  'device_delete', return_value=True
+                                  ) as mock_device_delete_rpc:
             self.driver._notify_agent(net_info)
-            self.assertTrue(get_agent.called)
-            self.assertFalse(check_to_reclaim_local_vlan.called)
-            self.assertTrue(device_delete_rpc.called)
-            self.assertFalse(release_local_vlan.called)
+            self.assertTrue(mock_get_agent.called)
+            self.assertFalse(mock_reclaim_local_vlan.called)
+            self.assertTrue(mock_device_delete_rpc.called)
+            self.assertFalse(mock_release_local_vlan.called)
 
-    def test_notify_agent_without_host_no_agent(self):
-        with contextlib.nested(
-            mock.patch.object(self.driver,
-                              '_get_ovsvapp_agent_from_cluster',
-                              return_value=None),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'check_to_reclaim_local_vlan'),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'release_local_vlan'),
-        ) as (get_agent, check_to_reclaim_local_vlan, release_local_vlan):
+    @mock.patch('networking_vsphere.db.ovsvapp_db.check_to_reclaim_local_vlan')
+    @mock.patch('networking_vsphere.db.ovsvapp_db.release_local_vlan')
+    def test_notify_agent_without_host_no_agent(self, mock_release_local_vlan,
+                                                check_to_reclaim_local_vlan):
+        with mock.patch.object(self.driver,
+                               '_get_ovsvapp_agent_from_cluster',
+                               return_value=None) as mock_get_agent:
             self.driver._notify_agent(net_info)
-            self.assertTrue(get_agent.called)
+            self.assertTrue(mock_get_agent.called)
             self.assertFalse(check_to_reclaim_local_vlan.called)
-            self.assertFalse(release_local_vlan.called)
+            self.assertFalse(mock_release_local_vlan.called)
 
-    def test_notify_agent_without_host_rpc_failed(self):
-        with contextlib.nested(
-            mock.patch.object(self.driver,
-                              '_get_ovsvapp_agent_from_cluster',
-                              return_value=fake_agent),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'check_to_reclaim_local_vlan', return_value=1),
-            mock.patch.object(self.driver.notifier,
-                              'device_delete', return_value=False),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'release_local_vlan'),
-        ) as (get_agent, check_to_reclaim_local_vlan, device_delete_rpc,
-              release_local_vlan):
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'check_to_reclaim_local_vlan')
+    @mock.patch('networking_vsphere.db.ovsvapp_db.release_local_vlan')
+    def test_notify_agent_without_host_rpc_failed(self,
+                                                  mock_release_local_vlan,
+                                                  mock_reclaim_local_vlan):
+        with mock.patch.object(self.driver,
+                               '_get_ovsvapp_agent_from_cluster',
+                               return_value=fake_agent) as mock_get_agent, \
+                mock.patch.object(self.driver.notifier, 'device_delete',
+                                  return_value=False
+                                  ) as mock_device_delete_rpc:
+            mock_reclaim_local_vlan.return_value = 1
             self.driver._notify_agent(net_info)
-            self.assertTrue(get_agent.called)
-            self.assertFalse(check_to_reclaim_local_vlan.called)
-            self.assertTrue(device_delete_rpc.called)
-            self.assertFalse(release_local_vlan.called)
+            self.assertTrue(mock_get_agent.called)
+            self.assertFalse(mock_reclaim_local_vlan.called)
+            self.assertTrue(mock_device_delete_rpc.called)
+            self.assertFalse(mock_release_local_vlan.called)
 
-    def test_notify_agent_with_host(self):
-        with contextlib.nested(
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'check_to_reclaim_local_vlan', return_value=1),
-            mock.patch.object(self.driver.notifier,
-                              'device_delete', return_value=True),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'release_local_vlan'),
-        ) as (check_to_reclaim_local_vlan, device_delete_rpc,
-              release_local_vlan):
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'check_to_reclaim_local_vlan')
+    @mock.patch('networking_vsphere.db.ovsvapp_db.release_local_vlan')
+    def test_notify_agent_with_host(self, mock_release_local_vlan,
+                                    mock_reclaim_local_vlan):
+        with mock.patch.object(self.driver.notifier,
+                               'device_delete', return_value=True
+                               ) as mock_device_delete_rpc:
+            mock_reclaim_local_vlan.return_value = 1
             self.driver._notify_agent(net_info_with_host)
-            self.assertFalse(check_to_reclaim_local_vlan.called)
-            self.assertTrue(device_delete_rpc.called)
-            self.assertFalse(release_local_vlan.called)
+            self.assertFalse(mock_reclaim_local_vlan.called)
+            self.assertTrue(mock_device_delete_rpc.called)
+            self.assertFalse(mock_release_local_vlan.called)
 
-    def test_delete_port_postcommit_vlan_port(self):
-        port_context = FakeContext(compute_port, vlan_segment)
-        with contextlib.nested(
-            mock.patch.object(self.driver._plugin, 'get_agents'),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'check_to_reclaim_local_vlan', return_value=1),
-            mock.patch('eventlet.GreenPool.spawn_n')
-        ) as (get_agents, check_to_reclaim_local_vlan, spawn_thread):
-            self.driver.delete_port_postcommit(port_context)
-            self.assertFalse(get_agents.called)
-            self.assertFalse(check_to_reclaim_local_vlan.called)
-            self.assertFalse(spawn_thread.called)
-
-    def test_delete_port_postcommit_dhcp_port(self):
+    def test_create_port_postcommit_dhcp_port(self):
         port_context = FakeContext(dhcp_port, vlan_segment)
-        with contextlib.nested(
-            mock.patch.object(self.driver._plugin, 'get_agents',
-                              return_value=[fake_agent]),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'check_to_reclaim_local_vlan', return_value=1),
-            mock.patch('eventlet.GreenPool.spawn_n')
-        ) as (get_agents, check_to_reclaim_local_vlan, spawn_thread):
-            self.driver.delete_port_postcommit(port_context)
-            self.assertFalse(get_agents.called)
-            self.assertFalse(check_to_reclaim_local_vlan.called)
-            self.assertFalse(spawn_thread.called)
+        with mock.patch.object(self.driver.notifier,
+                               'enhanced_sg_provider_updated'
+                               ) as mock_sg_provider_updated_rpc:
+            self.driver.create_port_postcommit(port_context)
+            self.assertTrue(mock_sg_provider_updated_rpc.called)
+            mock_sg_provider_updated_rpc.assert_called_with(
+                self.driver.context, dhcp_port['network_id'])
 
-    def test_delete_port_postcommit_vxlan_port_release_not_required(self):
-        port_context = FakeContext(compute_port, vxlan_segment)
-        with contextlib.nested(
-            mock.patch.object(self.driver._plugin, 'get_agents',
-                              return_value=[fake_agent]),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'check_to_reclaim_local_vlan', return_value=-1),
-            mock.patch('eventlet.GreenPool.spawn_n')
-        ) as (get_agents, check_to_reclaim_local_vlan, spawn_thread):
-            self.driver.delete_port_postcommit(port_context)
-            self.assertTrue(get_agents.called)
-            self.assertTrue(check_to_reclaim_local_vlan.called)
-            self.assertFalse(spawn_thread.called)
+    def test_create_port_postcommit_ipv6_router_port(self):
+        port_context = FakeContext(router_port_ipv6)
+        with mock.patch.object(self.driver.notifier,
+                               'enhanced_sg_provider_updated'
+                               ) as mock_sg_provider_updated_rpc:
+            self.driver.create_port_postcommit(port_context)
+            self.assertTrue(mock_sg_provider_updated_rpc.called)
+            mock_sg_provider_updated_rpc.assert_called_with(
+                self.driver.context, router_port_ipv6['network_id'])
 
-    def test_delete_port_postcommit_vxlan_port_release_required(self):
-        port_context = FakeContext(compute_port, vxlan_segment)
-        with contextlib.nested(
-            mock.patch.object(self.driver._plugin, 'get_agents',
-                              return_value=[fake_agent]),
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'check_to_reclaim_local_vlan', return_value=True),
-            mock.patch('eventlet.GreenPool.spawn_n')
-        ) as (get_agents, check_to_reclaim_local_vlan, spawn_thread):
+    def test_create_port_postcommit_ipv4_router_port(self):
+        port_context = FakeContext(router_port_ipv4)
+        with mock.patch.object(self.driver.notifier,
+                               'enhanced_sg_provider_updated'
+                               ) as mock_sg_provider_updated_rpc:
+            self.driver.create_port_postcommit(port_context)
+            self.assertFalse(mock_sg_provider_updated_rpc.called)
+
+    def test_create_port_postcommit_compute_port(self):
+        port_context = FakeContext(compute_port, vlan_segment)
+        with mock.patch.object(self.driver.notifier,
+                               'enhanced_sg_provider_updated'
+                               ) as mock_sg_provider_updated_rpc:
+            self.driver.create_port_postcommit(port_context)
+            self.assertFalse(mock_sg_provider_updated_rpc.called)
+
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'check_to_reclaim_local_vlan')
+    @mock.patch('eventlet.GreenPool.spawn_n')
+    def test_delete_port_postcommit_vlan_port(self, mock_spawn_thread,
+                                              mock_reclaim_local_vlan):
+        port_context = FakeContext(compute_port, vlan_segment)
+        mock_reclaim_local_vlan.return_value = 1
+        with mock.patch.object(self.driver._plugin, 'get_agents'
+                               ) as mock_get_agents, \
+                mock.patch.object(self.driver.notifier,
+                                  'enhanced_sg_provider_updated'
+                                  ) as mock_sg_provider_updated_rpc:
             self.driver.delete_port_postcommit(port_context)
-            self.assertTrue(get_agents.called)
-            self.assertTrue(check_to_reclaim_local_vlan.called)
-            self.assertTrue(spawn_thread.called)
-            spawn_thread.assert_called_with(
+            self.assertFalse(mock_get_agents.called)
+            self.assertFalse(mock_reclaim_local_vlan.called)
+            self.assertFalse(mock_spawn_thread.called)
+            self.assertFalse(mock_sg_provider_updated_rpc.called)
+
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'check_to_reclaim_local_vlan')
+    @mock.patch('eventlet.GreenPool.spawn_n')
+    def test_delete_port_postcommit_dhcp_port(self, mock_spawn_thread,
+                                              mock_reclaim_local_vlan):
+        port_context = FakeContext(dhcp_port, vlan_segment)
+        mock_reclaim_local_vlan.return_value = 1
+        with mock.patch.object(self.driver._plugin, 'get_agents',
+                               return_value=[fake_agent]) as mock_get_agents, \
+                mock.patch.object(self.driver.notifier,
+                                  'enhanced_sg_provider_updated'
+                                  ) as mock_sg_provider_updated_rpc:
+            self.driver.delete_port_postcommit(port_context)
+            self.assertFalse(mock_get_agents.called)
+            self.assertFalse(mock_reclaim_local_vlan.called)
+            self.assertFalse(mock_spawn_thread.called)
+            self.assertTrue(mock_sg_provider_updated_rpc.called)
+            mock_sg_provider_updated_rpc.assert_called_with(
+                self.driver.context, dhcp_port['network_id'])
+
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'check_to_reclaim_local_vlan')
+    @mock.patch('eventlet.GreenPool.spawn_n')
+    def test_delete_port_postcommit_vxlan_port_release_not_required(
+            self, mock_spawn_thread, mock_reclaim_local_vlan):
+        port_context = FakeContext(compute_port, vxlan_segment)
+        mock_reclaim_local_vlan.return_value = -1
+        with mock.patch.object(self.driver._plugin, 'get_agents',
+                               return_value=[fake_agent]) as mock_get_agents:
+            self.driver.delete_port_postcommit(port_context)
+            self.assertTrue(mock_get_agents.called)
+            self.assertTrue(mock_reclaim_local_vlan.called)
+            self.assertFalse(mock_spawn_thread.called)
+
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'check_to_reclaim_local_vlan')
+    @mock.patch('eventlet.GreenPool.spawn_n')
+    def test_delete_port_postcommit_vxlan_port_release_required(
+            self, mock_spawn_thread, mock_reclaim_local_vlan):
+        port_context = FakeContext(compute_port, vxlan_segment)
+        mock_reclaim_local_vlan.return_value = True
+        with mock.patch.object(self.driver._plugin, 'get_agents',
+                               return_value=[fake_agent]) as mock_get_agents:
+            self.driver.delete_port_postcommit(port_context)
+            self.assertTrue(mock_get_agents.called)
+            self.assertTrue(mock_reclaim_local_vlan.called)
+            self.assertTrue(mock_spawn_thread.called)
+            mock_spawn_thread.assert_called_with(
                 self.driver._notify_agent, net_info_with_host)
 
     @mock.patch('networking_vsphere.db.ovsvapp_db.'
@@ -223,32 +273,31 @@ class OVSvAppAgentDriverTestCase(base.AgentMechanismBaseTestCase):
             self.assertFalse(mock_reclaim_local_vlan.called)
             self.assertFalse(mock_spawn_thread.called)
 
-    def test_delete_network_postcommit_no_stale(self):
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'get_stale_local_vlans_for_network')
+    @mock.patch('eventlet.GreenPool.spawn_n')
+    def test_delete_network_postcommit_no_stale(self, mock_spawn_thread,
+                                                mock_get_stale_entries):
         net_context = FakeContext(network, vxlan_segment)
-        with contextlib.nested(
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'get_stale_local_vlans_for_network', return_value=[]),
-            mock.patch('eventlet.GreenPool.spawn_n')
-        ) as (get_stale_entries, spawn_thread):
-            self.driver.delete_network_postcommit(net_context)
-            self.assertTrue(get_stale_entries.called)
-            get_stale_entries.assert_called_with('net_id')
-            self.assertFalse(spawn_thread.called)
+        mock_get_stale_entries.return_value = []
+        self.driver.delete_network_postcommit(net_context)
+        self.assertTrue(mock_get_stale_entries.called)
+        mock_get_stale_entries.assert_called_with('net_id')
+        self.assertFalse(mock_spawn_thread.called)
 
-    def test_delete_network_postcommit(self):
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'get_stale_local_vlans_for_network')
+    @mock.patch('eventlet.GreenPool.spawn_n')
+    def test_delete_network_postcommit(self, mock_spawn_thread,
+                                       mock_get_stale_entries):
         net_context = FakeContext(network, vxlan_segment)
         ret_val = [('fake_vcenter', 'fake_cluster_1', 1),
                    ('fake_vcenter', 'fake_cluster', 1)]
-        with contextlib.nested(
-            mock.patch('networking_vsphere.db.ovsvapp_db.'
-                       'get_stale_local_vlans_for_network',
-                       return_value=ret_val),
-            mock.patch('eventlet.GreenPool.spawn_n')
-        ) as (get_stale_entries, spawn_thread):
-            self.driver.delete_network_postcommit(net_context)
-            self.assertTrue(get_stale_entries.called)
-            get_stale_entries.assert_called_with('net_id')
-            self.assertTrue(spawn_thread.called)
-            self.assertEqual(2, spawn_thread.call_count)
-            spawn_thread.assert_called_with(
-                self.driver._notify_agent, net_info)
+        mock_get_stale_entries.return_value = ret_val
+        self.driver.delete_network_postcommit(net_context)
+        self.assertTrue(mock_get_stale_entries.called)
+        mock_get_stale_entries.assert_called_with('net_id')
+        self.assertTrue(mock_spawn_thread.called)
+        self.assertEqual(2, mock_spawn_thread.call_count)
+        mock_spawn_thread.assert_called_with(
+            self.driver._notify_agent, net_info)

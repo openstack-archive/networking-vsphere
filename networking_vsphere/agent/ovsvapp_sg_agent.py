@@ -13,17 +13,34 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import eventlet
 from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import importutils
 
-from neutron.agent import securitygroups_rpc as sg_rpc
+import threading
 import time
+
+from networking_vsphere.common import constants as ovsvapp_const
+
+from neutron.agent import securitygroups_rpc as sg_rpc
 
 LOG = log.getLogger(__name__)
 
+ovsvapplock = threading.RLock()
 
-class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
+
+class OVSvAppSecurityGroupAgentRpc(sg_rpc.SecurityGroupAgentRpc):
+
+    def enhanced_sg_provider_updated(self, context, **kwargs):
+        """Callback for security group provider update."""
+        net_id = kwargs.get('network_id', [])
+        LOG.info(_("Received enhanced_sg_provider_updated RPC for network %s"),
+                 net_id)
+        self.sg_provider_updated(net_id)
+
+
+class OVSvAppSecurityGroupAgent(OVSvAppSecurityGroupAgentRpc):
     """OVSvApp derived class from OVSSecurityGroupAgent
 
     This class is to override the default behavior of some methods.
@@ -32,7 +49,8 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self.context = context
         self.plugin_rpc = plugin_rpc
         self.init_firewall(defer_apply)
-        LOG.info(_("OVSVAppSecurityGroupAgent initialized."))
+        self.t_pool = eventlet.GreenPool(ovsvapp_const.THREAD_POOL_SIZE)
+        LOG.info(_("OVSvAppSecurityGroupAgent initialized."))
 
     def init_firewall(self, defer_refresh_firewall=False):
         firewall_driver = cfg.CONF.SECURITYGROUP.ovsvapp_firewall_driver
@@ -50,6 +68,22 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self.global_refresh_firewall = False
         self._use_enhanced_rpc = None
 
+    def security_groups_provider_updated(self):
+        LOG.info(_("Ignoring default security_groups_provider_updated RPC."))
+
+    def sg_provider_updated(self, net_id):
+        devices = []
+        for device in self.firewall.ports.values():
+            if net_id == device.get('network_id'):
+                devices.append(device['device'])
+        if devices:
+            LOG.info(_("Adding %s devices to the list of devices "
+                       "for which firewall needs to be refreshed"),
+                     len(devices))
+            ovsvapplock.acquire()
+            self.devices_to_refilter |= set(devices)
+            ovsvapplock.release()
+
     def add_devices_to_filter(self, devices):
         if not devices:
             return
@@ -65,6 +99,35 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             return
         self.firewall.clean_port_filters([device_id], True)
 
+    def _fetch_and_apply_rules(self, dev_ids, update=False):
+        ovsvapplock.acquire()
+        #  This will help us prevent duplicate processing of same port
+        #  when we get back to back updates for same SG or Network.
+        self.devices_to_refilter = self.devices_to_refilter - set(dev_ids)
+        ovsvapplock.release()
+        devices = self.plugin_rpc.security_group_rules_for_devices(
+            self.context, dev_ids)
+        time.sleep(0)
+        LOG.debug("Successfully serviced security_group_rules_for_devices "
+                  "RPC for %s.", dev_ids)
+        for device in devices.values():
+            if device['id'] in dev_ids:
+                if update:
+                    self.firewall.update_port_filter(device)
+                else:
+                    self.firewall.prepare_port_filter(device)
+
+    def _process_port_set(self, devices, update=False):
+        dev_list = list(devices)
+        if len(dev_list) > ovsvapp_const.SG_BATCH_SIZE:
+            sublists = ([dev_list[x:x + ovsvapp_const.SG_BATCH_SIZE]
+                        for x in range(0, len(dev_list),
+                                       ovsvapp_const.SG_BATCH_SIZE)])
+        else:
+            sublists = [dev_list]
+        for dev_ids in sublists:
+            self.t_pool.spawn_n(self._fetch_and_apply_rules, dev_ids, update)
+
     def prepare_firewall(self, device_ids):
         """Puts in new rules for input port_ids.
 
@@ -74,21 +137,8 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         :param device_ids: set of port_ids for which firewall rules
         need to be created.
         """
-        LOG.info(_("Prepare firewall rules %s."), len(device_ids))
-        dev_list = list(device_ids)
-        if len(dev_list) > 10:
-            sublists = [dev_list[x:x + 10] for x in xrange(0, len(dev_list),
-                                                           10)]
-        else:
-            sublists = [dev_list]
-        for dev_ids in sublists:
-            devices = self.plugin_rpc.security_group_rules_for_devices(
-                self.context, dev_ids)
-            LOG.debug("Successfully serviced security_group_rules_for_devices "
-                      "RPC for %s.", dev_ids)
-            for device in devices.values():
-                if device['id'] in dev_ids:
-                    self.firewall.prepare_port_filter(device)
+        LOG.info(_("Prepare firewall rules for %s ports."), len(device_ids))
+        self._process_port_set(device_ids)
 
     def refresh_firewall(self, device_ids=None):
         """Removes all rules for input port_ids and puts in new rules for them.
@@ -105,23 +155,7 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                 LOG.info(_("No ports here to refresh firewall."))
                 return
         LOG.info(_("Refresh firewall rules for %s ports."), len(device_ids))
-        dev_list = list(device_ids)
-        if len(dev_list) > 10:
-            sublists = [dev_list[x:x + 10] for x in xrange(0, len(dev_list),
-                                                           10)]
-        else:
-            sublists = [dev_list]
-
-        for dev_ids in sublists:
-            # Sleep is to prevent any device_create calls from getting starved.
-            time.sleep(0)
-            devices = self.plugin_rpc.security_group_rules_for_devices(
-                self.context, dev_ids)
-            LOG.debug("Successfully serviced security_group_rules_for_devices "
-                      "RPC for %s.", dev_ids)
-            for device in devices.values():
-                if device['id'] in dev_ids:
-                    self.firewall.update_port_filter(device)
+        self._process_port_set(set(device_ids), True)
 
     def refresh_port_filters(self, own_devices, other_devices):
         """Update port filters for devices.
@@ -142,9 +176,9 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self.devices_to_refilter = set()
         self.global_refresh_firewall = False
         LOG.info(_("Going to refresh for devices: %s."),
-                 devices_to_refilter)
+                 len(devices_to_refilter))
         if global_refresh_firewall:
-            LOG.debug("Refreshing firewall for all filtered devices.")
+            LOG.info(_("Refreshing firewall for all filtered devices."))
             self.firewall.clean_port_filters(other_devices)
             self.refresh_firewall()
         else:
@@ -159,3 +193,5 @@ class OVSVAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                 LOG.info(_("Refreshing firewall for %d devices."),
                          len(other_devices))
                 self.prepare_firewall(other_devices)
+        LOG.info(_("Finished refresh for devices: %s."),
+                 len(devices_to_refilter))
