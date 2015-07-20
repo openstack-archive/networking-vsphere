@@ -818,6 +818,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         """Handle VM updated event."""
         try:
             if host == self.esx_hostname:
+                ports_to_bind = set()
                 for vnic in vm.vnics:
                     self._add_ports_to_host_ports([vnic.port_uuid])
                     # host_changed flag being True indicates, that
@@ -830,12 +831,16 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             port['mac_address'] = updated_port.mac_addr
                             port['segmentation_id'] = updated_port.vlanid
                             self._add_physical_bridge_flows(port)
-                            LOG.info(_("Invoking update_port_binding RPC for "
-                                       "port: %s."), vnic.port_uuid)
-                            self.ovsvapp_rpc.update_port_binding(
-                                self.context, agent_id=self.agent_id,
-                                port_id=vnic.port_uuid, host=self.hostname)
-                            return
+                            ports_to_bind.add(vnic.port_uuid)
+                            if len(ports_to_bind) == len(vm.vnics):
+                                    LOG.info(_("Invoking update_ports_binding "
+                                               "RPC for ports: %s."),
+                                             ports_to_bind)
+                                    self.ovsvapp_rpc.update_ports_binding(
+                                        self.context, agent_id=self.agent_id,
+                                        ports=ports_to_bind,
+                                        host=self.hostname)
+                            continue
                         # Bulk migrations result in racing for
                         # update_port_postcommit in the controller-side
                         # default l2pop mech driver. This results in the l2pop
