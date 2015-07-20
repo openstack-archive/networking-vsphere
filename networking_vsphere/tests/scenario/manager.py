@@ -629,7 +629,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                         if net_id in port_group.summary.name[0:36]:
                                 seg_id = port_group.config.defaultPortConfig
                                 self.assertEqual(seg_id.vlan.vlanId,
-                                                 segment_id)
+                                                 int(segment_id))
                                 return True
         return False
 
@@ -660,7 +660,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 segment_id = net['network']['provider:segmentation_id']
         else:
                 segment_id = self._fetch_segment_id_from_db(net_id)
-        cluster_name = self._fetch_cluster_in_use_from_server(server_id)
+#        cluster_name = self._fetch_cluster_in_use_from_server(server_id)
+#       Made changes for openstack liberty release
+        cluster_name = cfg.CONF.VCENTER.cluster_in_use
         vm_name = self._get_vm_name(server_id)
         trunk_dvswitch_name = cfg.CONF.VCENTER.trunk_dvswitch_name
         trunk_dvswitch_name = trunk_dvswitch_name.split(',')
