@@ -36,7 +36,8 @@ from oslo_serialization import jsonutils
 from oslo_utils import importutils
 
 from neutron.common import exceptions
-from neutron.i18n import _LI, _LW
+from neutron.i18n import _LI
+from neutron.i18n import _LW
 from neutron.tests.api import base
 from neutron.tests.api import base_security_groups
 from neutron.tests.api import clients
@@ -108,9 +109,25 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                     break
         return obj
 
-    def _create_connection(self, vcenter_ip, vcenter_username,
-                           vcenter_password):
+    def _connect_server(self):
+        region = CONF.compute.region
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
+        rs_client = rest_client.RestClient(self.auth_provider, "compute",
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
+        return rs_client
+
+    def _create_connection(self):
         connection = None
+        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
+        vcenter_username = cfg.CONF.VCENTER.vcenter_username
+        vcenter_password = cfg.CONF.VCENTER.vcenter_password
         try:
                 msg = "Trying to connect %s vCenter" % vcenter_ip
                 LOG.info(msg)
@@ -126,12 +143,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         return content
 
     def _get_portgroups(self):
-        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
         trunk_dvswitch_name = cfg.CONF.VCENTER.trunk_dvswitch_name
-        vcenter_username = cfg.CONF.VCENTER.vcenter_username
-        vcenter_password = cfg.CONF.VCENTER.vcenter_password
-        content = self._create_connection(vcenter_ip, vcenter_username,
-                                          vcenter_password)
+        content = self._create_connection()
         dvswitch_obj = self.get_obj(content,
                                     [vim.DistributedVirtualSwitch],
                                     trunk_dvswitch_name)
@@ -172,11 +185,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _create_server_with_sec_group(self, name=None, network=None,
                                       securitygroup=None, wait_on_boot=True):
-        region = CONF.compute.region
+        rs_client = self._connect_server()
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
-        rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network}],
@@ -193,11 +204,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _create_server(self, name=None, network=None,
                        wait_on_boot=True):
-        region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
-        rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+        rs_client = self._connect_server()
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network}]}}
@@ -212,9 +221,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         return server_id
 
     def _delete_server(self, server=None):
-        region = CONF.compute.region
-        rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+        rs_client = self._connect_server()
         resp, body = rs_client.delete("servers/%s" % str(server))
         self.wait_for_server_termination(server)
         rest_client.ResponseBody(resp, body)
@@ -254,9 +261,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         build_interval = CONF.boto.build_interval
         while True:
             try:
-                region = CONF.compute.region
-                rs_client = rest_client.RestClient(self.auth_provider,
-                                                   "compute", region)
+                rs_client = self._connect_server()
                 resp, body = rs_client.get("servers/%s" % str(server_id))
                 body = jsonutils.loads(body)
             except lib_exc.NotFound:
@@ -271,14 +276,12 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def wait_for_server_status(self, server_id, status, ready_wait=True,
                                extra_timeout=0, raise_on_error=True):
         """Waits for a server to reach a given status."""
-        build_timeout = CONF.compute.build_timeout
         build_interval = CONF.boto.build_interval
+        build_timeout = CONF.compute.build_timeout
 
         def _get_task_state(body):
             return body.get('OS-EXT-STS:task_state', None)
-        region = CONF.compute.region
-        rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+        rs_client = self._connect_server()
         resp, body = rs_client.get("servers/%s" % str(server_id))
         body = jsonutils.loads(body)
         old_status = server_status = body['server']['status']
@@ -512,11 +515,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def _create_server_multiple_nic(self, name=None, network1=None,
                                     network2=None, securitygroup=None,
                                     wait_on_boot=True):
-        region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
-        rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+        rs_client = self._connect_server()
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network1},
@@ -534,11 +535,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def _create_server_multiple_nic_user_created_port(self, name=None,
                                                       port1=None, port2=None,
                                                       wait_on_boot=True):
-        region = CONF.compute.region
+        rs_client = self._connect_server()
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
-        rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"port": port1},
@@ -594,11 +593,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         return segment_id
 
     def _get_vm_name(self, server_id):
-        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
-        vcenter_username = cfg.CONF.VCENTER.vcenter_username
-        vcenter_password = cfg.CONF.VCENTER.vcenter_password
-        content = self._create_connection(vcenter_ip, vcenter_username,
-                                          vcenter_password)
+        content = self._create_connection()
         vm_name = self.get_obj(content, [vim.VirtualMachine],
                                server_id)
         return vm_name
@@ -607,8 +602,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         region = CONF.compute.region
         auth_provider = manager.get_auth_provider(
             self.isolated_creds.get_admin_creds())
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         resp, body = rs_client.get("servers/%s" % str(server_id))
         body = jsonutils.loads(body)
         cst_name = body['server']['OS-EXT-SRV-ATTR:hypervisor_hostname']
@@ -616,11 +619,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _verify_portgroup_vxlan(self, trunk_dvswitch, vm_name, net_id,
                                 segment_id):
-        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
-        vcenter_username = cfg.CONF.VCENTER.vcenter_username
-        vcenter_password = cfg.CONF.VCENTER.vcenter_password
-        content = self._create_connection(vcenter_ip, vcenter_username,
-                                          vcenter_password)
+        content = self._create_connection()
 
         dvswitch_obj = self.get_obj(content, [vim.DistributedVirtualSwitch],
                                     trunk_dvswitch)
@@ -636,11 +635,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _verify_portgroup_vlan(self, trunk_dvswitch, vm_name, net_id,
                                segment_id):
-        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
-        vcenter_username = cfg.CONF.VCENTER.vcenter_username
-        vcenter_password = cfg.CONF.VCENTER.vcenter_password
-        content = self._create_connection(vcenter_ip, vcenter_username,
-                                          vcenter_password)
+        content = self._create_connection()
 
         dvswitch_obj = self.get_obj(content, [vim.DistributedVirtualSwitch],
                                     trunk_dvswitch)
@@ -682,11 +677,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         return False
 
     def verify_portgroup_after_vm_delete(self, net_id):
-        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
-        vcenter_username = cfg.CONF.VCENTER.vcenter_username
-        vcenter_password = cfg.CONF.VCENTER.vcenter_password
-        content = self._create_connection(vcenter_ip, vcenter_username,
-                                          vcenter_password)
+        content = self._create_connection()
         trunk_dvswitch_name = cfg.CONF.VCENTER.trunk_dvswitch_name
         trunk_dvswitch_name = trunk_dvswitch_name.split(',')
         for trunk_dvswitch in trunk_dvswitch_name:
@@ -702,11 +693,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def _create_server_user_created_port(self, name=None,
                                          port1=None,
                                          wait_on_boot=True):
-        region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
-        rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+        rs_client = self._connect_server()
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"port": port1}]}}
@@ -741,11 +730,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             return dic
 
     def _get_host_name(self, server_id):
-        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
-        vcenter_username = cfg.CONF.VCENTER.vcenter_username
-        vcenter_password = cfg.CONF.VCENTER.vcenter_password
-        content = self._create_connection(vcenter_ip, vcenter_username,
-                                          vcenter_password)
+        content = self._create_connection()
         for child in content.rootFolder.childEntity:
             if hasattr(child, 'vmFolder'):
                 datacenter = child
@@ -760,11 +745,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                 return host_name[key]
 
     def _get_vapp_ip(self, host_n, vapp_name):
-        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
-        vcenter_username = cfg.CONF.VCENTER.vcenter_username
-        vcenter_password = cfg.CONF.VCENTER.vcenter_password
-        content = self._create_connection(vcenter_ip, vcenter_username,
-                                          vcenter_password)
+        content = self._create_connection()
         for child in content.rootFolder.childEntity:
             if hasattr(child, 'vmFolder'):
                 datacenter = child
@@ -812,23 +793,71 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                      {'dest': ip_addr})
             raise
 
-    def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac, port):
+    def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac,
+                              port, net_id):
         vapp_username = cfg.CONF.VCENTER.vapp_username
         vapp_password = cfg.CONF.VCENTER.vapp_password
         session = self._create_remote_session(vapp_ipadd, vapp_username,
                                               vapp_password)
-        cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
-               str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-               str(vlan) + ',tp_dst=' + str(port))
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',tp_dst=' + str(port))
+        else:
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',tp_dst=' + str(port))
         session.sendline(cmd)
         session.prompt()
         output = session.before
         session.logout()
-        session.status
-        check_list = [protocol, vlan, mac, port]
-        if session.status is 0:
-            for checks in check_list:
-                    if output.count(str(checks)) < 2:
-                        raise Exception('Security group rule is not added')
+        check = 'tp_dst=' + str(port)
+        self.assertIn(check, output)
+
+    def _dump_flows_on_br_sec_for_icmp_rule(self, vapp_ipadd, protocol, vlan,
+                                            mac, icmp_type, icmp_code, net_id):
+        vapp_username = cfg.CONF.VCENTER.vapp_username
+        vapp_password = cfg.CONF.VCENTER.vapp_password
+        session = self._create_remote_session(vapp_ipadd, vapp_username,
+                                              vapp_password)
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',icmp_type=' + str(icmp_type) +
+                       ',icmp_code=' + str(icmp_code))
         else:
-            raise Exception('Security group rule is not added')
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',icmp_type=' + str(icmp_type) +
+                       ',icmp_code=' + str(icmp_code))
+        session.sendline(cmd)
+        session.prompt()
+        output = session.before
+        session.logout()
+        check_list = ['icmp_type=' + str(icmp_type),
+                      'icmp_code=' + str(icmp_code)]
+        for checks in check_list:
+                self.assertIn(checks, output)
+
+    def get_server_ip(self, server_id, net_name):
+        region = CONF.compute.region
+        auth_provider = manager.get_auth_provider(
+            self.isolated_creds.get_admin_creds())
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
+        rs_client = rest_client.RestClient(auth_provider, "compute",
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
+        resp, body = rs_client.get("servers/%s" % str(server_id))
+        body = jsonutils.loads(body)
+        ipaddress = body['server']['addresses'][net_name][0]['addr']
+        return ipaddress

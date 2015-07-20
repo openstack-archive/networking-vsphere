@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import netaddr
 import time
 
 from networking_vsphere.tests.scenario import manager
@@ -44,8 +45,16 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
         region = CONF.compute.region
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
-                                           region)
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         data = {"server": {"name": name, "imageRef": image,
                 "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network}],
@@ -61,11 +70,17 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
 
     def wait_for_server_status_to_active(self, server_id, status):
         """Waits for a server to reach a given status."""
-        build_timeout = CONF.compute.build_timeout
-        build_interval = CONF.boto.build_interval
         region = CONF.compute.region
-        rs_client = rest_client.RestClient(self.auth_provider,
-                                           "compute", region)
+        endpoint_type = CONF.compute.endpoint_type
+        build_interval = CONF.compute.build_interval
+        build_timeout = CONF.compute.build_timeout
+        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        ca_certs = CONF.identity.ca_certificates_file
+        rs_client = rest_client.RestClient(self.auth_provider, "compute",
+                                           region, endpoint_type,
+                                           build_interval, build_timeout,
+                                           disable_ssl_cert,
+                                           ca_certs)
         resp, body = rs_client.get("servers/%s" % str(server_id))
         body = jsonutils.loads(body)
         server_status = body['server']['status']
@@ -74,7 +89,12 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
         while server_status != status:
             time.sleep(build_interval)
             rs_client = rest_client.RestClient(self.auth_provider,
-                                               "compute", region)
+                                               "compute", region,
+                                               endpoint_type,
+                                               build_interval,
+                                               build_timeout,
+                                               disable_ssl_cert,
+                                               ca_certs)
             resp, body = rs_client.get("servers/%s" % str(server_id))
             body = jsonutils.loads(body)
             server_status = body['server']['status']
@@ -107,6 +127,38 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
                            (floating_ip, status, floating_ip_status,
                             build_timeout))
                 raise exceptions.TimeoutException(message)
+
+    def _attach_subnet_to_router_fip(self, network, subnet, group_create_body,
+                                     router):
+        protocols = ['tcp', 'udp', 'icmp']
+        for protocol in protocols:
+            self.admin_client.create_security_group_rule(
+                security_group_id=group_create_body['security_group']['id'],
+                protocol=protocol,
+                direction='ingress',
+                ethertype=self.ethertype
+            )
+
+        self.admin_client.add_router_interface_with_subnet_id(
+            router['router']['id'], subnet['id'])
+        self.addCleanup(
+            self.admin_client.remove_router_interface_with_subnet_id,
+            router['router']['id'], subnet['id'])
+        name = data_utils.rand_name('server-smoke')
+
+        serverid = self.create_server_with_sec_group(
+            name, network['id'], group_create_body['security_group']['id'])
+        port_body = self.admin_client.list_ports(device_id=serverid)
+        self.addCleanup(self._delete_server, serverid)
+        port_id = port_body['ports'][0]['id']
+        floating_admin_ip = self.admin_client.create_floatingip(
+            floating_network_id=self.ext_net_id,
+            port_id=port_id)
+        self.addCleanup(self.admin_client.delete_floatingip,
+                        floating_admin_ip['floatingip']['id'])
+        server_ip = self.get_server_ip(serverid, network['name'])
+        return (floating_admin_ip['floatingip']['floating_ip_address'],
+                server_ip)
 
     def test_validate_creation_of_VM_in_Shared_network(self):
         """Validate  creation of VM in Shared network.
@@ -157,3 +209,36 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
         self.ping_ip_address(
             floating_ip_admin['floatingip']['floating_ip_address'],
             should_succeed=True)
+
+    def test_VMs_when_hosted_on_different_network(self):
+        network_name1 = data_utils.rand_name('first-network-')
+        post_body = {'name': network_name1}
+        body = self.admin_client.create_network(**post_body)
+        network1 = body['network']
+        subnet1 = self.create_subnet(network1, client=self.admin_client)
+        group_create_body1 = self.admin_client.create_security_group()
+        network_name2 = data_utils.rand_name('second-network-')
+        post_body = {'name': network_name2}
+        body = self.admin_client.create_network(**post_body)
+        network2 = body['network']
+        sub_cidr = netaddr.IPNetwork(CONF.network.tenant_network_cidr).next()
+        subnet2 = self.create_subnet(network2, client=self.admin_client,
+                                     cidr=sub_cidr)
+        group_create_body2 = self.admin_client.create_security_group()
+        name = data_utils.rand_name('router-')
+        router = self.admin_client.create_router(
+            name, external_gateway_info={
+                "network_id": CONF.network.public_network_id},
+            admin_state_up=True)
+        self.addCleanup(self.admin_client.delete_router,
+                        router['router']['id'])
+        floating_ip_admin1, server_ip1 = \
+            self._attach_subnet_to_router_fip(network1, subnet1,
+                                              group_create_body1, router)
+        floating_ip_admin2, server_ip2 = \
+            self._attach_subnet_to_router_fip(network2, subnet2,
+                                              group_create_body2, router)
+        self.assertTrue(self._check_remote_connectivity(floating_ip_admin1,
+                                                        server_ip2))
+        self.assertTrue(self._check_remote_connectivity(floating_ip_admin2,
+                                                        server_ip1))
