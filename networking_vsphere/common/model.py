@@ -99,13 +99,14 @@ class Port(ResourceEntity):
 class VirtualNic(ResourceEntity):
 
     def __init__(self, mac_address, port_uuid,
-                 vm_id, vm_name, nic_type, key=None):
+                 vm_id, vm_name, nic_type, pg_id, key=None):
         super(VirtualNic, self).__init__(key)
         self.mac_address = mac_address
         self.port_uuid = port_uuid
         self.vm_id = vm_id
         self.vm_name = vm_name
         self.nic_type = nic_type
+        self.pg_id = pg_id
 
 
 class VirtualMachine(ResourceEntity):
