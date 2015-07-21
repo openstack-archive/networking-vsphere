@@ -66,7 +66,7 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         self.context = mock.Mock()
         self.plugin = FakePlugin('fake_topic')
         cfg.CONF.set_override('security_bridge_mapping',
-                              "br-fake:fake_if", 'SECURITYGROUP')
+                              "br-fake-sg:fake_if", 'SECURITYGROUP')
 
         mock_get_port_ofport.return_value = 5
         self.agent = ovsvapp_sg_agent.OVSvAppSecurityGroupAgent(

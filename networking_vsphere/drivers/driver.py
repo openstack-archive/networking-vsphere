@@ -103,6 +103,10 @@ class NetworkDriver(object):
         '''Obtain VLAN id associated with a DVS portgroup.'''
         raise NotImplementedError()
 
+    def get_vlanid_for_portgroup_key(self, pg_id):
+        '''Obtain VLAN id associated with a port group.'''
+        raise NotImplementedError()
+
     def get_vm_ref_by_uuid(self, vm_uuid):
         '''Obtain vm reference from uuid.'''
         raise NotImplementedError()
