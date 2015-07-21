@@ -29,6 +29,7 @@ class Constants:
     VM_MAC = "11:22:33:44:55:ef"
     HOST_NAME = "TEST_HOST"
     PORTGROUP_NAME = "6d382cca-d8c6-42df-897d-9b6a99d4c04d"
+    PORTGROUP_KEY = "Portgroup-270"
 
 
 def reset():
@@ -206,6 +207,10 @@ class VirtualMachine(ManagedObject):
         self.set("runtime.host", runtime.host)
         nic = VirtualPCNet32()
         nic.macAddress = "00:99:88:77:66:ab"
+        backing = DataObject()
+        backing.port = DataObject()
+        backing.port.portgroupKey = Constants.PORTGROUP_KEY
+        nic.backing = backing
         devices = DataObject()
         devices.VirtualDevice = [nic, VirtualDisk()]
         self.set("config.hardware.device", devices)

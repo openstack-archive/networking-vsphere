@@ -64,6 +64,10 @@ class TestNetworkDriver(base.TestCase):
         self.assertRaises(NotImplementedError,
                           self.driver.get_vlanid_for_port_group, None, None)
 
+    def test_get_vlanid_for_portgroup_key(self):
+        self.assertRaises(NotImplementedError,
+                          self.driver.get_vlanid_for_portgroup_key, None)
+
     def test_get_vm_ref_by_uuid(self):
         self.assertRaises(NotImplementedError,
                           self.driver.get_vm_ref_by_uuid, None)

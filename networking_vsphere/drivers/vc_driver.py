@@ -368,6 +368,8 @@ class VCNetworkDriver(driver.NetworkDriver):
                                 vnics = []
                                 for nicdev in nicdvs:
                                     macadd = nicdev.macAddress
+                                    port = nicdev.backing.port
+                                    pgkey = port.portgroupKey
                                     portid = extraconfigs.get("nvp.iface-id.%d"
                                                               % i)
                                     vnic = model.VirtualNic(
@@ -376,6 +378,7 @@ class VCNetworkDriver(driver.NetworkDriver):
                                         vm_id=vm_uuid,
                                         vm_name=new_vm.name,
                                         nic_type=None,
+                                        pg_id=pgkey,
                                         key=None)
                                     vnics.append(vnic)
                                     i += 1
