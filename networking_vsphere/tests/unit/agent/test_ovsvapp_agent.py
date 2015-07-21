@@ -71,8 +71,10 @@ class VM(object):
 
 
 class SamplePort(object):
-    def __init__(self, port_uuid):
+    def __init__(self, port_uuid, mac_address=None, pg_id=None):
         self.port_uuid = port_uuid
+        self.mac_address = mac_address
+        self.pg_id = pg_id
 
 
 class SamplePortUIDMac(object):
@@ -94,27 +96,33 @@ class TestOVSvAppL2Agent(base.TestCase):
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent.'
                 'ovs_neutron_agent.OVSNeutronAgent.setup_integration_br')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
+                'OVSvAppL2Agent.check_ovsvapp_agent_restart')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
                 'OVSvAppL2Agent.setup_ovs_bridges')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
                 'OVSvAppL2Agent.setup_security_br')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
                 'OVSvAppL2Agent._init_ovs_flows')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                'check_ovs_firewall_restart')
     @mock.patch('networking_vsphere.drivers.ovs_firewall.'
                 'OVSFirewallDriver.setup_base_flows')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.create')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.set_secure_mode')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
-    def setUp(self, mock_get_port_ofport, mock_set_secure_mode,
-              mock_create_ovs_bridge, mock_setup_base_flows,
+    def setUp(self, mock_get_port_ofport,
+              mock_set_secure_mode, mock_create_ovs_bridge,
+              mock_setup_base_flows, mock_check_ovs_firewall_restart,
               mock_init_ovs_flows, mock_setup_security_br,
-              mock_setup_ovs_bridges, mock_setup_integration_br,
-              mock_create_consumers, mock_get_admin_context_without_session,
-              mock_ovsvapp_pluginapi, mock_plugin_report_stateapi,
-              mock_securitygroup_server_rpcapi, mock_rpc_pluginapi,
-              mock_setup_logging, mock_init):
+              mock_setup_ovs_bridges, mock_check_ovsvapp_agent_restart,
+              mock_setup_integration_br, mock_create_consumers,
+              mock_get_admin_context_without_session, mock_ovsvapp_pluginapi,
+              mock_plugin_report_stateapi, mock_securitygroup_server_rpcapi,
+              mock_rpc_pluginapi, mock_setup_logging, mock_init):
         super(TestOVSvAppL2Agent, self).setUp()
         cfg.CONF.set_override('security_bridge_mapping',
-                              "br-fake:fake_if", 'SECURITYGROUP')
+                              "fake-sec-br:fake_if", 'SECURITYGROUP')
+        mock_check_ovsvapp_agent_restart.return_value = False
         mock_get_port_ofport.return_value = 5
         self.agent = ovsvapp_agent.OVSvAppL2Agent()
         self.agent.run_refresh_firewall_loop = False
@@ -359,6 +367,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.network_port_count = {}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
+        self.agent.vnic_info[FAKE_PORT_1] = {}
         with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
                                ) as mock_add_devices, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
@@ -376,6 +385,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.network_port_count = {'fake_network': 6}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
+        self.agent.vnic_info[FAKE_PORT_1] = {}
         with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
                                ) as mock_add_devices, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
@@ -418,6 +428,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.network_port_count = {}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
+        self.agent.vnic_info[FAKE_PORT_1] = {}
         devices = [FAKE_PORT_1]
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
@@ -445,6 +456,8 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
         self.agent.cluster_host_ports.add(FAKE_PORT_2)
+        self.agent.vnic_info[FAKE_PORT_1] = {}
+        self.agent.vnic_info[FAKE_PORT_2] = {}
         devices = [FAKE_PORT_1, FAKE_PORT_2]
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
@@ -471,6 +484,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.local_vlan_map = {}
         self.agent.tenant_network_type = p_const.TYPE_VXLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
+        self.agent.vnic_info[FAKE_PORT_1] = {}
         devices = [FAKE_PORT_1]
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
@@ -500,6 +514,8 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.tenant_network_type = p_const.TYPE_VXLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
         self.agent.cluster_host_ports.add(FAKE_PORT_2)
+        self.agent.vnic_info[FAKE_PORT_1] = {}
+        self.agent.vnic_info[FAKE_PORT_2] = {}
         devices = [FAKE_PORT_1, FAKE_PORT_2]
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
@@ -529,6 +545,9 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
         self.agent.cluster_host_ports.add(FAKE_PORT_2)
         self.agent.ports_to_bind = set([FAKE_PORT_3, FAKE_PORT_4])
+        self.agent.vnic_info[FAKE_PORT_1] = {}
+        self.agent.vnic_info[FAKE_PORT_2] = {}
+        self.agent.vnic_info[FAKE_PORT_3] = {}
         devices = [FAKE_PORT_1, FAKE_PORT_2, FAKE_PORT_3]
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
@@ -540,6 +559,8 @@ class TestOVSvAppL2Agent(base.TestCase):
                                   )as mock_refresh_firewall, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
                                   ) as mock_add_physical_bridge_flows, \
+                mock.patch.object(self.agent, '_remove_stale_ports_flows'), \
+                mock.patch.object(self.agent, '_block_stale_ports'), \
                 mock.patch.object(self.LOG, 'exception') as mock_log_exception:
             self.agent._process_uncached_devices_sublist(devices)
             self.assertTrue(mock_get_ports_details_list.called)
@@ -556,18 +577,22 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.devices_to_filter = set([FAKE_PORT_1,
                                             FAKE_PORT_2])
         self.agent.ports_dict = {FAKE_PORT_1: fakeport_1}
+        self.agent.vnic_info[FAKE_PORT_1] = {}
+        self.agent.vnic_info[FAKE_PORT_2] = {}
         self.agent.refresh_firewall_required = True
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.vcenter_id = FAKE_VCENTER
         self.agent.cluster_id = FAKE_CLUSTER_1
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
-                               return_value=[fakeport_2]
+                               return_value=[fakeport_1, fakeport_2]
                                ) as mock_get_ports_details_list, \
                 mock.patch.object(self.agent.sg_agent, 'refresh_firewall'
                                   ) as mock_refresh_firewall, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
-                                  ):
+                                  ), \
+                mock.patch.object(self.agent, '_remove_stale_ports_flows'), \
+                mock.patch.object(self.agent, '_block_stale_ports'):
             self.agent._update_firewall()
             self.assertFalse(self.agent.refresh_firewall_required)
             self.assertFalse(self.agent.devices_to_filter)
@@ -578,7 +603,8 @@ class TestOVSvAppL2Agent(base.TestCase):
                 self.agent.agent_id,
                 self.agent.vcenter_id,
                 self.agent.cluster_id)
-            mock_refresh_firewall.assert_called_with(set([FAKE_PORT_2]))
+            mock_refresh_firewall.assert_called_with(set([FAKE_PORT_1,
+                                                          FAKE_PORT_2]))
 
     def test_update_firewall_get_ports_exception(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)
