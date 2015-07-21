@@ -50,13 +50,17 @@ class TestOVSFirewallDriver(base.TestCase):
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.create')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.set_secure_mode')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
-    def setUp(self, mock_get_port_ofport, mock_set_secure_mode,
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                'check_ovs_firewall_restart')
+    def setUp(self, mock_check_ovs_firewall_restart,
+              mock_get_port_ofport, mock_set_secure_mode,
               mock_create_ovs_bridge, mock_setup_base_flows):
         super(TestOVSFirewallDriver, self).setUp()
         config.register_root_helper(cfg.CONF)
         cfg.CONF.set_override('security_bridge_mapping',
                               "br-fake:fake_if", 'SECURITYGROUP')
         mock_get_port_ofport.return_value = 5
+        mock_check_ovs_firewall_restart.return_value = False
         self.ovs_firewall = ovs_fw.OVSFirewallDriver()
         self.ovs_firewall.sg_br = mock.Mock()
         self.mock_br = ovs_lib.DeferredOVSBridge(self.ovs_firewall.sg_br)

@@ -102,11 +102,7 @@ OVSVAPP_OPTS = [
                help='Tunnel Bridge for tunneling.'),
     cfg.StrOpt('local_ip',
                default='',
-               help='Local IP address of VXLAN tunnel endpoint.'),
-    cfg.BoolOpt('agent_maintenance',
-                default=False,
-                help='Turn on this flag during agent updates to help '
-                     'prevent datapath outage.')
+               help='Local IP address of VXLAN tunnel endpoint.')
 ]
 
 # OVSvApp Security Group related config read from ovsvapp_agent.ini.

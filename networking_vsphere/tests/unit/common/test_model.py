@@ -135,8 +135,9 @@ class CommonModelTestCase(base.TestCase):
         vm_id = "uuid2"
         vm_name = "vm1"
         nic_type = "VMXNET"
+        pg_id = "PortGroup-270"
         virtual_nic = model.VirtualNic(mac_address, port_uuid,
-                                       vm_id, vm_name, nic_type, key)
+                                       vm_id, vm_name, nic_type, pg_id, key)
         self.assertEqual(virtual_nic.key, key, "vnic key does not match")
         self.assertEqual(virtual_nic.mac_address, mac_address,
                          "vnic mac_address does not match")
@@ -148,6 +149,8 @@ class CommonModelTestCase(base.TestCase):
                          "vnic vm_name does not match")
         self.assertEqual(virtual_nic.nic_type, nic_type,
                          "vnic nic_type does not match")
+        self.assertEqual(virtual_nic.pg_id, pg_id,
+                         "vnic pg_id does not match")
 
     def test_model_virtualmachine(self):
         key = "1-2-3"
