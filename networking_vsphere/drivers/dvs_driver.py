@@ -152,11 +152,19 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
 
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
-    def get_pg_vlanid(self, dvs_name, pg_name):
-        LOG.info(_("Fetching details of %(pg)s on %(dvs)s."),
+    def get_vlanid_for_port_group(self, dvs_name, pg_name):
+        LOG.info(_("Fetching details of port group %(pg)s on DVS %(dvs)s."),
                  {'pg': pg_name, 'dvs': dvs_name})
         pg_vlan_id = network_util.get_portgroup_details(self.session,
                                                         dvs_name, pg_name)
+        return pg_vlan_id
+
+    @utils.require_state(state=[constants.DRIVER_READY,
+                                constants.DRIVER_RUNNING])
+    def get_vlanid_for_portgroup_key(self, pg_id):
+        LOG.info(_("Fetching VLAN id for port group with key %(pg)s."), pg_id)
+        pg_vlan_id = network_util.get_portgroup_vlan(self.session,
+                                                     pg_id)
         return pg_vlan_id
 
     @utils.require_state(state=[constants.DRIVER_READY,

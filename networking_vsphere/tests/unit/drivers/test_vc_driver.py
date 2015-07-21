@@ -152,7 +152,8 @@ class TestVmwareDriver(base.TestCase):
                                        port_uuid=None,
                                        vm_id=vm_id,
                                        vm_name=None,
-                                       nic_type=None)
+                                       nic_type=None,
+                                       pg_id=None)
         with mock.patch.object(model, "VirtualSwitch") as vswitch:
             self.vc_driver.create_port(network, port, virtual_nic)
             self.assertTrue(vswitch.called)
@@ -171,7 +172,9 @@ class TestVmwareDriver(base.TestCase):
         virtual_nic = model.VirtualNic(mac_address=None,
                                        port_uuid=None,
                                        vm_id=vm_id,
-                                       vm_name=None, nic_type=None)
+                                       vm_name=None,
+                                       nic_type=None,
+                                       pg_id=None)
         with mock.patch.object(self.vc_driver, "is_valid_switch",
                                return_value=None):
             exc = self.assertRaises(error.VcenterConfigurationError,
@@ -194,7 +197,8 @@ class TestVmwareDriver(base.TestCase):
                                        port_uuid=None,
                                        vm_id=vm_id,
                                        vm_name=None,
-                                       nic_type=None)
+                                       nic_type=None,
+                                       pg_id=None)
         cluster_mor = fake_vmware_api.DataObject()
         cluster_mor.value = "invalid_id"
         cache.VCCache.add_cluster_mor_for_vm(vm_id, cluster_mor)
