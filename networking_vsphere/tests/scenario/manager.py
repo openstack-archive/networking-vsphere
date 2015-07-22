@@ -43,6 +43,7 @@ from neutron.tests.api import clients
 from neutron.tests.tempest import manager
 from neutron.tests.tempest import test
 
+from pexpect import pxssh
 from tempest_lib.common import rest_client
 from tempest_lib.common import ssh
 from tempest_lib.common.utils import data_utils
@@ -697,3 +698,167 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                         if net_id in port_group.summary.name:
                                 return True
         return False
+
+    def _create_server_user_created_port(self, name=None,
+                                         port1=None,
+                                         wait_on_boot=True):
+        region = CONF.compute.region
+        image = CONF.compute.image_ref
+        flavor = CONF.compute.flavor_ref
+        rs_client = rest_client.RestClient(self.auth_provider, "compute",
+                                           region)
+        data = {"server": {"name": name, "imageRef": image,
+                "flavorRef": flavor, "max_count": 1, "min_count": 1,
+                           "networks": [{"port": port1}]}}
+        data = jsonutils.dumps(data)
+        resp, body = rs_client.post("/servers", data)
+        rs_client.expected_success(202, resp.status)
+        body = jsonutils.loads(body)
+        server_id = body['server']['id']
+        if wait_on_boot:
+                self.wait_for_server_status(server_id, 'ACTIVE')
+        return server_id
+
+    def _get_vm_info(self, dic, vm, depth=1):
+        maxdepth = 10
+        if hasattr(vm, 'childEntity'):
+            if depth > maxdepth:
+                return
+            vmList = vm.childEntity
+            for c in vmList:
+                self._get_vm_info(dic, c, depth + 1)
+            return
+
+        summary = vm.summary
+        vm_name = summary.config.name
+        host_name = summary.runtime.host
+        name = summary.guest.hostName
+        ip_address = summary.guest.ipAddress
+        dic1 = {'vm_name': vm_name, 'host_name': host_name,
+                'name': name, 'ip_address': ip_address}
+        if vm_name is not None:
+            dic[str(vm_name)] = dic1
+            return dic
+
+    def _get_host_name(self, server_id):
+        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
+        vcenter_username = cfg.CONF.VCENTER.vcenter_username
+        vcenter_password = cfg.CONF.VCENTER.vcenter_password
+        content = self._create_connection(vcenter_ip, vcenter_username,
+                                          vcenter_password)
+        for child in content.rootFolder.childEntity:
+            if hasattr(child, 'vmFolder'):
+                datacenter = child
+                vmFolder = datacenter.vmFolder
+                vmList = vmFolder.childEntity
+                dic = {}
+                for vm in vmList:
+                    host_name = self._get_vm_info(dic, vm)
+                    if host_name is not None:
+                        for key in host_name:
+                            if server_id == str(host_name[key]['vm_name']):
+                                return host_name[key]
+
+    def _get_vapp_ip(self, host_n, vapp_name):
+        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
+        vcenter_username = cfg.CONF.VCENTER.vcenter_username
+        vcenter_password = cfg.CONF.VCENTER.vcenter_password
+        content = self._create_connection(vcenter_ip, vcenter_username,
+                                          vcenter_password)
+        for child in content.rootFolder.childEntity:
+            if hasattr(child, 'vmFolder'):
+                datacenter = child
+                vmFolder = datacenter.vmFolder
+                vmList = vmFolder.childEntity
+                dic = {}
+                for vm in vmList:
+                    host_name = self._get_vm_info(dic, vm)
+                    if host_name is not None:
+                        for key in host_name:
+                            if host_n == str(host_name[key]['host_name']):
+                                if vapp_name == str(host_name[key]['name']):
+                                    return host_name[key]['ip_address']
+
+    def _create_multiple_server_on_different_host(self):
+        group_create_body_update, _ = self._create_security_group()
+        server = {}
+        count = 0
+        while count < 3:
+            name = data_utils.rand_name('server-with-security-group')
+            server_id = self._create_server_with_sec_group(
+                name, self.network['id'],
+                group_create_body_update['security_group']['id'])
+            self.addCleanup(self._delete_server, server_id)
+            serv = self._get_host_name(server_id)
+
+            if count is not 0:
+                if str(serv['host_name']) == str(server['host_name']):
+                    if count == 2:
+                        raise Exception('VM hosted on same host.')
+                else:
+                    return str(serv['vm_name']), str(server['vm_name'])
+            server = serv
+            count += 1
+
+    def _create_remote_session(self, ip_addr, u_name, psswd):
+        session = pxssh.pxssh()
+        try:
+            session.login(ip_addr, u_name, psswd)
+            return session
+
+        except Exception:
+            LOG.warn(_LW('Failed to connect to IP: %(dest)s '
+                         'via a ssh connection.') %
+                     {'dest': ip_addr})
+            raise
+
+    def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac, port):
+        vapp_username = cfg.CONF.VCENTER.vapp_username
+        vapp_password = cfg.CONF.VCENTER.vapp_password
+        session = self._create_remote_session(vapp_ipadd, vapp_username,
+                                              vapp_password)
+        cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+               str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+               str(vlan) + ',tp_dst=' + str(port))
+        session.sendline(cmd)
+        session.prompt()
+        output = session.before
+        session.logout()
+        session.status
+        check_list = [protocol, vlan, mac, port]
+        if session.status is 0:
+            for checks in check_list:
+                    if output.count(str(checks)) < 2:
+                        raise Exception('Security group rule is not added')
+        else:
+            raise Exception('Security group rule is not added')
+
+    def _migrate_vm(self, content, vm, dest_host):
+        """Migrate vm from one host to the destination host."""
+
+        vm_obj = self.get_obj(content, [vim.VirtualMachine], vm)
+        resource_pool = vm_obj.resourcePool
+        if vm_obj.runtime.powerState != 'poweredOn':
+            raise Exception('Migration is only for Powered On VMs')
+        migrate_priority = vim.VirtualMachine.MovePriority.defaultPriority
+
+        # Live Migration
+        task = vm_obj.Migrate(pool=resource_pool, host=dest_host,
+                              priority=migrate_priority)
+        return task
+
+    def _get_hosts_for_cluster(self, content, cluster):
+        """Get all the hosts within a cluster."""
+        cluster_hosts = self.get_obj(content, [vim.ClusterComputeResource],
+                                     cluster)
+        return cluster_hosts.hosts
+
+    def _wait_for_task(task, actionName='job', hideResult=False):
+        """Waits and provides updates on a vSphere task."""
+
+        while task.info.state == vim.TaskInfo.State.running:
+            time.sleep(2)
+
+        if task.info.state != vim.TaskInfo.State.success:
+            raise Exception('%s did not complete successfully: %s' % (
+                            actionName, task.info.error))
