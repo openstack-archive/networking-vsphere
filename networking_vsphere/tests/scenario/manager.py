@@ -861,3 +861,32 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         body = jsonutils.loads(body)
         ipaddress = body['server']['addresses'][net_name][0]['addr']
         return ipaddress
+
+    def _migrate_vm(self, content, vm, dest_host):
+        """Migrate vm from one host to the destination host."""
+
+        vm_obj = self.get_obj(content, [vim.VirtualMachine], vm)
+        resource_pool = vm_obj.resourcePool
+        if vm_obj.runtime.powerState != 'poweredOn':
+            raise Exception('Migration is only for Powered On VMs')
+        migrate_priority = vim.VirtualMachine.MovePriority.defaultPriority
+        task = vm_obj.Migrate(pool=resource_pool, host=dest_host,
+                              priority=migrate_priority)
+        return task
+
+    def _get_hosts_for_cluster(self, content, cluster):
+        """Get all the hosts within a cluster."""
+
+        cluster_hosts = self.get_obj(content, [vim.ClusterComputeResource],
+                                     cluster)
+        return cluster_hosts
+
+    def _wait_for_task(self, task, actionName='job', hideResult=False):
+        """Waits and provides updates on a vSphere task."""
+
+        while task.info.state == vim.TaskInfo.State.running:
+            time.sleep(2)
+
+        if task.info.state != vim.TaskInfo.State.success:
+            raise Exception('%s did not complete successfully: %s' % (
+                            actionName, task.info.error))
