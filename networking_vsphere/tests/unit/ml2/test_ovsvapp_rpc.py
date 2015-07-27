@@ -22,6 +22,7 @@ from oslo_config import cfg
 from neutron.common import topics
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api as api
+from neutron.plugins.ml2 import rpc as plugin_rpc
 from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
 from neutron.tests.unit.plugins.ml2 import test_rpc
 
@@ -39,7 +40,8 @@ FAKE_PORT_ID = 'fake_port_id'
 FAKE_NETWORK_ID = "fake_network_id"
 FAKE_SUBNET_ID = "fake_subnet_id"
 FAKE_DEVICE_OWNER = "fake_device_owner"
-FAKE_DEVICE_ID = "fake_device_id"
+FAKE_DEVICE_1 = "fake_device_1"
+FAKE_DEVICE_2 = "fake_device_2"
 FAKE_MAC_ADDRESS = "fake_mac_address"
 FAKE_IP_ADDRESS = "fake_ip_address"
 
@@ -87,12 +89,13 @@ class TestFakePortContext(base.FakePortContext):
             return self._expand_segment(self._bound_segment)
 
 
-class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
+class OVSvAppServerRpcCallbackTest(object):
 
     def setUp(self):
         super(OVSvAppServerRpcCallbackTest, self).setUp()
         self.ovsvapp_callbacks = ovsvapp_rpc.OVSvAppServerRpcCallback(
             mock.Mock())
+        self.callbacks = plugin_rpc.RpcCallbacks(mock.Mock())
         self.plugin = self.manager.get_plugin()
 
     def test_get_ports_for_device(self):
@@ -252,7 +255,7 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
         fake_port_dict = {'id': FAKE_PORT_ID,
                           'fixed_ips': [{'subnet_id': FAKE_SUBNET_ID,
                                          'ip_address': FAKE_IP_ADDRESS}],
-                          'device_id': FAKE_DEVICE_ID,
+                          'device_id': FAKE_DEVICE_1,
                           'device_owner': FAKE_DEVICE_OWNER,
                           'mac_address': FAKE_MAC_ADDRESS,
                           'admin_state_up': True,
@@ -287,7 +290,7 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
                 {'port_id': FAKE_PORT_ID,
                  'fixed_ips': [{'subnet_id': FAKE_SUBNET_ID,
                                 'ip_address': FAKE_IP_ADDRESS}],
-                 'device_id': FAKE_DEVICE_ID,
+                 'device_id': FAKE_DEVICE_1,
                  'device_owner': FAKE_DEVICE_OWNER,
                  'mac_address': FAKE_MAC_ADDRESS,
                  'lvid': 1234,
@@ -307,7 +310,7 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
         fake_port_dict = {'id': FAKE_PORT_ID,
                           'fixed_ips': [{'subnet_id': FAKE_SUBNET_ID,
                                          'ip_address': FAKE_IP_ADDRESS}],
-                          'device_id': FAKE_DEVICE_ID,
+                          'device_id': FAKE_DEVICE_1,
                           'device_owner': FAKE_DEVICE_OWNER,
                           'mac_address': FAKE_MAC_ADDRESS,
                           'admin_state_up': True,
@@ -338,6 +341,64 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
             self.assertEqual(1, log_debug.call_count)
             expected = []
             self.assertEqual(expected, actual)
+
+    def test_update_devices_up(self):
+        devices = [FAKE_DEVICE_1, FAKE_DEVICE_2]
+        kwargs = {'agent_id': FAKE_AGENT_ID,
+                  'devices': devices,
+                  'host': FAKE_HOST}
+        ret_value = {'devices_up': devices,
+                     'failed_devices_up': []}
+        with mock.patch.object(self.callbacks, 'update_device_up'
+                               ) as mock_update_device_up:
+            result = self.ovsvapp_callbacks.update_devices_up('fake_context',
+                                                              **kwargs)
+            self.assertEqual(ret_value, result)
+            self.assertEqual(2, mock_update_device_up.call_count)
+
+    def test_update_devices_up_failed(self):
+        devices = [FAKE_DEVICE_1]
+        kwargs = {'agent_id': FAKE_AGENT_ID,
+                  'devices': devices,
+                  'host': FAKE_HOST}
+        ret_value = {'devices_up': [],
+                     'failed_devices_up': devices}
+        with mock.patch.object(self.callbacks, 'update_device_up',
+                               side_effect=Exception
+                               ) as mock_update_device_up:
+            result = self.ovsvapp_callbacks.update_devices_up('fake_context',
+                                                              **kwargs)
+            self.assertEqual(ret_value, result)
+            self.assertEqual(1, mock_update_device_up.call_count)
+
+    def test_update_devices_down(self):
+        devices = [FAKE_DEVICE_1, FAKE_DEVICE_2]
+        kwargs = {'agent_id': FAKE_AGENT_ID,
+                  'devices': devices,
+                  'host': FAKE_HOST}
+        ret_value = {'devices_down': devices,
+                     'failed_devices_down': []}
+        with mock.patch.object(self.callbacks, 'update_device_down'
+                               ) as mock_update_device_down:
+            result = self.ovsvapp_callbacks.update_devices_down('fake_context',
+                                                                **kwargs)
+            self.assertEqual(ret_value, result)
+            self.assertEqual(2, mock_update_device_down.call_count)
+
+    def test_update_devices_down_failed(self):
+        devices = [FAKE_DEVICE_1]
+        kwargs = {'agent_id': FAKE_AGENT_ID,
+                  'devices': devices,
+                  'host': FAKE_HOST}
+        ret_value = {'devices_down': [],
+                     'failed_devices_down': devices}
+        with mock.patch.object(self.callbacks, 'update_device_down',
+                               side_effect=Exception
+                               ) as mock_update_device_down:
+            result = self.ovsvapp_callbacks.update_devices_down('fake_context',
+                                                                **kwargs)
+            self.assertEqual(ret_value, result)
+            self.assertEqual(1, mock_update_device_down.call_count)
 
 
 class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
@@ -415,3 +476,19 @@ class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
         self._test_rpc_api(rpcapi, None,
                            'update_lvid_assignment', rpc_method='call',
                            net_info='fake_network_info')
+
+    def test_update_devices_up(self):
+        rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
+        self._test_rpc_api(rpcapi, None,
+                           'update_devices_up', rpc_method='call',
+                           agent_id=FAKE_AGENT_ID,
+                           devices=['fake_devices'],
+                           host=FAKE_HOST)
+
+    def test_update_devices_down(self):
+        rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
+        self._test_rpc_api(rpcapi, None,
+                           'update_devices_down', rpc_method='call',
+                           agent_id=FAKE_AGENT_ID,
+                           devices=['fake_devices'],
+                           host=FAKE_HOST)

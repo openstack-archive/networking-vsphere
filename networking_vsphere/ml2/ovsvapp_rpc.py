@@ -32,11 +32,13 @@ from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2 import driver_context
+from neutron.plugins.ml2 import managers
+from neutron.plugins.ml2 import rpc as plugin_rpc
 
 LOG = log.getLogger(__name__)
 
 
-class OVSvAppServerRpcCallback(object):
+class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
 
     """Plugin side of the OVSvApp rpc.
 
@@ -46,8 +48,11 @@ class OVSvAppServerRpcCallback(object):
     target = oslo_messaging.Target(version='1.0')
 
     def __init__(self, notifier=None):
-        super(OVSvAppServerRpcCallback, self).__init__()
+        self.type_manager = managers.TypeManager()
+        self.agent_notifier = plugin_rpc.AgentNotifierApi(topics.AGENT)
         self.notifier = notifier
+        super(OVSvAppServerRpcCallback, self).__init__(self.agent_notifier,
+                                                       self.type_manager)
 
     @property
     def plugin(self):
@@ -293,6 +298,40 @@ class OVSvAppServerRpcCallback(object):
             except Exception:
                 LOG.exception(_("Failed to release the local vlan"))
         return
+
+    def update_devices_up(self, rpc_context, **kwargs):
+        devices_up = []
+        failed_devices_up = []
+        devices = kwargs.get('devices')
+        for device in devices:
+            try:
+                dev = self.update_device_up(rpc_context, device=device,
+                                            **kwargs)
+                LOG.debug("Finished update_device_up for %s ports.",
+                          dev['device'])
+                devices_up.append(device)
+            except Exception:
+                failed_devices_up.append(device)
+                LOG.error(_("Failed to update device %s up."), device)
+        return {'devices_up': devices_up,
+                'failed_devices_up': failed_devices_up}
+
+    def update_devices_down(self, rpc_context, **kwargs):
+        devices_down = []
+        failed_devices_down = []
+        devices = kwargs.get('devices')
+        for device in devices:
+            try:
+                dev = self.update_device_down(rpc_context, device=device,
+                                              **kwargs)
+                LOG.debug("Finished update_device_down for %s ports.",
+                          dev['device'])
+                devices_down.append(device)
+            except Exception:
+                failed_devices_down.append(device)
+                LOG.error(_("Failed to update device %s down."), device)
+        return {'devices_down': devices_down,
+                'failed_devices_down': failed_devices_down}
 
 
 class OVSvAppAgentNotifyAPI(object):
