@@ -47,7 +47,6 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         server_id = self._create_server_with_sec_group(
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
-        self.addCleanup(self._delete_server, server_id)
         self._fetch_network_segmentid_and_verify_portgroup(self.network['id'])
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
@@ -96,7 +95,6 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         server_id = self._create_server_with_sec_group(
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
-        self.addCleanup(self._delete_server, server_id)
         self._fetch_network_segmentid_and_verify_portgroup(self.network['id'])
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']

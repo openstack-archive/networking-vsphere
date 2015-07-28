@@ -35,12 +35,12 @@ from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
 
-from neutron.common import exceptions
 from neutron.i18n import _LI
 from neutron.i18n import _LW
 from neutron.tests.api import base
 from neutron.tests.api import base_security_groups
 from neutron.tests.api import clients
+from neutron.tests.tempest import exceptions
 from neutron.tests.tempest import manager
 from neutron.tests.tempest import test
 
@@ -198,6 +198,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
+        self.addCleanup(self._try_delete_resource, self._delete_server,
+                        server_id)
         if wait_on_boot:
                 self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
@@ -216,6 +218,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
+        self.addCleanup(self._try_delete_resource, self._delete_server,
+                        server_id)
         if wait_on_boot:
                 self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
@@ -223,6 +227,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def _delete_server(self, server=None):
         rs_client = self._connect_server()
         resp, body = rs_client.delete("servers/%s" % str(server))
+        self.addCleanup(self._try_delete_resource, self._delete_server,
+                        server)
         self.wait_for_server_termination(server)
         rest_client.ResponseBody(resp, body)
 
@@ -528,6 +534,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
+        self.addCleanup(self._try_delete_resource, self._delete_server,
+                        server_id)
         if wait_on_boot:
                 self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
@@ -547,6 +555,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
+        self.addCleanup(self._try_delete_resource, self._delete_server,
+                        server_id)
         if wait_on_boot:
                 self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
@@ -704,6 +714,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
+        self.addCleanup(self._try_delete_resource, self._delete_server,
+                        server_id)
         if wait_on_boot:
                 self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
@@ -769,7 +781,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             server_id = self._create_server_with_sec_group(
                 name, self.network['id'],
                 group_create_body_update['security_group']['id'])
-            self.addCleanup(self._delete_server, server_id)
+            self.addCleanup(self._try_delete_resource, self._delete_server,
+                            server_id)
             serv = self._get_host_name(server_id)
 
             if count is not 0:
@@ -801,12 +814,12 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                               vapp_password)
         tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
         if "vlan" == tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('ovs-ofctl dump-flows br-sec table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(vlan) + ',tp_dst=' + str(port))
         else:
                 segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('ovs-ofctl dump-flows br-sec table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(segment_id) + ',tp_dst=' + str(port))
         session.sendline(cmd)
@@ -824,13 +837,13 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                               vapp_password)
         tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
         if "vlan" == tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('ovs-ofctl dump-flows br-sec table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(vlan) + ',icmp_type=' + str(icmp_type) +
                        ',icmp_code=' + str(icmp_code))
         else:
                 segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('ovs-ofctl dump-flows br-sec table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(segment_id) + ',icmp_type=' + str(icmp_type) +
                        ',icmp_code=' + str(icmp_code))
