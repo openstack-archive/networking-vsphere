@@ -18,7 +18,7 @@ import time
 
 from networking_vsphere.tests.scenario import manager
 
-from neutron.common import exceptions
+from neutron.tests.tempest import exceptions
 from neutron.tests.tempest import manager as auth_manager
 
 from oslo_config import cfg
@@ -65,6 +65,8 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
+        self.addCleanup(self._try_delete_resource, self._delete_server,
+                        server_id)
         self.wait_for_server_status_to_active(server_id, "ACTIVE")
         return server_id
 
@@ -149,7 +151,6 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
         serverid = self.create_server_with_sec_group(
             name, network['id'], group_create_body['security_group']['id'])
         port_body = self.admin_client.list_ports(device_id=serverid)
-        self.addCleanup(self._delete_server, serverid)
         port_id = port_body['ports'][0]['id']
         floating_admin_ip = self.admin_client.create_floatingip(
             floating_network_id=self.ext_net_id,
@@ -171,7 +172,10 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
         6.  Check public connectivity after associating the floating ip.
         """
         netid = self.network['id']
-        group_create_body = self.admin_client.create_security_group()
+        name = data_utils.rand_name('secgroup-')
+        group_create_body = self.admin_client.create_security_group(name=name)
+        self.addCleanup(self.admin_client.delete_security_group,
+                        group_create_body['security_group']['id'])
         # Create rules for each protocol
         protocols = ['tcp', 'udp', 'icmp']
         for protocol in protocols:
@@ -197,7 +201,6 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
         serverid = self.create_server_with_sec_group(
             name, netid, group_create_body['security_group']['id'])
         body = self.admin_client.list_ports(device_id=serverid)
-        self.addCleanup(self._delete_server, serverid)
         port_id = body['ports'][0]['id']
         floating_ip_admin = self.admin_client.create_floatingip(
             floating_network_id=self.ext_net_id,
@@ -211,20 +214,27 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
             should_succeed=True)
 
     def test_VMs_when_hosted_on_different_network(self):
+        name = data_utils.rand_name('secgroup-')
+        group_create_body1 = self.admin_client.create_security_group(name=name)
+        self.addCleanup(self.admin_client.delete_security_group,
+                        group_create_body1['security_group']['id'])
+        group_create_body2 = self.admin_client.create_security_group(name=name)
+        self.addCleanup(self.admin_client.delete_security_group,
+                        group_create_body2['security_group']['id'])
         network_name1 = data_utils.rand_name('first-network-')
         post_body = {'name': network_name1}
         body = self.admin_client.create_network(**post_body)
         network1 = body['network']
+        self.addCleanup(self.admin_client.delete_network, network1['id'])
         subnet1 = self.create_subnet(network1, client=self.admin_client)
-        group_create_body1 = self.admin_client.create_security_group()
         network_name2 = data_utils.rand_name('second-network-')
         post_body = {'name': network_name2}
         body = self.admin_client.create_network(**post_body)
         network2 = body['network']
+        self.addCleanup(self.admin_client.delete_network, network2['id'])
         sub_cidr = netaddr.IPNetwork(CONF.network.tenant_network_cidr).next()
         subnet2 = self.create_subnet(network2, client=self.admin_client,
                                      cidr=sub_cidr)
-        group_create_body2 = self.admin_client.create_security_group()
         name = data_utils.rand_name('router-')
         router = self.admin_client.create_router(
             name, external_gateway_info={

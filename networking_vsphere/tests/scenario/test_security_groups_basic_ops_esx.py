@@ -29,7 +29,6 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         server_id = self._create_server_with_sec_group(
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
-        self.addCleanup(self._delete_server, server_id)
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
         device_port = self.admin_client.list_ports(device_id=server_id)
         binding_host = device_port['ports'][0]['binding:host_id']
@@ -87,7 +86,6 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         server_id = self._create_server_with_sec_group(
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
-        self.addCleanup(self._delete_server, server_id)
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
@@ -122,7 +120,6 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         name = data_utils.rand_name('server-with-default-security-group')
         server_id = self._create_server(name,
                                         self.network['id'])
-        self.addCleanup(self._delete_server, server_id)
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
@@ -155,6 +152,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
 
         # Create port with multiple security group
         body = self.client.create_port(**post_body)
+        self.addCleanup(self.client.delete_port, body['port']['id'])
         self.client.create_security_group_rule(
             security_group_id=first_security_group['security_group']['id'],
             protocol='icmp',
@@ -170,9 +168,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         name = data_utils.rand_name('server_with_user_created_port')
         port_id = body['port']['id']
 
-        serverid = self._create_server_user_created_port(
-            name, port_id)
-        self.addCleanup(self._delete_server, serverid)
+        self._create_server_user_created_port(name, port_id)
         floating_ip = self._associate_floating_ips(
             port_id=port_id)
         self.ping_ip_address(
@@ -195,7 +191,6 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         serverid = self._create_server_with_sec_group(name,
                                                       self.network['id'],
                                                       group_id)
-        self.addCleanup(self._delete_server, serverid)
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         device_port = self.client.list_ports(device_id=serverid)
         port_id = device_port['ports'][0]['id']
@@ -240,7 +235,6 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         server_id = self._create_server_with_sec_group(
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
-        self.addCleanup(self._delete_server, server_id)
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
@@ -271,7 +265,6 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         name = data_utils.rand_name('server-with-security-group')
         server_id = self._create_server(
             name, self.network['id'])
-        self.addCleanup(self._delete_server, server_id)
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
