@@ -48,7 +48,6 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         """
         serverid = self._create_server(self.network['name'],
                                        self.network['id'])
-        self.addCleanup(self._delete_server, serverid)
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
 
     def test_validate_vm_created_is_accessible_through_the_floating_ip(self):
@@ -63,7 +62,6 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         group_create_body = self._create_custom_security_group()
         serverid = self._create_server_with_sec_group(
             name, net_id, group_create_body['security_group']['id'])
-        self.addCleanup(self._delete_server, serverid)
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         deviceport = self.client.list_ports(device_id=serverid)
         body = self._associate_floating_ips(
@@ -102,7 +100,6 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         serverid = self._create_server_multiple_nic(
             name, self.network['id'], network2['id'],
             group_create_body['security_group']['id'])
-        self.addCleanup(self._delete_server, serverid)
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid))
         deviceport = self.client.list_ports(device_id=serverid)
@@ -123,6 +120,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         5.  Validate the vlan-ids of PG are properly binded with segment-ids.
         """
         network1 = self.create_network()
+        self.addCleanup(self.client.delete_network, network1['id'])
         subnet1 = self.create_subnet(network1)
         router1 = self.create_router(data_utils.rand_name('router1-'),
                                      external_network_id=self.ext_net_id,
@@ -136,6 +134,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             "admin_state_up": True}
         port_body1 = self.client.create_port(**post_body1)
         network2 = self.create_network()
+        self.addCleanup(self.client.delete_network, network2['id'])
         sub_cidr = netaddr.IPNetwork(CONF.network.tenant_network_cidr).next()
         subnet2 = self.create_subnet(network2, cidr=sub_cidr)
         router2 = self.create_router(data_utils.rand_name('router2-'),
@@ -153,7 +152,6 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         group_create_body, _ = self._create_security_group()
         serverid = self._create_server_multiple_nic_user_created_port(
             name, port_body1['port']['id'], port_body2['port']['id'])
-        self.addCleanup(self._delete_server, serverid)
         self.assertTrue(self.verify_portgroup(network1['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid))
         deviceport = self.client.list_ports(device_id=serverid)
@@ -177,12 +175,8 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         group_create_body = self._create_custom_security_group()
         serverid1 = self._create_server_with_sec_group(
             name, net_id, group_create_body['security_group']['id'])
-        self.addCleanup(self._try_delete_resource, self._delete_server,
-                        serverid1)
         serverid2 = self._create_server_with_sec_group(
             name, net_id, group_create_body['security_group']['id'])
-        self.addCleanup(self._try_delete_resource, self._delete_server,
-                        serverid2)
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid1))
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid2))
         deviceport = self.client.list_ports(device_id=serverid1)
@@ -207,6 +201,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         6. Delete VM and check both the PG's gets deleted.
         """
         network2 = self.create_network()
+        self.addCleanup(self.client.delete_network, network2['id'])
         sub_cidr = netaddr.IPNetwork(CONF.network.tenant_network_cidr).next()
         subnet2 = self.create_subnet(network2, cidr=sub_cidr)
         router2 = self.create_router(data_utils.rand_name('router2-'),
@@ -218,8 +213,6 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         serverid = self._create_server_multiple_nic(
             name, self.network['id'], network2['id'],
             group_create_body['security_group']['id'])
-        self.addCleanup(self._try_delete_resource, self._delete_server,
-                        serverid)
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid))
         deviceport = self.client.list_ports(device_id=serverid)
@@ -248,7 +241,6 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         group_create_body = self._create_custom_security_group()
         serverid = self._create_server_with_sec_group(
             name, net_id, group_create_body['security_group']['id'])
-        self.addCleanup(self._delete_server, serverid)
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         deviceport = self.client.list_ports(device_id=serverid)
         body = self._associate_floating_ips(
