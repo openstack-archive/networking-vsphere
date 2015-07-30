@@ -90,9 +90,9 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=False)
+            should_succeed=False))
 
         # Update security group rule for the existing security group
         self.client.create_security_group_rule(
@@ -101,9 +101,9 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             direction='ingress',
             ethertype=self.ethertype
         )
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=True)
+            should_succeed=True))
 
     def test_port_update_new_security_group(self):
         """This test verifies the traffic after updating.
@@ -124,15 +124,15 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=False)
+            should_succeed=False))
         # update port with new security group and check connectivity
         update_body = {"security_groups": [sg_body['security_group']['id']]}
         self.client.update_port(port_id, **update_body)
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=True)
+            should_succeed=True))
 
     def test_port_creation_with_multiple_security_group(self):
         """Validate port creation with multiple security group.
@@ -171,9 +171,9 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         self._create_server_user_created_port(name, port_id)
         floating_ip = self._associate_floating_ips(
             port_id=port_id)
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=False)
+            should_succeed=True))
         self._check_public_network_connectivity(
             floating_ip['floatingip']['floating_ip_address'])
 
@@ -197,8 +197,9 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         floating_ip = self._associate_floating_ips(port_id=port_id)
 
         # Now ping the server with the default security group & it should fail.
-        self.ping_ip_address(floating_ip['floatingip']['floating_ip_address'],
-                             should_succeed=False)
+        self.assertTrue(self.ping_ip_address(
+            floating_ip['floatingip']['floating_ip_address'],
+            should_succeed=False))
         self._check_public_network_connectivity(
             floating_ip['floatingip']['floating_ip_address'],
             should_connect=False, should_check_floating_ip_status=False)
@@ -215,9 +216,9 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         self.client.update_port(port_id, **update_body)
 
         # Now ping & SSH to recheck the connectivity & verify.
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=True)
+            should_succeed=True))
         self._check_public_network_connectivity(
             floating_ip['floatingip']['floating_ip_address'])
 
@@ -247,13 +248,13 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             direction='ingress',
             ethertype=self.ethertype
         )
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=True)
+            should_succeed=True))
         self.client.update_port(port_id, security_groups=[])
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=False)
+            should_succeed=False))
 
     def test_security_group_rule_with_default_security_group_id(self):
         """Validate security group rule with default security group id.
@@ -270,9 +271,9 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         port_id = device_port['ports'][0]['id']
         sec_grp_id = device_port['ports'][0]['security_groups'][0]
         floating_ip = self._associate_floating_ips(port_id=port_id)
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=False)
+            should_succeed=False))
 
         # Update security group rule for the default security group.
         self.client.create_security_group_rule(
@@ -281,9 +282,9 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             direction='ingress',
             ethertype=self.ethertype
         )
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=True)
+            should_succeed=True))
 
     def test_security_group_rule_with_remote_sg(self):
         """Validate security group rule with remote security group.
