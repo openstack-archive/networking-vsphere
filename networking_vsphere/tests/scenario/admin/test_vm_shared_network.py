@@ -209,9 +209,9 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
                         floating_ip_admin['floatingip']['id'])
         self._wait_for_floating_ip_status(
             floating_ip_admin['floatingip']['id'], "ACTIVE")
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip_admin['floatingip']['floating_ip_address'],
-            should_succeed=True)
+            should_succeed=True))
 
     def test_VMs_when_hosted_on_different_network(self):
         name = data_utils.rand_name('secgroup-')
