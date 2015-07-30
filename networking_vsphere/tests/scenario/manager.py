@@ -797,7 +797,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def _create_remote_session(self, ip_addr, u_name, psswd):
         session = pxssh.pxssh()
         try:
-            session.login(ip_addr, u_name, password=psswd, login_timeout=60)
+            session.login(ip_addr, u_name, password=psswd, login_timeout=80)
             return session
 
         except Exception:
