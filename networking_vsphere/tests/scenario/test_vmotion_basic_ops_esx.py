@@ -51,9 +51,9 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
-        self.ping_ip_address(
+        self.assertFalse(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=False)
+            should_succeed=False))
 
         # Update security group rule for the existing security group
         self.client.create_security_group_rule(
@@ -62,9 +62,9 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
             direction='ingress',
             ethertype=self.ethertype
         )
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=True)
+            should_succeed=True))
         cluster = cfg.CONF.VCENTER.cluster_in_use
         content = self._create_connection_vcenter()
         host_dic = self._get_host_name(server_id)
@@ -79,9 +79,9 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         # Live Migration
         task = self._migrate_vm(content, server_id, dest_host)
         self._wait_for_task(task, content)
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=True)
+            should_succeed=True))
 
     def test_port_update_after_vm_migration(self):
         """Verify port update after moving a VM from one host to another host
@@ -99,9 +99,9 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
-        self.ping_ip_address(
+        self.assertFalse(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=False)
+            should_succeed=False))
         cluster = cfg.CONF.VCENTER.cluster_in_use
         content = self._create_connection_vcenter()
         host_dic = self._get_host_name(server_id)
@@ -123,6 +123,6 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
             direction='ingress',
             ethertype=self.ethertype
         )
-        self.ping_ip_address(
+        self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
-            should_succeed=True)
+            should_succeed=True))
