@@ -24,14 +24,6 @@ CONF = cfg.CONF
 
 class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
 
-    def _create_connection_vcenter(self):
-        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
-        vcenter_user = cfg.CONF.VCENTER.vcenter_username
-        vcenter_password = cfg.CONF.VCENTER.vcenter_password
-        content = self._create_connection(vcenter_ip, vcenter_user,
-                                          vcenter_password)
-        return content
-
     def test_vm_migration_across_hosts(self):
         """Validate added security group consistent even after vm migration.
 
@@ -47,7 +39,7 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         server_id = self._create_server_with_sec_group(
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
-        self._fetch_network_segmentid_and_verify_portgroup(self.network['id'])
+        self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
@@ -66,7 +58,7 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
             floating_ip['floatingip']['floating_ip_address'],
             should_succeed=True))
         cluster = cfg.CONF.VCENTER.cluster_in_use
-        content = self._create_connection_vcenter()
+        content = self._create_connection()
         host_dic = self._get_host_name(server_id)
         vm_host = host_dic['host_name']
         vm_host_ip = vm_host.name
@@ -95,7 +87,7 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         server_id = self._create_server_with_sec_group(
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
-        self._fetch_network_segmentid_and_verify_portgroup(self.network['id'])
+        self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
         device_port = self.client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
@@ -103,7 +95,7 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
             floating_ip['floatingip']['floating_ip_address'],
             should_succeed=False))
         cluster = cfg.CONF.VCENTER.cluster_in_use
-        content = self._create_connection_vcenter()
+        content = self._create_connection()
         host_dic = self._get_host_name(server_id)
         vm_host = host_dic['host_name']
         vm_host_ip = vm_host.name
