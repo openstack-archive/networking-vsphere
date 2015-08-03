@@ -111,7 +111,7 @@ def _get_add_vswitch_port_group_spec(client_factory,
 
 
 def get_portgroup_details(session, dvs_name, pg_name):
-    """Get VLAN id associated with a portgroup on a DVS."""
+    """Get VLAN id associated with a port group on a DVS."""
     port_group_mor = get_portgroup_mor_by_name(session, dvs_name, pg_name)
     vlan_id = constants.DEAD_VLAN
     if port_group_mor:
@@ -119,6 +119,24 @@ def get_portgroup_details(session, dvs_name, pg_name):
             vim_util, "get_dynamic_property", port_group_mor,
             "DistributedVirtualPortgroup", "config")
         vlan_id = port_group_config.defaultPortConfig.vlan.vlanId
+    return vlan_id
+
+
+def get_portgroup_vlan(session, pg_id):
+    """Get VLAN id associated with a port group."""
+    vlan_id = 0
+    if pg_id:
+        # Obtain vlan_id for the port group.
+        pg_mors = session._call_method(
+            vim_util, "get_objects", "DistributedVirtualPortgroup",
+            ["key", "config.defaultPortConfig"])
+        for pg_mor in pg_mors:
+            propset_dict = common_util.convert_propset_to_dict(pg_mor.propSet)
+            if propset_dict['key'] == pg_id:
+                pconfig = propset_dict["config.defaultPortConfig"]
+                vlan_id = pconfig["vlan_id"]["vlanId"]
+                LOG.debug("VLAN ID for port group is %s.", vlan_id)
+                break
     return vlan_id
 
 
