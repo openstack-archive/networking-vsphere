@@ -396,6 +396,49 @@ class OVSvAppServerRpcCallbackTest(object):
             self.assertEqual(ret_value, result)
             self.assertEqual(1, mock_update_device_down.call_count)
 
+    @mock.patch('networking_vsphere.db.ovsvapp_db.release_cluster_lock')
+    @mock.patch('networking_vsphere.db.ovsvapp_db.set_cluster_threshold')
+    @mock.patch.object(ovsvapp_rpc.LOG, 'info')
+    def test_update_cluster_lock_success_case(self, log_info, set_threshold,
+                                              release_lock):
+        kwargs = {'vcenter_id': FAKE_VCENTER,
+                  'cluster_id': FAKE_CLUSTER_ID,
+                  'success': True}
+        self.ovsvapp_callbacks.update_cluster_lock('fake_context', **kwargs)
+        self.assertTrue(release_lock.called)
+        release_lock.assert_called_with(FAKE_VCENTER, FAKE_CLUSTER_ID)
+        self.assertFalse(set_threshold.called)
+        self.assertTrue(log_info.called)
+
+    @mock.patch('networking_vsphere.db.ovsvapp_db.release_cluster_lock')
+    @mock.patch('networking_vsphere.db.ovsvapp_db.set_cluster_threshold')
+    @mock.patch.object(ovsvapp_rpc.LOG, 'info')
+    def test_update_cluster_lock_failure_case(self, log_info, set_threshold,
+                                              release_lock):
+        kwargs = {'vcenter_id': FAKE_VCENTER,
+                  'cluster_id': FAKE_CLUSTER_ID,
+                  'success': False}
+        self.ovsvapp_callbacks.update_cluster_lock('fake_context', **kwargs)
+        self.assertTrue(set_threshold.called)
+        set_threshold.assert_called_with(FAKE_VCENTER, FAKE_CLUSTER_ID)
+        self.assertFalse(release_lock.called)
+
+    @mock.patch('networking_vsphere.db.ovsvapp_db.release_cluster_lock')
+    @mock.patch('networking_vsphere.db.ovsvapp_db.set_cluster_threshold')
+    @mock.patch.object(ovsvapp_rpc.LOG, 'exception')
+    def test_update_cluster_lock_db_exception(self, log_exception,
+                                              set_threshold,
+                                              release_lock):
+        kwargs = {'vcenter_id': FAKE_VCENTER,
+                  'cluster_id': FAKE_CLUSTER_ID,
+                  'success': False}
+        set_threshold.side_effect = Exception
+        self.ovsvapp_callbacks.update_cluster_lock('fake_context', **kwargs)
+        self.assertTrue(set_threshold.called)
+        set_threshold.assert_called_with(FAKE_VCENTER, FAKE_CLUSTER_ID)
+        self.assertFalse(release_lock.called)
+        self.assertTrue(log_exception.called)
+
 
 class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
 
@@ -413,6 +456,17 @@ class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
                            device='fake_device',
                            ports='fake_ports',
                            sg_rules='fake_sg_rules',
+                           cluster_id=FAKE_CLUSTER_ID)
+
+    def test_device_update(self):
+        rpcapi = ovsvapp_rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
+        self._test_rpc_api(rpcapi,
+                           topics.get_topic_name(topics.AGENT,
+                                                 self.cluster_device_topic,
+                                                 topics.UPDATE),
+                           'device_update', rpc_method='cast',
+                           fanout=True,
+                           device_data='fake_device_data',
                            cluster_id=FAKE_CLUSTER_ID)
 
     def test_device_delete(self):
@@ -488,3 +542,11 @@ class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
                            agent_id=FAKE_AGENT_ID,
                            devices=['fake_devices'],
                            host=FAKE_HOST)
+
+    def test_update_cluster_lock(self):
+        rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
+        self._test_rpc_api(rpcapi, None,
+                           'update_cluster_lock', rpc_method='call',
+                           vcenter_id=FAKE_VCENTER,
+                           cluster_id=FAKE_CLUSTER_ID,
+                           success='fake_status')
