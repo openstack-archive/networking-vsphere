@@ -17,6 +17,7 @@
 import eventlet
 eventlet.monkey_patch()
 import netaddr
+from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import timeutils
 
@@ -32,8 +33,16 @@ from neutron.plugins.ml2 import driver_api as api
 from networking_vsphere.common import constants
 from networking_vsphere.db import ovsvapp_db
 from networking_vsphere.ml2 import ovsvapp_rpc
+from networking_vsphere.monitor import ovsvapp_monitor
 
 LOG = log.getLogger(__name__)
+
+OVSVAPP_MONITOR = [
+    cfg.BoolOpt('enable_ovsvapp_monitor', default=True,
+                help=_('To monitor the OVSvApp Agents.'))
+]
+
+cfg.CONF.register_opts(OVSVAPP_MONITOR)
 
 
 class OVSvAppAgentDriver(object):
@@ -49,6 +58,8 @@ class OVSvAppAgentDriver(object):
         self._plugin = None
         self._pool = None
         LOG.info(_("Successfully initialized OVSvApp Mechanism driver."))
+        if cfg.CONF.enable_ovsvapp_monitor:
+            self._start_ovsvapp_monitor()
 
     @property
     def plugin(self):
@@ -69,6 +80,10 @@ class OVSvAppAgentDriver(object):
         self.conn = n_rpc.create_connection(new=True)
         self.conn.create_consumer(self.topic, self.endpoints, fanout=False)
         return self.conn.consume_in_threads()
+
+    def _start_ovsvapp_monitor(self):
+        self.ovsvapp_monitor = ovsvapp_monitor.AgentMonitor()
+        self.ovsvapp_monitor.initialize_thread(self.notifier)
 
     def _get_ovsvapp_agent_from_cluster(self, context, cluster_id):
         chosen_agent = None
