@@ -43,6 +43,7 @@ from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import error
 from networking_vsphere.common import model
 from networking_vsphere.common import utils
+from networking_vsphere.utils import resource_util
 
 LOG = log.getLogger(__name__)
 CONF = cfg.CONF
@@ -84,6 +85,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.conf = cfg.CONF
         self.esx_hostname = CONF.VMWARE.esx_hostname
         self.vcenter_id = CONF.VMWARE.vcenter_id
+        self.mgmt_ip = CONF.OVSVAPP.mgmt_ip
+        self.esx_maintenance_mode = CONF.VMWARE.esx_maintenance_mode
         if not self.vcenter_id:
             self.vcenter_id = CONF.VMWARE.vcenter_ip
         self.cluster_moid = None  # Cluster domain ID.
@@ -117,7 +120,9 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             'configurations': {'bridge_mappings': self.bridge_mappings,
                                'tunnel_types': self.tunnel_types,
                                'cluster_id': self.cluster_id,
-                               'vcenter_id': self.vcenter_id},
+                               'vcenter_id': self.vcenter_id,
+                               'esx_host_name': self.esx_hostname,
+                               'mgmt_ip': self.mgmt_ip},
             'agent_type': ovsvapp_const.AGENT_TYPE_OVSVAPP,
             'start_flag': True}
         self.veth_mtu = CONF.OVSVAPP.veth_mtu
@@ -1526,6 +1531,63 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         finally:
             ovsvapplock.release()
 
+    def device_update(self, context, **kwargs):
+        device_data = kwargs.get('device_data')
+        LOG.info(_("RPC device_update received with data %(data)s."),
+                 {'data': device_data})
+        status = True
+        if device_data:
+            ovsvapp_vm = device_data.get('ovsvapp_agent')
+            src_esx_host = device_data.get('esx_host_name')
+            assigned_host = device_data.get('assigned_agent_host')
+            if assigned_host == self.hostname:
+                retry_count = 3
+                while retry_count > 0:
+                    try:
+                        vm_mor = resource_util.get_vm_mor_by_name(
+                            self.net_mgr.get_driver().session, ovsvapp_vm)
+                        host_mor = resource_util.get_host_mor_by_name(
+                            self.net_mgr.get_driver().session, src_esx_host)
+                        if self.esx_maintenance_mode:
+                            try:
+                                LOG.info(_("Setting OVSvApp VM %s to poweroff "
+                                           "state."), ovsvapp_vm)
+                                resource_util.set_vm_poweroff(
+                                    self.net_mgr.get_driver().session, vm_mor)
+                            except Exception:
+                                LOG.exception(_("Unable to poweroff %s "
+                                                "OVSvApp VM."), ovsvapp_vm)
+                                status = False
+                            LOG.info(_("Setting host %s to maintenance "
+                                       "mode."), src_esx_host)
+                            resource_util.set_host_into_maintenance_mode(
+                                self.net_mgr.get_driver().session, host_mor)
+                            status = True
+                        else:
+                            LOG.info(_("Setting host %s to shutdown mode."),
+                                     src_esx_host)
+                            resource_util.set_host_into_shutdown_mode(
+                                self.net_mgr.get_driver().session, host_mor)
+                        break
+                    except Exception:
+                        LOG.exception(_("Exception occurred while setting "
+                                        "host to maintenance mode or "
+                                        "shutdown mode."))
+                        retry_count -= 1
+                    if retry_count == 0:
+                        LOG.warn(_("Could not set %s to maintenance mode "
+                                   "or shutdown mode even after retrying "
+                                   "thrice."),
+                                 src_esx_host)
+                        status = False
+                    time.sleep(2)
+                self.ovsvapp_rpc.update_cluster_lock(
+                    self.context, vcenter_id=self.vcenter_id,
+                    cluster_id=self.cluster_id, success=status)
+            else:
+                LOG.debug("Ignoring the device_update RPC as it is for "
+                          "a different host")
+
 
 class RpcPluginApi(agent_rpc.PluginApi):
 
@@ -1564,3 +1626,10 @@ class OVSvAppPluginApi(object):
     def update_lvid_assignment(self, context, net_info):
         cctxt = self.client.prepare()
         return cctxt.call(context, 'update_lvid_assignment', net_info=net_info)
+
+    def update_cluster_lock(self, context, vcenter_id, cluster_id, success):
+        cctxt = self.client.prepare()
+        return cctxt.call(context, 'update_cluster_lock',
+                          vcenter_id=vcenter_id,
+                          cluster_id=cluster_id,
+                          success=success)
