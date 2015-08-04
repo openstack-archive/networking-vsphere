@@ -102,7 +102,10 @@ OVSVAPP_OPTS = [
                help='Tunnel Bridge for tunneling.'),
     cfg.StrOpt('local_ip',
                default='',
-               help='Local IP address of VXLAN tunnel endpoint.')
+               help='Local IP address of VXLAN tunnel endpoint.'),
+    cfg.StrOpt('mgmt_ip',
+               default='',
+               help='IP address of the Management interface.')
 ]
 
 # OVSvApp Security Group related config read from ovsvapp_agent.ini.
