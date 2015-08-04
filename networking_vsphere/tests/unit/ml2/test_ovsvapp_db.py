@@ -154,3 +154,46 @@ class OVSvAppDBTestCase(testlib_api.SqlTestCase):
         ovsvapp_db.release_local_vlan(net1_port_info)
         ret_val = ovsvapp_db.get_stale_local_vlans_for_network('net1')
         self.assertIsNone(ret_val)
+
+    def test_update_and_get_cluster_lock_first_host(self):
+        with mock.patch('networking_vsphere.db.ovsvapp_db.'
+                        'LOG.info') as info_log:
+            ret = ovsvapp_db.update_and_get_cluster_lock('fake_vcenter',
+                                                         'fake_cluster')
+        self.assertEqual('1', ret)
+        self.assertTrue(info_log.called)
+
+    def test_update_and_get_cluster_lock_second_host_no_lock(self):
+        ret = ovsvapp_db.update_and_get_cluster_lock('fake_vcenter',
+                                                     'fake_cluster')
+        self.assertEqual('1', ret)
+        with mock.patch('networking_vsphere.db.ovsvapp_db.'
+                        'LOG.info') as info_log:
+            ret_1 = ovsvapp_db.update_and_get_cluster_lock('fake_vcenter',
+                                                           'fake_cluster')
+        self.assertEqual('0', ret_1)
+        self.assertTrue(info_log.called)
+
+    def test_update_and_get_cluster_lock_second_host_lock_released(self):
+        ret = ovsvapp_db.update_and_get_cluster_lock('fake_vcenter',
+                                                     'fake_cluster')
+        self.assertEqual('1', ret)
+        ovsvapp_db.release_cluster_lock('fake_vcenter', 'fake_cluster')
+        with mock.patch('networking_vsphere.db.ovsvapp_db.'
+                        'LOG.info') as info_log:
+            ret_1 = ovsvapp_db.update_and_get_cluster_lock('fake_vcenter',
+                                                           'fake_cluster')
+        self.assertEqual('1', ret_1)
+        self.assertTrue(info_log.called)
+
+    def test_update_and_get_cluster_lock_threshold_reached(self):
+        ret = ovsvapp_db.update_and_get_cluster_lock('fake_vcenter',
+                                                     'fake_cluster')
+        self.assertEqual('1', ret)
+        ovsvapp_db.set_cluster_threshold('fake_vcenter', 'fake_cluster')
+        with mock.patch('networking_vsphere.db.ovsvapp_db.'
+                        'LOG.warn') as warn_log:
+            ret_1 = ovsvapp_db.update_and_get_cluster_lock('fake_vcenter',
+                                                           'fake_cluster')
+        self.assertEqual('-1', ret_1)
+        self.assertTrue(warn_log.called)

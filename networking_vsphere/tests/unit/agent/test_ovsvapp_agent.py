@@ -27,6 +27,7 @@ from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import error
 from networking_vsphere.tests import base
 from networking_vsphere.tests.unit.drivers import fake_manager
+from networking_vsphere.utils import resource_util
 
 from neutron.agent.common import ovs_lib
 from neutron.plugins.common import constants as p_const
@@ -1419,3 +1420,179 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertEqual([FAKE_PORT_1], self.agent.devices_up_list)
             self.assertFalse(mock_log_exception.called)
             self.assertTrue(mock_logger_debug.called)
+
+    def test_device_update_maintenance_mode(self):
+        kwargs = {'device_data': {'ovsvapp_agent': 'fake_agent_host_1',
+                                  'esx_host_name': FAKE_HOST_1,
+                                  'assigned_agent_host': FAKE_HOST_2}}
+        self.agent.hostname = FAKE_HOST_2
+        self.agent.esx_maintenance_mode = True
+        self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
+        self.agent.net_mgr.initialize_driver()
+        self.agent.net_mgr.get_driver().session = "fake_session"
+        self.agent.cluster_id = FAKE_CLUSTER_1
+        self.agent.vcenter_id = FAKE_VCENTER
+        with mock.patch.object(resource_util,
+                               "get_vm_mor_by_name",
+                               return_value="vm_mor") as vm_mor_by_name, \
+                mock.patch.object(resource_util,
+                                  "get_host_mor_by_name",
+                                  return_value="host_mor"
+                                  ) as host_mor_by_name, \
+                mock.patch.object(resource_util,
+                                  "set_vm_poweroff") as power_off, \
+                mock.patch.object(resource_util,
+                                  "set_host_into_maintenance_mode"
+                                  ) as maintenance_mode, \
+                mock.patch.object(resource_util,
+                                  "set_host_into_shutdown_mode"
+                                  ) as shutdown_mode, \
+                mock.patch.object(self.agent.ovsvapp_rpc,
+                                  "update_cluster_lock") as cluster_lock, \
+                mock.patch.object(self.LOG, 'exception') as log_exception, \
+                mock.patch.object(time, 'sleep'):
+            self.agent.device_update(FAKE_CONTEXT, **kwargs)
+            self.assertTrue(vm_mor_by_name.called)
+            self.assertTrue(host_mor_by_name.called)
+            self.assertTrue(power_off.called)
+            self.assertTrue(maintenance_mode.called)
+            self.assertFalse(shutdown_mode.called)
+            self.assertTrue(cluster_lock.called)
+            cluster_lock.assert_called_with(self.agent.context,
+                                            cluster_id=self.agent.cluster_id,
+                                            vcenter_id=self.agent.vcenter_id,
+                                            success=True)
+            self.assertFalse(log_exception.called)
+
+    def test_device_update_shutdown_mode(self):
+        kwargs = {'device_data': {'ovsvapp_agent': 'fake_agent_host_1',
+                                  'esx_host_name': FAKE_HOST_1,
+                                  'assigned_agent_host': FAKE_HOST_2}}
+        self.agent.hostname = FAKE_HOST_2
+        self.agent.esx_maintenance_mode = False
+        self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
+        self.agent.net_mgr.initialize_driver()
+        self.agent.net_mgr.get_driver().session = "fake_session"
+        self.agent.cluster_id = FAKE_CLUSTER_1
+        self.agent.vcenter_id = FAKE_VCENTER
+        with mock.patch.object(resource_util,
+                               "get_vm_mor_by_name",
+                               return_value="vm_mor") as vm_mor_by_name, \
+                mock.patch.object(resource_util,
+                                  "get_host_mor_by_name",
+                                  return_value="host_mor"
+                                  ) as host_mor_by_name, \
+                mock.patch.object(resource_util,
+                                  "set_vm_poweroff") as power_off, \
+                mock.patch.object(resource_util,
+                                  "set_host_into_maintenance_mode"
+                                  ) as maintenance_mode, \
+                mock.patch.object(resource_util,
+                                  "set_host_into_shutdown_mode"
+                                  ) as shutdown_mode, \
+                mock.patch.object(self.agent.ovsvapp_rpc,
+                                  "update_cluster_lock") as cluster_lock, \
+                mock.patch.object(self.LOG, 'exception') as log_exception, \
+                mock.patch.object(time, 'sleep'):
+            self.agent.device_update(FAKE_CONTEXT, **kwargs)
+            self.assertTrue(vm_mor_by_name.called)
+            self.assertTrue(host_mor_by_name.called)
+            self.assertFalse(power_off.called)
+            self.assertFalse(maintenance_mode.called)
+            self.assertTrue(shutdown_mode.called)
+            self.assertTrue(cluster_lock.called)
+            cluster_lock.assert_called_with(self.agent.context,
+                                            cluster_id=self.agent.cluster_id,
+                                            vcenter_id=self.agent.vcenter_id,
+                                            success=True)
+            self.assertFalse(log_exception.called)
+
+    def test_device_update_ovsvapp_alreadly_powered_off(self):
+        kwargs = {'device_data': {'ovsvapp_agent': 'fake_agent_host_1',
+                                  'esx_host_name': FAKE_HOST_1,
+                                  'assigned_agent_host': FAKE_HOST_2}}
+        self.agent.hostname = FAKE_HOST_2
+        self.agent.esx_maintenance_mode = True
+        self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
+        self.agent.net_mgr.initialize_driver()
+        self.agent.net_mgr.get_driver().session = "fake_session"
+        self.agent.cluster_id = FAKE_CLUSTER_1
+        self.agent.vcenter_id = FAKE_VCENTER
+        with mock.patch.object(resource_util,
+                               "get_vm_mor_by_name",
+                               return_value="vm_mor") as vm_mor_by_name, \
+                mock.patch.object(resource_util,
+                                  "get_host_mor_by_name",
+                                  return_value="host_mor"
+                                  ) as host_mor_by_name, \
+                mock.patch.object(resource_util,
+                                  "set_vm_poweroff",
+                                  side_effect=Exception()) as power_off, \
+                mock.patch.object(resource_util,
+                                  "set_host_into_maintenance_mode"
+                                  ) as maintenance_mode, \
+                mock.patch.object(resource_util,
+                                  "set_host_into_shutdown_mode"
+                                  ) as shutdown_mode, \
+                mock.patch.object(self.agent.ovsvapp_rpc,
+                                  "update_cluster_lock") as cluster_lock, \
+                mock.patch.object(self.LOG, 'exception') as log_exception, \
+                mock.patch.object(time, 'sleep'):
+            self.agent.device_update(FAKE_CONTEXT, **kwargs)
+            self.assertTrue(vm_mor_by_name.called)
+            self.assertTrue(host_mor_by_name.called)
+            self.assertTrue(power_off.called)
+            self.assertTrue(maintenance_mode.called)
+            self.assertFalse(shutdown_mode.called)
+            self.assertTrue(cluster_lock.called)
+            cluster_lock.assert_called_with(self.agent.context,
+                                            cluster_id=self.agent.cluster_id,
+                                            vcenter_id=self.agent.vcenter_id,
+                                            success=True)
+            self.assertTrue(log_exception.called)
+
+    def test_device_update_maintenance_mode_exception(self):
+        kwargs = {'device_data': {'ovsvapp_agent': 'fake_agent_host_1',
+                                  'esx_host_name': FAKE_HOST_1,
+                                  'assigned_agent_host': FAKE_HOST_2}}
+        self.agent.hostname = FAKE_HOST_2
+        self.agent.esx_maintenance_mode = True
+        self.agent.net_mgr = fake_manager.MockNetworkManager("callback")
+        self.agent.net_mgr.initialize_driver()
+        self.agent.net_mgr.get_driver().session = "fake_session"
+        self.agent.cluster_id = FAKE_CLUSTER_1
+        self.agent.vcenter_id = FAKE_VCENTER
+        with mock.patch.object(resource_util,
+                               "get_vm_mor_by_name",
+                               return_value="vm_mor") as vm_mor_by_name, \
+                mock.patch.object(resource_util,
+                                  "get_host_mor_by_name",
+                                  return_value="host_mor"
+                                  ) as host_mor_by_name, \
+                mock.patch.object(resource_util,
+                                  "set_vm_poweroff",
+                                  side_effect=Exception()) as power_off, \
+                mock.patch.object(resource_util,
+                                  "set_host_into_maintenance_mode",
+                                  side_effect=Exception()
+                                  ) as maintenance_mode, \
+                mock.patch.object(resource_util,
+                                  "set_host_into_shutdown_mode"
+                                  ) as shutdown_mode, \
+                mock.patch.object(self.agent.ovsvapp_rpc,
+                                  "update_cluster_lock") as cluster_lock, \
+                mock.patch.object(self.LOG, 'exception') as log_exception, \
+                mock.patch.object(time, 'sleep') as time_sleep:
+            self.agent.device_update(FAKE_CONTEXT, **kwargs)
+            self.assertTrue(vm_mor_by_name.called)
+            self.assertTrue(host_mor_by_name.called)
+            self.assertTrue(power_off.called)
+            self.assertTrue(maintenance_mode.called)
+            self.assertFalse(shutdown_mode.called)
+            self.assertTrue(cluster_lock.called)
+            cluster_lock.assert_called_with(self.agent.context,
+                                            cluster_id=self.agent.cluster_id,
+                                            vcenter_id=self.agent.vcenter_id,
+                                            success=False)
+            self.assertTrue(log_exception.called)
+            self.assertTrue(time_sleep.called)
