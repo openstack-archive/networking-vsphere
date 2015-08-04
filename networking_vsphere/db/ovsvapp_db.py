@@ -22,6 +22,10 @@ from networking_vsphere.db import ovsvapp_models as models
 
 LOG = log.getLogger(__name__)
 
+RETRY = "0"
+GIVE_UP = "-1"
+SUCCESS = "1"
+
 
 def _generate_vcenter_cluster_allocations(session, vcenter, cluster):
     bulk_size = 100
@@ -243,3 +247,93 @@ def get_stale_local_vlans_for_network(network_id):
             LOG.debug("Network %s is already cleaned up from "
                       "VNI allocations table.", network_id)
     return vcenter_clusters
+
+
+def update_and_get_cluster_lock(vcenter_id, cluster_id):
+    session = db_api.get_session()
+    with session.begin(subtransactions=True):
+        try:
+            query = session.query(models.OVSvAppClusters)
+            cluster_row = (query.filter(
+                models.OVSvAppClusters.vcenter_id == vcenter_id,
+                models.OVSvAppClusters.cluster_id == cluster_id
+            ).with_lockmode('update').one())
+            if not cluster_row.threshold_reached:
+                if not cluster_row.being_mitigated:
+                    cluster_row.update({'being_mitigated': True})
+                    LOG.info(_("Blocked the cluster %s for maintenance."),
+                             cluster_id)
+                    return SUCCESS
+                else:
+                    LOG.info(_("Cluster %s is under maintenance. "
+                               "Will retry later"), cluster_id)
+                    return RETRY
+            else:
+                LOG.warn(_("Cluster %(id)s in vCenter %(vc)s needs attention."
+                           "Not able to put hosts to maintenance!"),
+                         {'id': cluster_id,
+                          'vc': vcenter_id})
+                return GIVE_UP
+        except sa_exc.NoResultFound:
+            # First fault case in this cluster_id.
+            cluster_row = {'vcenter_id': vcenter_id,
+                           'cluster_id': cluster_id,
+                           'being_mitigated': True}
+            session.execute(models.OVSvAppClusters.__table__.insert(),
+                            cluster_row)
+            LOG.info(_("Blocked the cluster %s for maintenance."),
+                     cluster_id)
+            return SUCCESS
+
+
+def release_cluster_lock(vcenter_id, cluster_id):
+    session = db_api.get_session()
+    with session.begin(subtransactions=True):
+        try:
+            query = session.query(models.OVSvAppClusters)
+            cluster_row = (query.filter(
+                models.OVSvAppClusters.vcenter_id == vcenter_id,
+                models.OVSvAppClusters.cluster_id == cluster_id
+            ).with_lockmode('update').one())
+            cluster_row.update({'being_mitigated': False,
+                                'threshold_reached': False})
+        except sa_exc.NoResultFound:
+            LOG.error(_("Cannot update the row for cluster %s."), cluster_id)
+
+
+def reset_cluster_threshold(vcenter_id, cluster_id):
+    session = db_api.get_session()
+    with session.begin(subtransactions=True):
+        try:
+            query = session.query(models.OVSvAppClusters)
+            cluster_row = (query.filter(
+                models.OVSvAppClusters.vcenter_id == vcenter_id,
+                models.OVSvAppClusters.cluster_id == cluster_id
+            ).with_lockmode('update').one())
+            if cluster_row.threshold_reached:
+                cluster_row.update({'being_mitigated': False,
+                                    'threshold_reached': False})
+        except sa_exc.NoResultFound:
+            # First agent in this cluster
+            LOG.error(_("Cluster row not found for %s."), cluster_id)
+            cluster_row = {'vcenter_id': vcenter_id,
+                           'cluster_id': cluster_id}
+            session.execute(models.OVSvAppClusters.__table__.insert(),
+                            cluster_row)
+
+
+def set_cluster_threshold(vcenter_id, cluster_id):
+    session = db_api.get_session()
+    with session.begin(subtransactions=True):
+        try:
+            query = session.query(models.OVSvAppClusters)
+            cluster_row = (query.filter(
+                models.OVSvAppClusters.vcenter_id == vcenter_id,
+                models.OVSvAppClusters.cluster_id == cluster_id
+            ).with_lockmode('update').one())
+            LOG.info(_("Cluster row found for %s."), cluster_row)
+            if not cluster_row.threshold_reached:
+                cluster_row.update({'being_mitigated': False,
+                                    'threshold_reached': True})
+        except sa_exc.NoResultFound:
+            LOG.error(_("Cluster row not found for %s."), cluster_id)

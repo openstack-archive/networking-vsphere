@@ -300,6 +300,23 @@ class OVSvAppServerRpcCallback(object):
                 LOG.exception(_("Failed to release the local vlan"))
         return
 
+    def update_cluster_lock(self, rpc_context, **kwargs):
+        vcenter_id = kwargs['vcenter_id']
+        cluster_id = kwargs['cluster_id']
+        success = kwargs['success']
+        if cluster_id and vcenter_id:
+            try:
+                if success:
+                    LOG.info(_("Releasing the cluster row for cluster %(id)s "
+                               "in vCenter %(vc)s."),
+                             {'id': cluster_id, 'vc': vcenter_id})
+                    ovsvapp_db.release_cluster_lock(vcenter_id, cluster_id)
+                else:
+                    ovsvapp_db.set_cluster_threshold(vcenter_id, cluster_id)
+            except Exception:
+                LOG.exception(_("Failed to release/set the cluster lock."))
+        return
+
 
 class OVSvAppAgentNotifyAPI(object):
 
@@ -323,6 +340,13 @@ class OVSvAppAgentNotifyAPI(object):
             fanout=True)
         cctxt.cast(context, 'device_create', device=device, ports=ports,
                    sg_rules=sg_rules, cluster_id=cluster_id)
+
+    def device_update(self, context, device_data, cluster_id):
+        cctxt = self.client.prepare(
+            topic=self._get_device_topic(topics.UPDATE, cluster_id),
+            fanout=True)
+        cctxt.cast(context, 'device_update', device_data=device_data,
+                   cluster_id=cluster_id)
 
     def device_delete(self, context, network_info, host, cluster_id):
         cctxt = self.client.prepare(
