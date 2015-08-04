@@ -33,7 +33,7 @@ class ClusterVNIAllocations(model_base.BASEV2):
 
     def __repr__(self):
         """Cluster VNI allocations representation."""
-        return ("<ClusterVNIAllocation(%s,%s,%s,%s,%s,%s)>." %
+        return ("<ClusterVNIAllocations(%s,%s,%s,%s,%s,%s)>." %
                 (self.vcenter_id, self.cluster_id, self.lvid, self.network_id,
                  self.allocated, self.network_port_count))
 
@@ -45,3 +45,27 @@ class ClusterVNIAllocations(model_base.BASEV2):
                 self.network_id == other.network_id and
                 self.allocated == other.allocated and
                 self.network_port_count == other.network_port_count)
+
+
+class OVSvAppClusters(model_base.BASEV2):
+    """Represents a OVSvApp managed clusters."""
+
+    __tablename__ = "ovsvapp_clusters"
+
+    vcenter_id = sa.Column(sa.String(36), nullable=False, primary_key=True)
+    cluster_id = sa.Column(sa.String(255), nullable=False, primary_key=True)
+    being_mitigated = sa.Column(sa.Boolean, nullable=False, default=False)
+    threshold_reached = sa.Column(sa.Boolean, nullable=False, default=False)
+
+    def __repr__(self):
+        """OVSvApp managed clusters."""
+        return ("<OVSvAppClusters(%s,%s,%s,%s)>" %
+                (self.vcenter_id, self.cluster_id,
+                 self.being_mitigated, self.threshold_reached))
+
+    def __eq__(self, other):
+        """Compare the Cluster."""
+        return (self.vcenter_id == other.vcenter_id and
+                self.cluster_id == other.cluster_id and
+                self.being_mitigated == other.being_mitigated and
+                self.threshold_reached == other.threshold_reached)
