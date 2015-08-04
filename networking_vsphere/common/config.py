@@ -102,7 +102,10 @@ OVSVAPP_OPTS = [
                help='Tunnel Bridge for tunneling.'),
     cfg.StrOpt('local_ip',
                default='',
-               help='Local IP address of VXLAN tunnel endpoint.')
+               help='Local IP address of VXLAN tunnel endpoint.'),
+    cfg.StrOpt('mgmt_ip',
+               default='',
+               help='IP address of the Management interface.')
 ]
 
 # OVSvApp Security Group related config read from ovsvapp_agent.ini.
@@ -120,8 +123,15 @@ SECURITYGROUP_OPTS = [
                     'OVS based Firewall.')
 ]
 
+# OVSvApp Fault Management config read from neutron.conf.
+OVSVAPP_MONITOR = [
+    cfg.BoolOpt('enable_ovsvapp_monitor', default=True,
+                help=_('To monitor the OVSvApp Agents.'))
+]
+
 
 def register_options():
     cfg.CONF.register_opts(VMWARE_OPTS, "VMWARE")
     cfg.CONF.register_opts(OVSVAPP_OPTS, "OVSVAPP")
     cfg.CONF.register_opts(SECURITYGROUP_OPTS, "SECURITYGROUP")
+    cfg.CONF.register_opts(OVSVAPP_MONITOR, "OVSVAPP_MONITOR")
