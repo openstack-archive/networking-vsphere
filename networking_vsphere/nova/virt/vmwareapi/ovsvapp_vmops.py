@@ -40,10 +40,10 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
         client_factory = self._session.vim.client.factory
         image_info = images.VMwareImage.from_image(instance.image_ref,
                                                    image_meta)
-        extra_specs = self._get_extra_specs(instance.flavor)
+        extra_specs = self._get_extra_specs(instance.flavor, image_meta)
 
         vi = self._get_vm_config_info(instance, image_info,
-                                      extra_specs.storage_policy)
+                                      extra_specs)
 
         metadata = self._get_instance_metadata(context, instance)
         # Creates the virtual machine. The virtual machine reference returned
@@ -59,6 +59,9 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
         # Cache the vm_ref. This saves a remote call to the VC. This uses the
         # instance uuid.
         vm_util.vm_ref_cache_update(instance.uuid, vm_ref)
+
+        # Update the Neutron VNIC index
+        self._update_vnic_index(context, instance, network_info)
 
         # Set the machine.id parameter of the instance to inject
         # the NIC configuration inside the VM
@@ -87,7 +90,7 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
             else:
                 self._use_disk_image_as_full_clone(vm_ref, vi)
 
-        if len(block_device_mapping) > 0:
+        if block_device_mapping:
             msg = "Block device information present: %s" % block_device_info
             # NOTE(mriedem): block_device_info can contain an auth_password
             # so we have to scrub the message before logging it.
@@ -117,6 +120,8 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
         self._create_ephemeral(block_device_info, instance, vm_ref,
                                vi.dc_info, vi.datastore, instance.uuid,
                                vi.ii.adapter_type)
+        self._create_swap(block_device_info, instance, vm_ref, vi.dc_info,
+                          vi.datastore, instance.uuid, vi.ii.adapter_type)
 
         if configdrive.required_by(instance):
             self._configure_config_drive(instance, vm_ref, vi.dc_info,
