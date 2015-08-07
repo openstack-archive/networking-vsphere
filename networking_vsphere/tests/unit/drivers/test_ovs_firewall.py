@@ -228,6 +228,30 @@ class TestOVSFirewallDriver(base.TestCase):
                                                    direction, 1, 3, 1, 2)
             self.assertEqual(6, mock_add_flows_sec_br.call_count)
 
+    def test_add_flow_with_range_all_ports(self):
+        flow = {"priority": 1}
+        port = fake_port
+        direction = "fake_direction"
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
+                mock.patch.object(self.ovs_firewall, '_add_flows_to_sec_br'
+                                  ) as mock_add_flows_sec_br:
+            self.ovs_firewall._add_flow_with_range(self.mock_br, port,
+                                                   flow, direction, 1, 65535)
+            self.assertEqual(1, mock_add_flows_sec_br.call_count)
+
+    def test_add_flow_with_range_some_ports(self):
+        flow = {"priority": 1}
+        port = fake_port
+        direction = "fake_direction"
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
+                mock.patch.object(self.ovs_firewall, '_add_flows_to_sec_br'
+                                  ) as mock_add_flows_sec_br:
+            self.ovs_firewall._add_flow_with_range(self.mock_br, port,
+                                                   flow, direction, 1, 100)
+            self.assertEqual(100, mock_add_flows_sec_br.call_count)
+
     def test_add_flows_to_sec_br_ingress_direction(self):
         flows = {}
         port = fake_port
