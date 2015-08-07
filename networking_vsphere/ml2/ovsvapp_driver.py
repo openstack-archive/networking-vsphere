@@ -16,9 +16,11 @@
 
 import eventlet
 eventlet.monkey_patch()
+import netaddr
 from oslo_log import log
 from oslo_utils import timeutils
 
+from neutron.common import constants as common_const
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron import context as neutron_context
@@ -115,6 +117,22 @@ class OVSvAppAgentDriver(object):
         except Exception:
             LOG.exception(_("Failed to notify agent to delete port group."))
 
+    def _check_and_fire_provider_update(self, port):
+        if port['device_owner'] == common_const.DEVICE_OWNER_DHCP:
+            self.notifier.enhanced_sg_provider_updated(self.context,
+                                                       port['network_id'])
+        # For IPv6, provider rule need to be updated in case router
+        # interface is created or updated after VM port is created.
+        elif port['device_owner'] == common_const.DEVICE_OWNER_ROUTER_INTF:
+            if any(netaddr.IPAddress(fixed_ip['ip_address']).version == 6
+                   for fixed_ip in port['fixed_ips']):
+                self.notifier.enhanced_sg_provider_updated(self.context,
+                                                           port['network_id'])
+
+    def create_port_postcommit(self, context):
+        port = context.current
+        self._check_and_fire_provider_update(port)
+
     def delete_port_postcommit(self, context):
         """Delete port non-database commit event."""
         port = context.current
@@ -158,6 +176,8 @@ class OVSvAppAgentDriver(object):
                 except Exception:
                     LOG.exception(_("Failed to check for reclaiming "
                                     "local vlan."))
+        else:
+            self._check_and_fire_provider_update(port)
 
     def delete_network_postcommit(self, context):
         try:
