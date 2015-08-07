@@ -1198,8 +1198,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                      network.name)
             return local_vlan_id
 
-    def _process_create_portgroup_vxlan(self, context, ports_list, host,
-                                        device_id):
+    def _process_create_portgroup_vxlan(self, context, ports_list, sg_rules,
+                                        host, device_id):
         try:
             ovsvapplock.acquire()
             valid_ports = []
@@ -1245,6 +1245,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 # revisited in vxlan refactoring.
                 # if host == self.esx_hostname:
                 #    self.ports_to_bind.append(port['id'])
+                port['security_group_source_groups'] = (
+                    sg_rules[port['id']]['security_group_source_groups'])
                 valid_ports.append(port)
         finally:
             ovsvapplock.release()
@@ -1273,45 +1275,47 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     finally:
                         ovsvapp_l2pop_lock.release()
 
-    def _process_create_portgroup_vlan(self, context, ports_list, host):
+    def _process_create_portgroup_vlan(self, context, ports_list, sg_rules,
+                                       host):
         ovsvapplock.acquire()
         try:
-            self.sg_agent.add_devices_to_filter(ports_list)
-            for element in ports_list:
-                self.ports_dict[element['id']] = self._build_port_info(element)
-                if element['network_id'] not in self.network_port_count.keys():
-                    self.network_port_count[element['network_id']] = 1
+            for port in ports_list:
+                self.ports_dict[port['id']] = self._build_port_info(port)
+                port['security_group_source_groups'] = (
+                    sg_rules[port['id']]['security_group_source_groups'])
+                if port['network_id'] not in self.network_port_count.keys():
+                    self.network_port_count[port['network_id']] = 1
                 else:
-                    self.network_port_count[element['network_id']] += 1
+                    self.network_port_count[port['network_id']] += 1
                 LOG.info(_("Network: %(net_id)s - Port Count: %(port_count)s"),
-                         {'net_id': element['network_id'],
+                         {'net_id': port['network_id'],
                           'port_count': self.network_port_count[
-                          element['network_id']]})
+                          port['network_id']]})
+                self.sg_agent.add_devices_to_filter(ports_list)
         finally:
             LOG.debug("Port count per network details after VM creation: %s.",
                       self.network_port_count)
             ovsvapplock.release()
-
         if host == self.esx_hostname:
-            for element in ports_list:
+            for port in ports_list:
                 # Add physical bridge flows.
-                self._add_physical_bridge_flows(element)
+                self._add_physical_bridge_flows(port)
                 # Create a portgroup at vCenter and set it in enabled state.
-                self._create_portgroup(element, host)
+                self._create_portgroup(port, host)
                 LOG.info(_("Invoking update_device_up RPC for port %s."),
-                         element['id'])
+                         port['id'])
                 try:
                     # set admin_state to True.
                     self.plugin_rpc.update_device_up(
                         self.context,
-                        element['id'],
+                        port['id'],
                         self.agent_id,
                         self.agent_state['host'])
                     LOG.info(_("Successfully set admin_state for port: %s."),
-                             element['id'])
+                             port['id'])
                 except Exception as e:
                     LOG.exception(_("RPC update_device_up failed for port: "
-                                    "%s."), element['id'])
+                                    "%s."), port['id'])
                     raise error.OVSvAppNeutronAgentError(e)
 
     def device_create(self, context, **kwargs):
@@ -1340,11 +1344,13 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 ovsvapplock.release()
             self.refresh_firewall_required = True
         if self.tenant_network_type == p_const.TYPE_VLAN:
-            self._process_create_portgroup_vlan(context, ports_list, host)
+            self._process_create_portgroup_vlan(context, ports_list,
+                                                sg_rules[device_id], host)
         elif self.tenant_network_type == p_const.TYPE_VXLAN:
             # In VXLAN case, the port_list will have ports pre populated
             # with the lvid.
-            self._process_create_portgroup_vxlan(context, ports_list, host,
+            self._process_create_portgroup_vxlan(context, ports_list,
+                                                 sg_rules[device_id], host,
                                                  device_id)
         if sg_rules:
             self.sg_agent.ovsvapp_sg_update(sg_rules[device_id])

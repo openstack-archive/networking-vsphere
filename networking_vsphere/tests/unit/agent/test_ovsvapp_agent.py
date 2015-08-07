@@ -47,9 +47,11 @@ FAKE_PORT_4 = 'fake_port_4'
 MAC_ADDRESS = '01:02:03:04:05:06'
 FAKE_CONTEXT = 'fake_context'
 FAKE_SG = {'fake_sg': 'fake_sg_rule'}
-FAKE_SG_RULES = {FAKE_DEVICE_ID: ['fake_rule_1',
-                                  'fake_rule_2',
-                                  'fake_rule_3']
+FAKE_SG_RULES = {FAKE_DEVICE_ID: {FAKE_PORT_1:
+                 {'security_group_source_groups': ['fake_rule_1',
+                                                   'fake_rule_2',
+                                                   'fake_rule_3']
+                  }}
                  }
 DEVICE = {'id': FAKE_DEVICE_ID,
           'cluster_id': FAKE_CLUSTER_1,
@@ -144,7 +146,7 @@ class TestOVSvAppL2Agent(base.TestCase):
                 'device_owner': 'compute:None',
                 'security_groups': FAKE_SG,
                 'mac_address': MAC_ADDRESS,
-                'device_id': FAKE_DEVICE_ID,
+                'device_id': FAKE_DEVICE_ID
                 }
         return port
 
