@@ -1,0 +1,10 @@
+Verified+2: Jenkins
+Code-Review+1: YAMAMOTO Takashi <yamamoto@midokura.com>
+Code-Review+2: Raghuveer Shenoy <rshenoy@hp.com>
+Workflow+1: Raghuveer Shenoy <rshenoy@hp.com>
+Code-Review+1: Einst Crazy <yu.changcai@99cloud.net>
+Submitted-by: Jenkins
+Submitted-at: Fri, 07 Aug 2015 06:42:12 +0000
+Reviewed-on: https://review.openstack.org/208413
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/kilo
