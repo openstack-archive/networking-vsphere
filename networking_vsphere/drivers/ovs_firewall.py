@@ -68,8 +68,13 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self.patch_ofport = self.sg_br.get_port_ofport(
             ovsvapp_const.SEC_TO_INT_PATCH)
         self._defer_apply = False
-        if not cfg.CONF.OVSVAPP.agent_maintenance:
+        if not self.check_ovs_firewall_restart():
             self.setup_base_flows()
+
+    def check_ovs_firewall_restart(self):
+        canary_flow = self.sg_br.dump_flows_for_table(
+            ovsvapp_const.SG_EGRESS_TABLE_ID)
+        return canary_flow
 
     @property
     def ports(self):
@@ -542,3 +547,37 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
     def get_cookie(self, port_id):
         return ("0x%x" % (hash(port_id) & 0xffffffffffffffff))
+
+    def remove_stale_port_flows(self, port_id, mac_address, vlan):
+        """Remove all flows for a port."""
+
+        LOG.debug("OVSF Removing flows for stale port: %s.", port_id)
+        with self.sg_br.deferred() as deferred_sec_br:
+            try:
+                port = {}
+                port['id'] = port_id
+                deferred_sec_br.delete_flows(cookie="%s/-1" %
+                                             self.get_cookie(port))
+                deferred_sec_br.delete_flows(
+                    table=ovsvapp_const.SG_LEARN_TABLE_ID,
+                    dl_src=mac_address,
+                    dl_vlan=vlan)
+                deferred_sec_br.delete_flows(
+                    table=ovsvapp_const.SG_LEARN_TABLE_ID,
+                    dl_dst=mac_address,
+                    dl_vlan=vlan)
+                deferred_sec_br.delete_flows(
+                    table=ovsvapp_const.SG_LEARN_TABLE_ID,
+                    dl_src=mac_address,
+                    dl_vlan=vlan)
+                deferred_sec_br.delete_flows(
+                    table=ovsvapp_const.SG_LEARN_TABLE_ID,
+                    dl_dst=mac_address,
+                    dl_vlan=vlan)
+                deferred_sec_br.delete_flows(
+                    table=ovsvapp_const.SG_LEARN_TABLE_ID,
+                    dl_src=mac_address,
+                    dl_vlan=vlan)
+            except Exception:
+                LOG.exception(_("OVSF unable to remove flows for port: "
+                                "%s."), port_id)

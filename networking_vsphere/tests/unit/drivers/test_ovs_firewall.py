@@ -45,26 +45,26 @@ fake_port = {'security_group_source_groups': 'abc',
 
 
 class TestOVSFirewallDriver(base.TestCase):
-    def setUp(self):
+
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                'check_ovs_firewall_restart')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                'setup_base_flows')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.create')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.set_secure_mode')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
+    def setUp(self, mock_get_port_ofport, mock_set_secure_mode,
+              mock_create_ovs_bridge, mock_setup_base_flows,
+              mock_check_ovs_firewall_restart,):
         super(TestOVSFirewallDriver, self).setUp()
         config.register_root_helper(cfg.CONF)
         cfg.CONF.set_override('security_bridge_mapping',
-                              "br-fake:fake_if", 'SECURITYGROUP')
-        with contextlib.nested(
-                mock.patch('networking_vsphere.drivers.'
-                           'ovs_firewall.OVSFirewallDriver.'
-                           'setup_base_flows'),
-                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
-                           'create'),
-                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
-                           'set_secure_mode'),
-                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
-                           'get_port_ofport',
-                           return_value=5)):
-            self.ovs_firewall = ovs_fw.OVSFirewallDriver()
-            self.ovs_firewall.sg_br = mock.Mock()
-            self.mock_br = ovs_lib.DeferredOVSBridge(self.ovs_firewall.sg_br)
-            self.LOG = ovs_fw.LOG
+                              "fake_sec_br:fake_if", 'SECURITYGROUP')
+        mock_get_port_ofport.return_value = 5
+        self.ovs_firewall = ovs_fw.OVSFirewallDriver()
+        self.ovs_firewall.sg_br = mock.Mock()
+        self.mock_br = ovs_lib.DeferredOVSBridge(self.ovs_firewall.sg_br)
+        self.LOG = ovs_fw.LOG
 
     def test_get_compact_port(self):
         compact_port = {'security_group_source_groups': 'abc',
