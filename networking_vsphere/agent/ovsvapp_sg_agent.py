@@ -119,10 +119,10 @@ class OVSvAppSecurityGroupAgent(OVSvAppSecurityGroupAgentRpc):
 
     def _process_port_set(self, devices, update=False):
         dev_list = list(devices)
-        if len(dev_list) > ovsvapp_const.SG_BATCH_SIZE:
-            sublists = ([dev_list[x:x + ovsvapp_const.SG_BATCH_SIZE]
+        if len(dev_list) > ovsvapp_const.SG_RPC_BATCH_SIZE:
+            sublists = ([dev_list[x:x + ovsvapp_const.SG_RPC_BATCH_SIZE]
                         for x in range(0, len(dev_list),
-                                       ovsvapp_const.SG_BATCH_SIZE)])
+                                       ovsvapp_const.SG_RPC_BATCH_SIZE)])
         else:
             sublists = [dev_list]
         for dev_ids in sublists:
