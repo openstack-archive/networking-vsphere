@@ -1,0 +1,20 @@
+[VCENTER]
+
+# The vCenter ip address
+
+# The trunk dvswitch name of the Cluster
+
+# Username to login to vCenter
+
+# Password to login to vCenter
+
+# user name for agent
+
+# password for agent
+
+# GRANT ALL PRIVILEGE on controller for vxlan
+# Ex : GRANT ALL PRIVILEGES ON *.* TO 'stack'@'localhost' IDENTIFIED BY 'stack' WITH GRANT OPTION;
+
+# tenant network type is vlan or vxlan
+
+# cluster in use for the test
