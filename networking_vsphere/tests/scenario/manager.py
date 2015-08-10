@@ -806,8 +806,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                      {'dest': ip_addr})
             raise
 
-    def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac,
-                              port, net_id):
+    def _dump_flows_on_br_sec_old(self, vapp_ipadd, protocol, vlan, mac,
+                                  port, net_id):
         vapp_username = cfg.CONF.VCENTER.vapp_username
         vapp_password = cfg.CONF.VCENTER.vapp_password
         session = self._create_remote_session(vapp_ipadd, vapp_username,
@@ -829,8 +829,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         check = 'tp_dst=' + str(port)
         self.assertIn(check, output)
 
-    def _dump_flows_on_br_sec_for_icmp_rule(self, vapp_ipadd, protocol, vlan,
-                                            mac, icmp_type, icmp_code, net_id):
+    def _dump_flows_on_br_sec_for_icmp_rule_old(self, vapp_ipadd, protocol,
+                                                vlan, mac, icmp_type,
+                                                icmp_code, net_id):
         vapp_username = cfg.CONF.VCENTER.vapp_username
         vapp_password = cfg.CONF.VCENTER.vapp_password
         session = self._create_remote_session(vapp_ipadd, vapp_username,
@@ -903,3 +904,108 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         if task.info.state != vim.TaskInfo.State.success:
             raise Exception('%s did not complete successfully: %s' % (
                             actionName, task.info.error))
+
+    def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac,
+                              port, net_id):
+        vapp_username = cfg.CONF.VCENTER.vapp_username
+        HOST = vapp_username + "@" + vapp_ipadd
+        build_interval = CONF.boto.build_interval
+        time.sleep(build_interval)
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',tp_dst=' + str(port))
+        else:
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',tp_dst=' + str(port))
+        ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                               shell=False,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+        output = ssh.stdout.readlines()
+        if output == []:
+                error = ssh.stderr.readlines()
+                raise exceptions.TimeoutException(error)
+        else:
+                for output_list in output[1:]:
+                        self.assertIn('tp_dst=' + str(port), output_list)
+
+    def _dump_flows_on_br_sec_for_icmp_rule(self, vapp_ipadd, protocol, vlan,
+                                            mac, icmp_type, icmp_code, net_id):
+        vapp_username = cfg.CONF.VCENTER.vapp_username
+        HOST = vapp_username + "@" + vapp_ipadd
+        build_interval = CONF.boto.build_interval
+        time.sleep(build_interval)
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',icmp_type=' + str(icmp_type) +
+                       ',icmp_code=' + str(icmp_code))
+        else:
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',icmp_type=' + str(icmp_type) +
+                       ',icmp_code=' + str(icmp_code))
+        ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                               shell=False,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+        output = ssh.stdout.readlines()
+        if output == []:
+                error = ssh.stderr.readlines()
+                raise exceptions.TimeoutException(error)
+        else:
+                for output_list in output[1:]:
+                        self.assertIn('icmp_type=' + str(icmp_type),
+                                      output_list)
+                        self.assertIn('icmp_code=' + str(icmp_code),
+                                      output_list)
+
+    def _get_vapp_ip_from_agent_list(self, host_n):
+        content = self._create_connection()
+        for child in content.rootFolder.childEntity:
+            if hasattr(child, 'vmFolder'):
+                datacenter = child
+                vmFolder = datacenter.vmFolder
+                vmList = vmFolder.childEntity
+                dic = {}
+                for vm in vmList:
+                    host_name = self._get_vm_info(dic, vm)
+                    if host_name is not None:
+                        for key in host_name:
+                                if key == host_n:
+                                        return host_name[key]['ip_address']
+
+    def _dump_flows_on_br_sec_for_icmp_type(self, vapp_ipadd, protocol, vlan,
+                                            mac, icmp_type, net_id):
+        vapp_username = cfg.CONF.VCENTER.vapp_username
+        HOST = vapp_username + "@" + vapp_ipadd
+        build_interval = CONF.boto.build_interval
+        time.sleep(build_interval)
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',icmp_type=' + str(icmp_type))
+        else:
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',icmp_type=' + str(icmp_type))
+        ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                               shell=False,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+        output = ssh.stdout.readlines()
+        if output == []:
+                error = ssh.stderr.readlines()
+                raise exceptions.TimeoutException(error)
+        else:
+                for output_list in output[1:]:
+                        self.assertIn('icmp_type=' + str(icmp_type),
+                                      output_list)

@@ -15,6 +15,8 @@
 
 from networking_vsphere.tests.scenario import manager
 
+from neutron.tests.tempest import exceptions
+
 from tempest_lib.common.utils import data_utils
 
 
@@ -424,3 +426,58 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         self._dump_flows_on_br_sec_for_icmp_rule(vapp_ipadd, 'icmp',
                                                  segment_id, mac_addr, '22',
                                                  '23', net_id)
+
+    def test_flows_consistent_across_ovsvapp_in_cluster(self):
+        """Validate the Flows are consistent across OVSvAPPs in the same
+
+        cluster
+        """
+        net_id = self.network['id']
+        name = data_utils.rand_name('server-smoke')
+        group_create_body_update, _ = self._create_security_group()
+        self.client.create_security_group_rule(
+            security_group_id=group_create_body_update['security_group']['id'],
+            protocol='icmp',
+            direction='ingress',
+            ethertype=self.ethertype,
+            port_range_min=8,
+            port_range_max=0,
+        )
+        serverid = self._create_server_with_sec_group(
+            name, net_id, group_create_body_update['security_group']['id'])
+        self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
+        device_port = self.admin_client.list_ports(device_id=serverid)
+        binding_host = device_port['ports'][0]['binding:host_id']
+        mac_addr = device_port['ports'][0]['mac_address']
+        network = self.admin_client.show_network(self.network['id'])
+        segment_id = network['network']['provider:segmentation_id']
+        host_dic = self._get_host_name(serverid)
+        host_name = host_dic['host_name']
+        vapp_ipadd = self._get_vapp_ip(str(host_name), binding_host)
+        body = self._associate_floating_ips(
+            port_id=device_port['ports'][0]['id'])
+        floatingiptoreach = body['floatingip']['floating_ip_address']
+        self.assertTrue(self.ping_ip_address(
+            floatingiptoreach,
+            should_succeed=True))
+        self._dump_flows_on_br_sec_for_icmp_type(vapp_ipadd, 'icmp',
+                                                 segment_id, mac_addr, '8',
+                                                 net_id)
+        body = self.admin_client.list_agents(agent_type='OVSvApp L2 Agent')
+        agents = body['agents']
+        vapp_ipadd_of_host = ""
+        for agent in agents:
+                if binding_host != agent['host']:
+                        agent_alive_status = agent['alive']
+                        if agent_alive_status is True:
+                                vapp_agent_name = agent['host']
+                                vapp_ipadd_of_host = \
+                                    self._get_vapp_ip_from_agent_list(
+                                        str(vapp_agent_name))
+        if vapp_ipadd_of_host:
+            self._dump_flows_on_br_sec_for_icmp_type(vapp_ipadd_of_host,
+                                                     'icmp', segment_id,
+                                                     mac_addr, '8', net_id)
+        else:
+            error_msg = "Host not found"
+            raise exceptions.BadRequest(error_msg)
