@@ -367,21 +367,24 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 sec_br.add_flow(**flow)
 
     def _add_flow_with_range(self, sec_br, port, flow, direction,
-                             pr_min=None, pr_max=None,
-                             spr_min=None, spr_max=None):
-        if pr_min is None and pr_max is None:
-            pr_min = -1
-            pr_max = -1
-        if spr_min is None and spr_max is None:
-            spr_min = -1
-            spr_max = -1
+                             dest_port_min=None, dest_port_max=None,
+                             src_port_min=None, src_port_max=None):
+        if ((dest_port_min is None and dest_port_max is None) or
+                (dest_port_min == 1 and dest_port_max == 65535)):
+            dest_port_min = -1
+            dest_port_max = -1
+        if ((src_port_min is None and src_port_max is None) or
+                (src_port_min == 1 and src_port_max == 65535)):
+            src_port_min = -1
+            src_port_max = -1
 
-        for dport, sport in itertools.product(range(pr_min, pr_max + 1),
-                                              range(spr_min, spr_max + 1)):
-            if dport >= 0:
-                flow["tp_dst"] = dport
-            if sport >= 0:
-                flow["tp_src"] = sport
+        for dest_port, src_port in itertools.product(
+                range(dest_port_min, dest_port_max + 1),
+                range(src_port_min, src_port_max + 1)):
+            if dest_port >= 0:
+                flow["tp_dst"] = dest_port
+            if src_port >= 0:
+                flow["tp_src"] = src_port
             self._add_flows_to_sec_br(sec_br, port, flow, direction)
 
     def _add_flows(self, sec_br, port, rules=None):
@@ -398,10 +401,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         for rule in rules:
             direction = rule.get('direction')
             proto = rule.get('protocol')
-            pr_min = rule.get('port_range_min')
-            pr_max = rule.get('port_range_max')
-            spr_min = rule.get('source_port_range_min')
-            spr_max = rule.get('source_port_range_max')
+            dest_port_min = rule.get('port_range_min')
+            dest_port_max = rule.get('port_range_max')
+            src_port_min = rule.get('source_port_range_min')
+            src_port_max = rule.get('source_port_range_max')
             ethertype = rule.get('ethertype')
             src_ip_prefix = rule.get('source_ip_prefix')
             dest_ip_prefix = rule.get('dest_ip_prefix')
@@ -442,17 +445,17 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     table_id = ovsvapp_const.SG_UDP_TABLE_ID
                 flow["actions"] = ("resubmit(,%s),%s" % (table_id, action))
                 self._add_flow_with_range(sec_br, port, flow, direction,
-                                          pr_min, pr_max,
-                                          spr_min, spr_max)
+                                          dest_port_min, dest_port_max,
+                                          src_port_min, src_port_max)
                 # Since we added the required flows in the above method
                 # we just proceed to the next sg rule.
                 continue
             elif protocol == constants.PROTO_NAME_ICMP:
                 flow["priority"] = ovsvapp_const.SG_TP_PRI
-                if pr_min is not None:
-                    flow["icmp_type"] = pr_min
-                if pr_max is not None:
-                    flow["icmp_code"] = pr_max
+                if dest_port_min is not None:
+                    flow["icmp_type"] = dest_port_min
+                if dest_port_max is not None:
+                    flow["icmp_code"] = dest_port_max
                 table_id = ovsvapp_const.SG_ICMP_TABLE_ID
             else:
                 table_id = ovsvapp_const.SG_IP_TABLE_ID
