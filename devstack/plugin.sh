@@ -95,7 +95,7 @@ function configure_ovsvapp_config {
 }
 
 function add_ovsvapp_config {
-    OVSVAPP_CONF_PATH=etc/neutron/plugins/ovsvapp
+    OVSVAPP_CONF_PATH=etc/neutron/plugins/ml2
     OVSVAPP_CONF_FILENAME=ovsvapp_agent.ini
     mkdir -p /$OVSVAPP_CONF_PATH
     OVSVAPP_CONF_FILE=$OVSVAPP_CONF_PATH/$OVSVAPP_CONF_FILENAME
