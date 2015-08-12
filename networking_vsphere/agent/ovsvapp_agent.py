@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import logging
 import threading
 import time
 
@@ -43,6 +44,7 @@ from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import error
 from networking_vsphere.common import model
 from networking_vsphere.common import utils
+from networking_vsphere.monitor import monitor
 from networking_vsphere.utils import resource_util
 
 LOG = log.getLogger(__name__)
@@ -156,9 +158,22 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.setup_ovs_bridges()
         self.setup_rpc()
         defer_apply = CONF.SECURITYGROUP.defer_apply
+        self.monitor_log = self.initiate_monitor_log()
+        if self.monitor_log:
+            self.monitor_log.info(_("ovs: pending"))
         self.sg_agent = sgagent.OVSvAppSecurityGroupAgent(self.context,
                                                           self.sg_plugin_rpc,
                                                           defer_apply)
+        if self.monitor_log:
+            self.monitor_log.info(_("ovs: ok"))
+
+    def initiate_monitor_log(self):
+        try:
+            logger = logging.getLogger('monitor')
+            logger.addHandler(logging.FileHandler(monitor.LOG_FILE_PATH))
+            return logger
+        except Exception:
+            LOG.error(_("Could not get handle for %s."), monitor.LOG_FILE_PATH)
 
     def check_ovsvapp_agent_restart(self):
         # Check for the canary flow OVS Neutron Agent adds a canary table flow
@@ -614,8 +629,12 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.info(_("Going to update firewall for ports: "
                        "%s."), device_list)
             self.sg_agent.refresh_firewall(device_list)
+            if self.monitor_log:
+                self.monitor_log.info(_("ovs: ok"))
         if uncached_devices:
             self._process_uncached_devices(uncached_devices)
+            if self.monitor_log:
+                self.monitor_log.info(_("ovs: ok"))
 
     def mitigate_ovs_restart(self):
         """Mitigates OpenvSwitch process restarts.
@@ -626,6 +645,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         the flows related to Tenant VMs.
         """
         try:
+            if self.monitor_log:
+                self.monitor_log.info(_("ovs: broken"))
             self.setup_integration_br()
             self.setup_security_br()
             if self.enable_tunneling:
@@ -672,14 +693,20 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.mitigate_ovs_restart()
         # Case where devices_to_filter is having some entries.
         if self.refresh_firewall_required:
+            if self.monitor_log:
+                self.monitor_log.warn(_("ovs: pending"))
             self._update_firewall()
         # Case where sgagent's devices_to_refilter is having some
         # entries or global_refresh_firewall flag is set to True.
         if self.sg_agent.firewall_refresh_needed():
+            if self.monitor_log:
+                self.monitor_log.warn(_("ovs: pending"))
             LOG.info(_("Starting refresh_port_filters."))
             self.sg_agent.refresh_port_filters(
                 self.cluster_host_ports, self.cluster_other_ports)
             LOG.info(_("Finished refresh_port_filters."))
+            if self.monitor_log:
+                self.monitor_log.info(_("ovs: ok"))
         # Check if there are any pending port bindings to be made.
         if self.ports_to_bind:
             self._update_port_bindings()
