@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import logging
 import threading
 import time
 
@@ -43,6 +44,7 @@ from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import error
 from networking_vsphere.common import model
 from networking_vsphere.common import utils
+from networking_vsphere.monitor import monitor
 from networking_vsphere.utils import resource_util
 
 LOG = log.getLogger(__name__)
@@ -156,9 +158,22 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.setup_ovs_bridges()
         self.setup_rpc()
         defer_apply = CONF.SECURITYGROUP.defer_apply
+        self.monitor_log = self.initiate_monitor_log()
+        if self.monitor_log:
+            self.monitor_log.info(_("ovs: pending"))
         self.sg_agent = sgagent.OVSvAppSecurityGroupAgent(self.context,
                                                           self.sg_plugin_rpc,
                                                           defer_apply)
+        if self.monitor_log:
+            self.monitor_log.info(_("ovs: ok"))
+
+    def initiate_monitor_log(self):
+        try:
+            logger = logging.getLogger('monitor')
+            logger.addHandler(logging.FileHandler(monitor.LOG_FILE_PATH))
+            return logger
+        except Exception:
+            LOG.error(_("Could not get handle for %s."), monitor.LOG_FILE_PATH)
 
     def check_ovsvapp_agent_restart(self):
         # Check for the canary flow OVS Neutron Agent adds a canary table flow

@@ -1,0 +1,14 @@
+server{
+        listen 8080 default_server;
+        listen [::]:8080 default_server ipv6only=on;
+
+        root /usr/share/nginx/html;
+        index index.html index.htm;
+
+        location ~ \.(json) {
+            root /var/log/neutron/ovsvapp-agent/;
+            allow   <mgmt-subnet>;
+            deny    all;
+        }
+}
+
