@@ -42,7 +42,6 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
-from pexpect import pxssh
 from tempest_lib.common import rest_client
 from tempest_lib.common import ssh
 from tempest_lib.common.utils import data_utils
@@ -791,69 +790,6 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                     return str(serv['vm_name']), str(server['vm_name'])
             server = serv
             count += 1
-
-    def _create_remote_session(self, ip_addr, u_name, psswd):
-        session = pxssh.pxssh()
-        try:
-            session.login(ip_addr, u_name, password=psswd, login_timeout=80)
-            return session
-
-        except Exception:
-            LOG.warn(_LW('Failed to connect to IP: %(dest)s '
-                         'via a ssh connection.') %
-                     {'dest': ip_addr})
-            raise
-
-    def _dump_flows_on_br_sec_old(self, vapp_ipadd, protocol, vlan, mac,
-                                  port, net_id):
-        vapp_username = cfg.CONF.VCENTER.vapp_username
-        vapp_password = cfg.CONF.VCENTER.vapp_password
-        session = self._create_remote_session(vapp_ipadd, vapp_username,
-                                              vapp_password)
-        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
-        if "vlan" == tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
-                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-                       str(vlan) + ',tp_dst=' + str(port))
-        else:
-                segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
-                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-                       str(segment_id) + ',tp_dst=' + str(port))
-        session.sendline(cmd)
-        session.prompt()
-        output = session.before
-        session.logout()
-        check = 'tp_dst=' + str(port)
-        self.assertIn(check, output)
-
-    def _dump_flows_on_br_sec_for_icmp_rule_old(self, vapp_ipadd, protocol,
-                                                vlan, mac, icmp_type,
-                                                icmp_code, net_id):
-        vapp_username = cfg.CONF.VCENTER.vapp_username
-        vapp_password = cfg.CONF.VCENTER.vapp_password
-        session = self._create_remote_session(vapp_ipadd, vapp_username,
-                                              vapp_password)
-        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
-        if "vlan" == tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
-                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-                       str(vlan) + ',icmp_type=' + str(icmp_type) +
-                       ',icmp_code=' + str(icmp_code))
-        else:
-                segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
-                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-                       str(segment_id) + ',icmp_type=' + str(icmp_type) +
-                       ',icmp_code=' + str(icmp_code))
-        session.sendline(cmd)
-        session.prompt()
-        output = session.before
-        session.logout()
-        check_list = ['icmp_type=' + str(icmp_type),
-                      'icmp_code=' + str(icmp_code)]
-        for checks in check_list:
-                self.assertIn(checks, output)
 
     def get_server_ip(self, server_id, net_name):
         region = CONF.compute.region
