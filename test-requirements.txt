@@ -7,7 +7,6 @@ hacking>=0.10.0,<0.11
 mock>=1.0,<=1.0.1
 coverage>=3.6
 discover
-pexpect>=3.1,!=3.3 # ISC License
 python-subunit>=0.0.18
 sphinx>=1.1.2,!=1.2.0,!=1.3b1,<1.3
 oslosphinx>=2.5.0  # Apache-2.0
