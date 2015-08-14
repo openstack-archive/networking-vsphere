@@ -44,7 +44,6 @@ from neutron.tests.tempest import exceptions
 from neutron.tests.tempest import manager
 from neutron.tests.tempest import test
 
-from pexpect import pxssh
 from tempest_lib.common import rest_client
 from tempest_lib.common import ssh
 from tempest_lib.common.utils import data_utils
@@ -793,18 +792,6 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                     return str(serv['vm_name']), str(server['vm_name'])
             server = serv
             count += 1
-
-    def _create_remote_session(self, ip_addr, u_name, psswd):
-        session = pxssh.pxssh()
-        try:
-            session.login(ip_addr, u_name, password=psswd, login_timeout=80)
-            return session
-
-        except Exception:
-            LOG.warn(_LW('Failed to connect to IP: %(dest)s '
-                         'via a ssh connection.') %
-                     {'dest': ip_addr})
-            raise
 
     def get_server_ip(self, server_id, net_name):
         region = CONF.compute.region
