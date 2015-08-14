@@ -103,7 +103,7 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
             filters={'agent_type': [ovsvapp_const.AGENT_TYPE_OVSVAPP]})
         for agent in agents:
             agent_cluster_id = agent['configurations'].get('cluster_id')
-            agent_vcenter_id = agent['configurations'].get('vcenter')
+            agent_vcenter_id = agent['configurations'].get('vcenter_id')
             if (cluster_id != agent_cluster_id) or (
                 vcenter_id != agent_vcenter_id):
                 continue
@@ -136,7 +136,7 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
             agent_config = agent['configurations']
             source_host = agent_config.get('esx_host_name')
             chosen_agent = self._get_eligible_ovsvapp_agent(
-                agent_config['cluster_id'], agent_config['vcenter'])
+                agent_config['cluster_id'], agent_config['vcenter_id'])
             if chosen_agent and (chosen_agent['id'] in self.active_agents):
                 cluster_id = chosen_agent['configurations'].get('cluster_id')
                 device_data['assigned_agent_host'] = chosen_agent['host']
@@ -147,14 +147,14 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                 self.notifier.device_update(self.context,
                                             device_data, cluster_id)
             else:
-                ovsvapp_db.set_cluster_threshold(agent_config['vcenter'],
+                ovsvapp_db.set_cluster_threshold(agent_config['vcenter_id'],
                                                  agent_config['cluster_id'])
                 LOG.info(_("No eligible OVSvApp agents found for "
                            "processing. Reverting DB status for the agent."))
                 self.update_agent_state(agent['id'], True)
         except Exception:
             agent_config = agent['configurations']
-            ovsvapp_db.set_cluster_threshold(agent_config['vcenter'],
+            ovsvapp_db.set_cluster_threshold(agent_config['vcenter_id'],
                                              agent_config['cluster_id'])
             LOG.exception(_("Unable to inform the OVSvApp agent for "
                             "Host - maintenance or shutdown operation."))
@@ -257,7 +257,7 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                                    "agent list."), agent_id)
                         self.inactive_agents.remove(agent_id)
                         ovsvapp_db.reset_cluster_threshold(
-                            agent_config['vcenter'],
+                            agent_config['vcenter_id'],
                             agent_config['cluster_id']
                         )
                 else:
@@ -278,7 +278,7 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                             continue
                         cluster_status = (
                             ovsvapp_db.update_and_get_cluster_lock(
-                                agent_config['vcenter'],
+                                agent_config['vcenter_id'],
                                 agent_config['cluster_id']))
                         if cluster_status == ovsvapp_db.SUCCESS:
                             # Got the cluster lock for mitigating this agent.

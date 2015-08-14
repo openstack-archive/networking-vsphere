@@ -213,7 +213,7 @@ class TestAgentMonitor(base.BaseTestCase):
 
     def test_get_eligble_ovsvapp_agent(self):
         config = {'cluster_id': FAKE_CLUSTER_1,
-                  'vcenter': FAKE_VCENTER}
+                  'vcenter_id': FAKE_VCENTER}
         self._populate_agent_lists(config)
         fake_all_agent_list = copy.deepcopy(self.fake_inactive_agent_list)
         fake_all_agent_list.extend(self.fake_active_agent_list)
@@ -229,9 +229,9 @@ class TestAgentMonitor(base.BaseTestCase):
 
     def test_get_eligble_ovsvapp_agent_nothing_available(self):
         config = {'cluster_id': FAKE_CLUSTER_1,
-                  'vcenter': FAKE_VCENTER}
+                  'vcenter_id': FAKE_VCENTER}
         config1 = {'cluster_id': FAKE_CLUSTER_2,
-                   'vcenter': FAKE_VCENTER}
+                   'vcenter_id': FAKE_VCENTER}
         alien_agent = make_inactive_agent('9999',
                                           ovsvapp_const.AGENT_TYPE_OVSVAPP,
                                           52, config1)
@@ -251,12 +251,12 @@ class TestAgentMonitor(base.BaseTestCase):
 
     def test_process_ovsvapp_agent(self):
         dead_agent = {'configurations': {'esx_host_name': FAKE_HOST_1,
-                                         'vcenter': FAKE_VCENTER,
+                                         'vcenter_id': FAKE_VCENTER,
                                          'cluster_id': FAKE_CLUSTER_1},
                       'host': FAKE_HOST_1,
                       'id': '1234'}
         chosen_agent = {'configurations': {'esx_host_name': FAKE_HOST_2,
-                                           'vcenter': FAKE_VCENTER,
+                                           'vcenter_id': FAKE_VCENTER,
                                            'cluster_id': FAKE_CLUSTER_2},
                         'host': FAKE_HOST_2,
                         'id': '1111'}
@@ -280,7 +280,7 @@ class TestAgentMonitor(base.BaseTestCase):
 
     def test_process_ovsvapp_agent_no_eligible_agents(self):
         dead_agent = {'configurations': {'esx_host_name': FAKE_HOST_1,
-                                         'vcenter': FAKE_VCENTER,
+                                         'vcenter_id': FAKE_VCENTER,
                                          'cluster_id': FAKE_CLUSTER_1},
                       'host': FAKE_HOST_1,
                       'id': '1234'}
@@ -311,7 +311,7 @@ class TestAgentMonitor(base.BaseTestCase):
 
     def test_process_ovsvapp_agent_exception(self):
         dead_agent = {'configurations': {'esx_host_name': FAKE_HOST_1,
-                                         'vcenter': FAKE_VCENTER,
+                                         'vcenter_id': FAKE_VCENTER,
                                          'cluster_id': FAKE_CLUSTER_1},
                       'host': FAKE_HOST_1,
                       'id': '1234'}
@@ -354,7 +354,7 @@ class TestAgentMonitor(base.BaseTestCase):
             self.assertFalse(ret)
 
     def test_monitor_agent_state(self):
-        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter': FAKE_VCENTER}
+        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter_id': FAKE_VCENTER}
         self._populate_agent_lists(config)
         fake_all_agent_list = copy.deepcopy(self.fake_inactive_agent_list)
         fake_all_agent_list.extend(self.fake_active_agent_list)
@@ -391,7 +391,7 @@ class TestAgentMonitor(base.BaseTestCase):
                                                  agent_id, status)
 
     def test_monitor_agent_state_nothing_new_to_process(self):
-        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter': FAKE_VCENTER}
+        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter_id': FAKE_VCENTER}
         self._populate_agent_lists(config)
         fake_all_agent_list = copy.deepcopy(self.fake_inactive_agent_list[:2])
         fake_all_agent_list.extend(self.fake_active_agent_list)
@@ -417,7 +417,7 @@ class TestAgentMonitor(base.BaseTestCase):
             self.assertFalse(process_ovsvapp.called)
 
     def test_monitor_agent_state_exception_in_update(self):
-        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter': FAKE_VCENTER}
+        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter_id': FAKE_VCENTER}
         self._populate_agent_lists(config)
         fake_all_agent_list = copy.deepcopy(self.fake_inactive_agent_list)
         fake_all_agent_list.extend(self.fake_active_agent_list)
@@ -442,7 +442,7 @@ class TestAgentMonitor(base.BaseTestCase):
             self.assertFalse(process_ovsvapp.called)
 
     def test_monitor_agent_state_agent_active_to_inactive(self):
-        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter': FAKE_VCENTER}
+        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter_id': FAKE_VCENTER}
         self._populate_agent_lists(config)
         fake_all_agent_list = copy.deepcopy(self.fake_inactive_agent_list)
         fake_all_agent_list.extend(self.fake_active_agent_list)
@@ -482,7 +482,7 @@ class TestAgentMonitor(base.BaseTestCase):
             self.assertTrue(get_cluster_lock.called)
 
     def test_monitor_agent_agent_active_to_inactive_cluster_locked(self):
-        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter': FAKE_VCENTER}
+        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter_id': FAKE_VCENTER}
         self._populate_agent_lists(config)
         fake_all_agent_list = copy.deepcopy(self.fake_inactive_agent_list)
         fake_all_agent_list.extend(self.fake_active_agent_list)
@@ -511,7 +511,7 @@ class TestAgentMonitor(base.BaseTestCase):
             self.assertTrue(get_cluster_lock.called)
 
     def test_monitor_agent_state_agent_inactive_to_active(self):
-        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter': FAKE_VCENTER}
+        config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter_id': FAKE_VCENTER}
         self._populate_agent_lists(config)
         fake_all_agent_list = copy.deepcopy(self.fake_inactive_agent_list[:2])
         fake_all_agent_list.extend(self.fake_active_agent_list)
