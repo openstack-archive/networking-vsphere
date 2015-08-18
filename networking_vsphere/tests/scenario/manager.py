@@ -598,7 +598,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         proc = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE)
         segment_id = proc.communicate()[0]
-        return segment_id
+        return segment_id.strip('\r\n')
 
     def _get_vm_name(self, server_id):
         content = self._create_connection()
@@ -924,7 +924,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
-        if output == []:
+        if output[1:] == []:
                 error = ssh.stderr.readlines()
                 raise exceptions.TimeoutException(error)
         else:
@@ -954,7 +954,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
-        if output == []:
+        if output[1:] == []:
                 error = ssh.stderr.readlines()
                 raise exceptions.TimeoutException(error)
         else:
@@ -1000,7 +1000,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
-        if output == []:
+        if output[1:] == []:
                 error = ssh.stderr.readlines()
                 raise exceptions.TimeoutException(error)
         else:
