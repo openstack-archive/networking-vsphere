@@ -46,11 +46,10 @@ FAKE_PORT_4 = 'fake_port_4'
 MAC_ADDRESS = '01:02:03:04:05:06'
 FAKE_CONTEXT = 'fake_context'
 FAKE_SG = {'fake_sg': 'fake_sg_rule'}
-FAKE_SG_RULES = {FAKE_DEVICE_ID: {FAKE_PORT_1:
-                 {'security_group_source_groups': ['fake_rule_1',
-                                                   'fake_rule_2',
-                                                   'fake_rule_3']
-                  }}
+FAKE_SG_RULES = {FAKE_PORT_1: {'security_group_source_groups': ['fake_rule_1',
+                                                                'fake_rule_2',
+                                                                'fake_rule_3']
+                               }
                  }
 DEVICE = {'id': FAKE_DEVICE_ID,
           'cluster_id': FAKE_CLUSTER_1,
@@ -1290,17 +1289,21 @@ class TestOVSvAppL2Agent(base.TestCase):
                                ) as mock_add_devices_fn, \
                 mock.patch.object(self.agent.sg_agent, 'ovsvapp_sg_update'
                                   ) as mock_sg_update_fn, \
+                mock.patch.object(self.agent.sg_agent, 'expand_sg_rules',
+                                  return_value=FAKE_SG_RULES
+                                  ) as mock_expand_sg_rules, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=FAKE_SG_RULES)
+                                     sg_rules=mock.MagicMock())
             self.assertTrue(mock_logger_debug.called)
             mock_add_devices_fn.assert_called_with(ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertFalse(self.agent.devices_up_list)
             self.assertTrue(mock_sg_update_fn.called)
+            self.assertTrue(mock_expand_sg_rules.called)
 
     def test_device_create_hosted_vm_vlan(self):
         ports = [self._build_port(FAKE_PORT_1)]
@@ -1317,19 +1320,22 @@ class TestOVSvAppL2Agent(base.TestCase):
                                   ) as mock_sg_update_fn, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
                                   ) as mock_add_phy_br_flows, \
+                mock.patch.object(self.agent.sg_agent, 'expand_sg_rules',
+                                  return_value=FAKE_SG_RULES
+                                  ) as mock_expand_sg_rules, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=FAKE_SG_RULES)
+                                     sg_rules=mock.MagicMock())
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertEqual([FAKE_PORT_1], self.agent.devices_up_list)
             mock_add_devices_fn.assert_called_with(ports)
-            mock_sg_update_fn.assert_called_with(
-                FAKE_SG_RULES.get(FAKE_DEVICE_ID))
+            self.assertTrue(mock_sg_update_fn.called)
             self.assertTrue(mock_add_phy_br_flows.called)
+            self.assertTrue(mock_expand_sg_rules.called)
 
     def test_device_create_hosted_vm_vxlan(self):
         ports = [self._build_port(FAKE_PORT_1)]
@@ -1349,19 +1355,22 @@ class TestOVSvAppL2Agent(base.TestCase):
                                   ) as mock_add_devices_fn, \
                 mock.patch.object(self.agent.sg_agent, 'ovsvapp_sg_update'
                                   ) as mock_sg_update_fn, \
+                mock.patch.object(self.agent.sg_agent, 'expand_sg_rules',
+                                  return_value=FAKE_SG_RULES
+                                  ) as mock_expand_sg_rules, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=FAKE_SG_RULES)
+                                     sg_rules=mock.MagicMock())
             self.assertTrue(mock_populate_tun_flows.called)
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertEqual([FAKE_PORT_1], self.agent.devices_up_list)
             mock_add_devices_fn.assert_called_with(ports)
-            mock_sg_update_fn.assert_called_with(
-                FAKE_SG_RULES.get(FAKE_DEVICE_ID))
+            self.assertTrue(mock_sg_update_fn.called)
+            self.assertTrue(mock_expand_sg_rules.called)
 
     def test_device_create_hosted_vm_create_port_exception(self):
         ports = [self._build_port(FAKE_PORT_1)]
@@ -1379,17 +1388,21 @@ class TestOVSvAppL2Agent(base.TestCase):
                                   ), \
                 mock.patch.object(self.agent.sg_agent, 'ovsvapp_sg_update'
                                   ) as mock_sg_update_fn, \
+                mock.patch.object(self.agent.sg_agent, 'expand_sg_rules',
+                                  return_value=FAKE_SG_RULES
+                                  ) as mock_expand_sg_rules, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug, \
                 mock.patch.object(self.LOG, 'exception') as mock_log_excep:
             self.assertRaises(
                 error.OVSvAppNeutronAgentError,
                 self.agent.device_create,
                 FAKE_CONTEXT, device=DEVICE,
-                ports=ports, sg_rules=FAKE_SG_RULES)
+                ports=ports, sg_rules=mock.MagicMock())
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertFalse(mock_sg_update_fn.called)
+            self.assertTrue(mock_expand_sg_rules.called)
             self.assertTrue(mock_log_excep.called)
 
     def test_port_update_admin_state_up(self):

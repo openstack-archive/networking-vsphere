@@ -68,7 +68,12 @@ class OVSvAppAgentDriver(object):
 
     def _start_rpc_listeners(self):
         self.notifier = ovsvapp_rpc.OVSvAppAgentNotifyAPI(topics.AGENT)
-        self.endpoints = [ovsvapp_rpc.OVSvAppServerRpcCallback(self.notifier)]
+        self.ovsvapp_sg_server_rpc = (
+            ovsvapp_rpc.OVSvAppSecurityGroupServerRpcMixin())
+        self.endpoints = [ovsvapp_rpc.OVSvAppServerRpcCallback(
+                          self.notifier, self.ovsvapp_sg_server_rpc),
+                          ovsvapp_rpc.OVSvAppSecurityGroupServerRpcCallback(
+                          self.ovsvapp_sg_server_rpc)]
         self.topic = constants.OVSVAPP
         self.conn = n_rpc.create_connection(new=True)
         self.conn.create_consumer(self.topic, self.endpoints, fanout=False)
