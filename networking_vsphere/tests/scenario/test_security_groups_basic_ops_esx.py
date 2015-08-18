@@ -154,6 +154,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
 
         # Create port with multiple security group
         body = self.client.create_port(**post_body)
+        self.addCleanup(self.client.delete_port, body['port']['id'])
         self.client.create_security_group_rule(
             security_group_id=first_security_group['security_group']['id'],
             protocol='icmp',
