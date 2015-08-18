@@ -924,7 +924,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
-        if output == []:
+        if output[1:] == []:
                 error = ssh.stderr.readlines()
                 raise exceptions.TimeoutException(error)
         else:
@@ -954,7 +954,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
-        if output == []:
+        if output[1:] == []:
                 error = ssh.stderr.readlines()
                 raise exceptions.TimeoutException(error)
         else:
@@ -1000,7 +1000,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
-        if output == []:
+        if output[1:] == []:
                 error = ssh.stderr.readlines()
                 raise exceptions.TimeoutException(error)
         else:
