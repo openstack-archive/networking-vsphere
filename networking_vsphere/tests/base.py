@@ -19,13 +19,21 @@ import eventlet
 import fixtures
 import mock
 from oslo_config import cfg
+from oslo_messaging import conffixture as messaging_conffixture
 from oslotest import base
 import six
 
 from networking_vsphere.common import config as ovsvapp_config
 
+from neutron.common import rpc as n_rpc
+from neutron.tests import fake_notifier
+
 CONF = cfg.CONF
 eventlet.monkey_patch()
+
+
+def fake_consume_in_threads(self):
+    return []
 
 
 class TestCase(base.BaseTestCase):
@@ -36,6 +44,7 @@ class TestCase(base.BaseTestCase):
         """Run before each test method to initialize test environment."""
         super(base.BaseTestCase, self).setUp()
         ovsvapp_config.register_options()
+        self.setup_rpc_mocks()
         self.mock = mock.Mock()
         self.logger = self.useFixture(fixtures.FakeLogger(name="neutron",
                                                           level=logging.INFO
@@ -43,6 +52,27 @@ class TestCase(base.BaseTestCase):
         self._overridden_opts = []
         self.addCleanup(self.del_attributes)
         self.addCleanup(self.reset_flags)
+
+    def setup_rpc_mocks(self):
+        # don't actually start RPC listeners when testing
+        self.useFixture(fixtures.MonkeyPatch(
+            'neutron.common.rpc.Connection.consume_in_threads',
+            fake_consume_in_threads))
+
+        self.useFixture(fixtures.MonkeyPatch(
+            'oslo_messaging.Notifier', fake_notifier.FakeNotifier))
+
+        self.messaging_conf = messaging_conffixture.ConfFixture(CONF)
+        self.messaging_conf.transport_driver = 'fake'
+        # NOTE(russellb) We want all calls to return immediately.
+        self.messaging_conf.response_timeout = 0
+        self.useFixture(self.messaging_conf)
+
+        self.addCleanup(n_rpc.clear_extra_exmods)
+        n_rpc.add_extra_exmods('neutron.test')
+
+        self.addCleanup(n_rpc.cleanup)
+        n_rpc.init(CONF)
 
     def flags(self, **kw):
         """Override flag variables for a test."""

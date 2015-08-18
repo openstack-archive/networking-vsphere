@@ -26,6 +26,7 @@ from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
 from neutron.tests.unit.plugins.ml2 import test_rpc
 
 from networking_vsphere.agent import ovsvapp_agent
+from networking_vsphere.agent import ovsvapp_sg_agent
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.ml2 import ovsvapp_rpc
 
@@ -124,8 +125,9 @@ class OVSvAppServerRpcCallbackTest(object):
                                   ) as mock_get_ports_from_devices, \
                 mock.patch.object(self.plugin, 'update_port_status'
                                   ) as mock_update_port_status, \
-                mock.patch.object(self.plugin, 'security_group_rules_for_ports'
-                                  ) as mock_sg_rules_for_ports, \
+                mock.patch.object(self.plugin,
+                                  'security_group_info_for_esx_ports'
+                                  ) as mock_sg_info_for_esx_ports, \
                 mock.patch.object(self.ovsvapp_callbacks,
                                   'update_port_binding',
                                   return_value=[port]
@@ -137,7 +139,7 @@ class OVSvAppServerRpcCallbackTest(object):
             mock_get_ports_from_devices.assert_called_with('fake_context',
                                                            set([FAKE_PORT_ID]))
             self.assertTrue(mock_update_port_status.called)
-            self.assertTrue(mock_sg_rules_for_ports.called)
+            self.assertTrue(mock_sg_info_for_esx_ports.called)
             self.assertTrue(mock_update_port_binding.called)
 
     @mock.patch.object(ovsvapp_rpc.LOG, 'debug')
@@ -490,6 +492,9 @@ class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
                            fanout=True,
                            network_id=FAKE_NETWORK_ID)
 
+
+class OVSvAppPluginApiTest(test_rpc.RpcApiTestCase):
+
     def test_get_ports_for_device(self):
         rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
         self._test_rpc_api(rpcapi, None,
@@ -550,3 +555,14 @@ class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
                            vcenter_id=FAKE_VCENTER,
                            cluster_id=FAKE_CLUSTER_ID,
                            success='fake_status')
+
+
+class OVSvAppSecurityGroupServerRpcApiTest(test_rpc.RpcApiTestCase):
+
+    def test_security_group_info_for_esx_devices(self):
+        rpcapi = ovsvapp_sg_agent.OVSvAppSecurityGroupServerRpcApi(
+            ovsvapp_const.OVSVAPP)
+        self._test_rpc_api(rpcapi, None,
+                           'security_group_info_for_esx_devices',
+                           rpc_method='call',
+                           devices=['fake_devices'])
