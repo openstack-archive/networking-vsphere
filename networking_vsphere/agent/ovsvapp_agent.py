@@ -25,7 +25,6 @@ import six
 
 from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
-from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.common import utils as n_utils
@@ -157,7 +156,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.setup_rpc()
         defer_apply = CONF.SECURITYGROUP.defer_apply
         self.sg_agent = sgagent.OVSvAppSecurityGroupAgent(self.context,
-                                                          self.sg_plugin_rpc,
+                                                          self.ovsvapp_rpc,
                                                           defer_apply)
 
     def check_ovsvapp_agent_restart(self):
@@ -835,8 +834,9 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.topic = topics.AGENT
         self.plugin_rpc = RpcPluginApi()
         self.state_rpc = agent_rpc.PluginReportStateAPI(topics.PLUGIN)
-        self.sg_plugin_rpc = sg_rpc.SecurityGroupServerRpcApi(topics.PLUGIN)
         self.ovsvapp_rpc = OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
+        self.ovsvapp_sg_rpc = sgagent.OVSvAppSecurityGroupServerRpcApi(
+            ovsvapp_const.OVSVAPP)
 
         # RPC network init.
         self.context = context.get_admin_context_without_session()
@@ -1430,9 +1430,14 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.debug('Cluster/vCenter mismatch..ignoring device_create rpc.')
             return
         ports_list = kwargs.get('ports')
-        sg_rules = kwargs.get("sg_rules")
+        sg_info = kwargs.get("sg_rules")
         host = device['host']
         LOG.debug("Received Port list: %s.", ports_list)
+        LOG.info(_('Trying to expand the sg_rule_info for device %s: '),
+                 device_id)
+        sg_rules = self.sg_agent.expand_sg_rules(sg_info[device_id])
+        LOG.info(_('Finished expanding the sg_rule_info for device %s: '),
+                 device_id)
         port_ids = [port['id'] for port in ports_list]
         if host == self.esx_hostname:
             self._add_ports_to_host_ports(port_ids)
@@ -1446,13 +1451,13 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.refresh_firewall_required = True
         if self.tenant_network_type == p_const.TYPE_VLAN:
             self._process_create_portgroup_vlan(context, ports_list, host,
-                                                sg_rules[device_id])
+                                                sg_rules)
         elif self.tenant_network_type == p_const.TYPE_VXLAN:
             # In VXLAN case, the port_list will have ports pre populated
             # with the lvid.
             self._process_create_portgroup_vxlan(context, ports_list,
                                                  host, device_id,
-                                                 sg_rules[device_id])
+                                                 sg_rules)
         LOG.info(_("device_create processed for VM: %s."), device_id)
 
     def _port_update_status_change(self, network_model, port_model):
