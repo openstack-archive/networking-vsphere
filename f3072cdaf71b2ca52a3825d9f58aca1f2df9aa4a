@@ -1,0 +1,9 @@
+Verified+2: Jenkins
+Code-Review+2: Vivekanandan Narasimhan <vivekanandan.narasimhan@hp.com>
+Workflow+1: Vivekanandan Narasimhan <vivekanandan.narasimhan@hp.com>
+Code-Review+2: Sudhakar Babu Gariganti <sudhakar-babu.gariganti@hp.com>
+Submitted-by: Jenkins
+Submitted-at: Tue, 18 Aug 2015 09:43:04 +0000
+Reviewed-on: https://review.openstack.org/213124
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
