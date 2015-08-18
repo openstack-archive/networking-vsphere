@@ -87,3 +87,6 @@ ICMP_DEST_UNREACH = 3
 THREAD_POOL_SIZE = 5
 RPC_BATCH_SIZE = 30
 SG_RPC_BATCH_SIZE = 10
+
+DIRECTION_IP_PREFIX = {'ingress': 'source_ip_prefix',
+                       'egress': 'dest_ip_prefix'}

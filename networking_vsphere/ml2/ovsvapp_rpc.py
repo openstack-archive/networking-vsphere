@@ -28,6 +28,7 @@ from neutron.common import exceptions as exc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.db import models_v2
+from neutron.db import securitygroups_rpc_base as sg_rpc_base
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.ml2 import db
@@ -39,6 +40,73 @@ from neutron.plugins.ml2 import rpc as plugin_rpc
 LOG = log.getLogger(__name__)
 
 
+class OVSvAppSecurityGroupServerRpcCallback(object):
+    """Callback for OVSvApp SecurityGroup agent RPC in plugin implementations.
+
+    This class implements the server side of an rpc interface. The client side
+    can be found in OVSvAppSecurityGroupServerRpcApi.
+    """
+    target = oslo_messaging.Target(version='1.0')
+
+    def __init__(self, ovsvapp_sg_server_rpc=None):
+        self.sg_rpc = ovsvapp_sg_server_rpc
+
+    @property
+    def plugin(self):
+        return manager.NeutronManager.get_plugin()
+
+    def _get_devices_info(self, context, devices):
+        return dict(
+            (port['id'], port)
+            for port in self.plugin.get_ports_from_devices(context, devices)
+            if port and not port['device_owner'].startswith('network:')
+        )
+
+    def security_group_info_for_esx_devices(self, rpc_context, **kwargs):
+        """RPC callback to return security_grp rules for each VM port on esx.
+
+        :params devices: list of devices.
+        :returns: security group info correspond to the devices with sg_rules.
+        """
+        devices_info = kwargs.get('devices')
+        ports = self._get_devices_info(rpc_context, devices_info)
+        return self.sg_rpc.security_group_info_for_esx_ports(
+            rpc_context, ports)
+
+
+class OVSvAppSecurityGroupServerRpcMixin(
+        sg_rpc_base.SecurityGroupServerRpcMixin):
+    """Mixin class to add agent-based security group implementation."""
+
+    def _get_remote_group_id_to_ip_prefix(self, context, ports):
+        remote_group_ids = self._select_remote_group_ids(ports)
+        ips = self._select_ips_for_remote_group(context, remote_group_ids)
+        return {'ports': ports, 'member_ips': ips}
+
+    def security_group_info_for_esx_ports(self, context, ports):
+        rules_in_db = self._select_rules_for_ports(context, ports)
+        for (port_id, rule_in_db) in rules_in_db:
+            port = ports[port_id]
+            direction = rule_in_db['direction']
+            rule_dict = {
+                'security_group_id': rule_in_db['security_group_id'],
+                'direction': direction,
+                'ethertype': rule_in_db['ethertype'],
+            }
+            for key in ('protocol', 'port_range_min', 'port_range_max',
+                        'remote_ip_prefix', 'remote_group_id'):
+                if rule_in_db.get(key):
+                    if key == 'remote_ip_prefix':
+                        direction_ip_prefix = (
+                            ovsvapp_const.DIRECTION_IP_PREFIX[direction])
+                        rule_dict[direction_ip_prefix] = rule_in_db[key]
+                        continue
+                    rule_dict[key] = rule_in_db[key]
+            port['security_group_rules'].append(rule_dict)
+        self._apply_provider_rule(context, ports)
+        return self._get_remote_group_id_to_ip_prefix(context, ports)
+
+
 class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
 
     """Plugin side of the OVSvApp rpc.
@@ -48,10 +116,11 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
     """
     target = oslo_messaging.Target(version='1.0')
 
-    def __init__(self, notifier=None):
+    def __init__(self, notifier=None, ovsvapp_sg_server_rpc=None):
         self.type_manager = managers.TypeManager()
         self.agent_notifier = plugin_rpc.AgentNotifierApi(topics.AGENT)
         self.notifier = notifier
+        self.sg_rpc = ovsvapp_sg_server_rpc
         super(OVSvAppServerRpcCallback, self).__init__(self.agent_notifier,
                                                        self.type_manager)
 
@@ -155,8 +224,9 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                     if sg_port_ids:
                         ports = self._get_devices_info(
                             rpc_context, sg_port_ids)
-                        sg_rules = self.plugin.security_group_rules_for_ports(
-                            rpc_context, ports)
+                        sg_rules = (
+                            self.sg_rpc.security_group_info_for_esx_ports(
+                                rpc_context, ports))
                         sg_payload[device_id] = sg_rules
                     self.notifier.device_create(rpc_context, device,
                                                 device_ports, sg_payload,
