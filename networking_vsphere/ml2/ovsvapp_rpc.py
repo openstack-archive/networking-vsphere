@@ -28,6 +28,7 @@ from neutron.common import exceptions as exc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.db import models_v2
+from neutron.db import securitygroups_rpc_base as sg_rpc
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.ml2 import db
@@ -37,6 +38,63 @@ from neutron.plugins.ml2 import managers
 from neutron.plugins.ml2 import rpc as plugin_rpc
 
 LOG = log.getLogger(__name__)
+
+
+@property
+def plugin(self):
+    return manager.NeutronManager.get_plugin()
+
+
+def _get_devices_info(self, context, devices):
+    return dict(
+        (port['id'], port)
+        for port in self.plugin.get_ports_from_devices(context, devices)
+        if port and not port['device_owner'].startswith('network:')
+    )
+
+
+class OVSvAppSecurityGroupServerRpcCallback(object):
+
+    def security_group_info_for_esx_devices(self, rpc_context, **kwargs):
+        """RPC callback to return security_grp rules for each VM port on esx.
+
+        :params devices: list of devices.
+        :returns: security group info correspond to the devices with sg_rules.
+        """
+        devices_info = kwargs.get('devices')
+        ports = _get_devices_info(rpc_context, devices_info)
+        return plugin.security_group_info_for_esx_ports(rpc_context, ports)
+
+
+class OVSvAppSecurityGroupServerRpcMixin(sg_rpc.SecurityGroupServerRpcMixin):
+
+    def _get_remote_group_id_to_ip_prefix(self, context, ports):
+        remote_group_ids = self._select_remote_group_ids(ports)
+        ips = self._select_ips_for_remote_group(context, remote_group_ids)
+        return {'ports': ports, 'member_ips': ips}
+
+    def security_group_info_for_esx_ports(self, context, ports):
+        rules_in_db = self._select_rules_for_ports(context, ports)
+        for (port_id, rule_in_db) in rules_in_db:
+            port = ports[port_id]
+            direction = rule_in_db['direction']
+            rule_dict = {
+                'security_group_id': rule_in_db['security_group_id'],
+                'direction': direction,
+                'ethertype': rule_in_db['ethertype'],
+            }
+            for key in ('protocol', 'port_range_min', 'port_range_max',
+                        'remote_ip_prefix', 'remote_group_id'):
+                if rule_in_db.get(key):
+                    if key == 'remote_ip_prefix':
+                        direction_ip_prefix = (
+                            ovsvapp_const.DIRECTION_IP_PREFIX[direction])
+                        rule_dict[direction_ip_prefix] = rule_in_db[key]
+                        continue
+                    rule_dict[key] = rule_in_db[key]
+            port['security_group_rules'].append(rule_dict)
+        self._apply_provider_rule(context, ports)
+        return self._get_remote_group_id_to_ip_prefix(context, ports)
 
 
 class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
@@ -54,17 +112,6 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
         self.notifier = notifier
         super(OVSvAppServerRpcCallback, self).__init__(self.agent_notifier,
                                                        self.type_manager)
-
-    @property
-    def plugin(self):
-        return manager.NeutronManager.get_plugin()
-
-    def _get_devices_info(self, context, devices):
-        return dict(
-            (port['id'], port)
-            for port in self.plugin.get_ports_from_devices(context, devices)
-            if port and not port['device_owner'].startswith('network:')
-        )
 
     def get_ports_for_device(self, rpc_context, **kwargs):
         """RPC for getting port info.
@@ -86,14 +133,14 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
         try_count = 3
         try:
             while try_count > 0:
-                ports = self.plugin.get_ports(rpc_context,
-                                              filters={'device_id':
-                                                       [device_id]})
+                ports = plugin.get_ports(rpc_context,
+                                         filters={'device_id':
+                                                  [device_id]})
                 device_ports = []
                 sg_port_ids = set()
                 for port in ports:
-                    network = self.plugin.get_network(rpc_context,
-                                                      port['network_id'])
+                    network = plugin.get_network(rpc_context,
+                                                 port['network_id'])
                     port.update(
                         {'network_type': network['provider:network_type'],
                          'segmentation_id':
@@ -139,8 +186,8 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                                   if port['admin_state_up'] else
                                   common_const.PORT_STATUS_DOWN)
                     if port['status'] != new_status:
-                        self.plugin.update_port_status(rpc_context, port['id'],
-                                                       new_status, host)
+                        plugin.update_port_status(rpc_context, port['id'],
+                                                  new_status, host)
                     device_ports.append(port)
                 if not device_ports:
                     try_count -= 1
@@ -155,7 +202,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                     if sg_port_ids:
                         ports = self._get_devices_info(
                             rpc_context, sg_port_ids)
-                        sg_rules = self.plugin.security_group_rules_for_ports(
+                        sg_rules = plugin.security_group_info_for_esx_ports(
                             rpc_context, ports)
                         sg_payload[device_id] = sg_rules
                     self.notifier.device_create(rpc_context, device,
@@ -176,7 +223,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                   "%(agent_id)s for host %(host)s.",
                   {'port_id': port_id, 'agent_id': agent_id, 'host': host})
         port = {'port': {portbindings.HOST_ID: host}}
-        updated_port = self.plugin.update_port(rpc_context, port_id, port)
+        updated_port = plugin.update_port(rpc_context, port_id, port)
         return updated_port
 
     def update_ports_binding(self, rpc_context, **kwargs):
@@ -186,7 +233,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
         updated_ports = set()
         for port_id in ports:
             # Update not required if the host hasn't changed.
-            if self.plugin.port_bound_to_host(rpc_context, port_id, host):
+            if plugin.port_bound_to_host(rpc_context, port_id, host):
                 updated_ports.add(port_id)
                 continue
             LOG.debug("Port %(port_id)s update_port invoked by agent "
@@ -195,8 +242,8 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                        'host': host})
             port = {'port': {portbindings.HOST_ID: host}}
             try:
-                updated_port = self.plugin.update_port(rpc_context, port_id,
-                                                       port)
+                updated_port = plugin.update_port(rpc_context, port_id,
+                                                  port)
                 updated_ports.add(updated_port['id'])
             except Exception:
                 LOG.exception(_("Failed to update binding for port %s "),
@@ -234,12 +281,12 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
             port_db = self._get_port_db(rpc_context.session, port_id, agent_id)
             if not port_db:
                 continue
-            port = self.plugin._make_port_dict(port_db)
-            network = self.plugin.get_network(rpc_context, port['network_id'])
+            port = plugin._make_port_dict(port_db)
+            network = plugin.get_network(rpc_context, port['network_id'])
             levels = db.get_binding_levels(rpc_context.session, port_id,
                                            port_db.port_binding.host)
 
-            port_context = driver_context.PortContext(self.plugin,
+            port_context = driver_context.PortContext(plugin,
                                                       rpc_context,
                                                       port,
                                                       network,

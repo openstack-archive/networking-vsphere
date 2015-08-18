@@ -18,6 +18,7 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import importutils
 
+import netaddr
 import threading
 import time
 
@@ -45,9 +46,9 @@ class OVSvAppSecurityGroupAgent(OVSvAppSecurityGroupAgentRpc):
 
     This class is to override the default behavior of some methods.
     """
-    def __init__(self, context, plugin_rpc, defer_apply):
+    def __init__(self, context, ovsvapp_rpc, defer_apply):
         self.context = context
-        self.plugin_rpc = plugin_rpc
+        self.ovsvapp_rpc = ovsvapp_rpc
         self.init_firewall(defer_apply)
         self.t_pool = eventlet.GreenPool(ovsvapp_const.THREAD_POOL_SIZE)
         LOG.info(_("OVSvAppSecurityGroupAgent initialized."))
@@ -99,18 +100,49 @@ class OVSvAppSecurityGroupAgent(OVSvAppSecurityGroupAgentRpc):
             return
         self.firewall.clean_port_filters([device_id], True)
 
+    def expand_sg_rules(self, ports_info):
+        ips = ports_info.get('member_ips')
+        ports = ports_info.get('ports')
+        for port in ports.values():
+            updated_rule = []
+            for rule in port.get('security_group_rules'):
+                remote_group_id = rule.get('remote_group_id')
+                direction = rule.get('direction')
+                direction_ip_prefix = (
+                    ovsvapp_const.DIRECTION_IP_PREFIX[direction])
+                if not remote_group_id:
+                    updated_rule.append(rule)
+                    continue
+
+                port['security_group_source_groups'].append(remote_group_id)
+                base_rule = rule
+                for ip in ips[remote_group_id]:
+                    if ip in port.get('fixed_ips', []):
+                        continue
+                    ip_rule = base_rule.copy()
+                    version = netaddr.IPNetwork(ip).version
+                    ethertype = 'IPv%s' % version
+                    if base_rule['ethertype'] != ethertype:
+                        continue
+                    ip_rule[direction_ip_prefix] = str(
+                        netaddr.IPNetwork(ip).cidr)
+                    updated_rule.append(ip_rule)
+            port['security_group_rules'] = updated_rule
+        return ports
+
     def _fetch_and_apply_rules(self, dev_ids, update=False):
         ovsvapplock.acquire()
         #  This will help us prevent duplicate processing of same port
         #  when we get back to back updates for same SG or Network.
         self.devices_to_refilter = self.devices_to_refilter - set(dev_ids)
         ovsvapplock.release()
-        devices = self.plugin_rpc.security_group_rules_for_devices(
+        sg_info = self.ovsvapp_rpc.security_group_info_for_esx_devices(
             self.context, dev_ids)
         time.sleep(0)
-        LOG.debug("Successfully serviced security_group_rules_for_devices "
+        LOG.debug("Successfully serviced security_group_info_for_esx_devices "
                   "RPC for %s.", dev_ids)
-        for device in devices.values():
+        sg_rules = self.expand_sg_rules(sg_info)
+        for device in sg_rules.values():
             if device['id'] in dev_ids:
                 if update:
                     self.firewall.update_port_filter(device)

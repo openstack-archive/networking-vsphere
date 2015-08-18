@@ -17,9 +17,9 @@ import mock
 from oslo_config import cfg
 from oslo_utils import uuidutils
 
-from neutron.agent import securitygroups_rpc
-
+from networking_vsphere.agent import ovsvapp_agent
 from networking_vsphere.agent import ovsvapp_sg_agent
+from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.drivers import ovs_firewall
 from networking_vsphere.tests import base
 
@@ -48,11 +48,6 @@ class FakeFirewall(ovs_firewall.OVSFirewallDriver):
     pass
 
 
-class FakePlugin(securitygroups_rpc.SecurityGroupServerRpcApi):
-    def __init__(self, topic):
-        self.topic = topic
-
-
 class TestOVSvAppSecurityGroupAgent(base.TestCase):
 
     @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
@@ -67,13 +62,14 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
               mock_check_ovs_firewall_restart):
         super(TestOVSvAppSecurityGroupAgent, self).setUp()
         self.context = mock.Mock()
-        self.plugin = FakePlugin('fake_topic')
+        self.ovsvapp_rpc = ovsvapp_agent.OVSvAppPluginApi(
+            ovsvapp_const.OVSVAPP)
         cfg.CONF.set_override('security_bridge_mapping',
                               "fake_sec_br:fake_if", 'SECURITYGROUP')
 
         mock_get_port_ofport.return_value = 5
         self.agent = ovsvapp_sg_agent.OVSvAppSecurityGroupAgent(
-            self.context, self.plugin, True)
+            self.context, self.ovsvapp_rpc, True)
         self.agent.firewall = FakeFirewall()
         self.agent.defer_refresh_firewall = True
         self.agent.devices_to_refilter = set()
@@ -149,30 +145,38 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
     def test_fetch_and_apply_rules_for_prepare(self):
         port_ids = self._get_fake_portids(2)
         ret_val = self._get_fake_ports(port_ids)
-        with mock.patch.object(self.agent.plugin_rpc,
-                               'security_group_rules_for_devices',
-                               return_value=ret_val) as mock_plugin_rpc, \
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               'security_group_info_for_esx_devices',
+                               return_value=ret_val) as mock_ovsvapp_rpc, \
+                mock.patch.object(self.agent, 'expand_sg_rules',
+                                  return_value=ret_val
+                                  ) as mock_expand_sg_rules, \
                 mock.patch.object(self.agent.firewall,
                                   'prepare_port_filter') as mock_prep, \
                 mock.patch.object(self.agent.firewall,
                                   'update_port_filter') as mock_update:
             self.agent._fetch_and_apply_rules(set(port_ids))
-            self.assertEqual(1, mock_plugin_rpc.call_count)
+            self.assertEqual(1, mock_ovsvapp_rpc.call_count)
+            self.assertTrue(mock_expand_sg_rules.called)
             self.assertEqual(2, mock_prep.call_count)
             self.assertFalse(mock_update.called)
 
     def test_fetch_and_apply_rules_for_refresh(self):
         port_ids = self._get_fake_portids(2)
         ret_val = self._get_fake_ports(port_ids)
-        with mock.patch.object(self.agent.plugin_rpc,
-                               'security_group_rules_for_devices',
-                               return_value=ret_val) as mock_plugin_rpc, \
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               'security_group_info_for_esx_devices',
+                               return_value=ret_val) as mock_ovsvapp_rpc, \
+                mock.patch.object(self.agent, 'expand_sg_rules',
+                                  return_value=ret_val
+                                  ) as mock_expand_sg_rules, \
                 mock.patch.object(self.agent.firewall,
                                   'prepare_port_filter') as mock_prep, \
                 mock.patch.object(self.agent.firewall,
                                   'update_port_filter') as mock_update:
             self.agent._fetch_and_apply_rules(set(port_ids), True)
-            self.assertEqual(1, mock_plugin_rpc.call_count)
+            self.assertEqual(1, mock_ovsvapp_rpc.call_count)
+            self.assertTrue(mock_expand_sg_rules.called)
             self.assertEqual(2, mock_update.call_count)
             self.assertFalse(mock_prep.called)
 
