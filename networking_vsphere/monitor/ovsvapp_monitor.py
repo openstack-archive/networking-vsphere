@@ -40,7 +40,7 @@ OVSVAPP_MONITOR = [
                 help=_('To monitor the OVSvApp Agents.'))
 ]
 
-cfg.CONF.register_opts(OVSVAPP_MONITOR, "OVSVAPP_MONITOR")
+cfg.CONF.register_opts(OVSVAPP_MONITOR, "OVSVAPP")
 
 
 class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
