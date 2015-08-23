@@ -255,16 +255,15 @@ class TestOVSvAppL2Agent(base.TestCase):
                               "10.10.10.10", 'OVSVAPP')
         cfg.CONF.set_override('tunnel_bridge',
                               "br-tun", 'OVSVAPP')
-        with mock.patch.object(self.agent, 'reset_tunnel_br'
-                               ) as mock_reset_tunnel_br, \
-                mock.patch.object(self.agent, 'setup_tunnel_br'
-                                  ) as mock_setup_tunnel_br:
+        with mock.patch.object(self.agent, 'setup_tunnel_br'
+                               ) as mock_setup_tunnel_br, \
+                mock.patch.object(self.agent, 'setup_tunnel_br_flows'
+                                  ) as mock_setup_tunnel_br_flows:
             self.agent.setup_ovs_bridges()
-            mock_reset_tunnel_br.assert_called_with("br-tun")
-            self.assertTrue(mock_setup_tunnel_br.called)
+            mock_setup_tunnel_br.assert_called_with("br-tun")
+            self.assertTrue(mock_setup_tunnel_br_flows.called)
 
     def test_mitigate_ovs_restart_vlan(self):
-        self.agent.enable_tunneling = False
         self.agent.refresh_firewall_required = False
         self.agent.devices_to_filter = set(['1111'])
         self.agent.cluster_host_ports = set(['1111'])
@@ -278,17 +277,18 @@ class TestOVSvAppL2Agent(base.TestCase):
                                   ) as mock_sec_br, \
                 mock.patch.object(self.agent.sg_agent, "init_firewall"
                                   ) as mock_init_fw, \
-                mock.patch.object(self.agent, "reset_tunnel_br"
-                                  ) as mock_reset_tun_br,\
-                mock.patch.object(self.agent, "setup_tunnel_br") as mock_tun_br, \
+                mock.patch.object(self.agent, "setup_tunnel_br"
+                                  ) as mock_setup_tunnel_br,\
+                mock.patch.object(self.agent, 'setup_tunnel_br_flows'
+                                  ) as mock_setup_tunnel_br_flows, \
                 mock.patch.object(self.agent, "_init_ovs_flows"
                                   ) as mock_init_flows:
             self.agent.mitigate_ovs_restart()
             self.assertTrue(mock_int_br.called)
             self.assertTrue(mock_phys_brs.called)
             self.assertTrue(mock_sec_br.called)
-            self.assertFalse(mock_reset_tun_br.called)
-            self.assertFalse(mock_tun_br.called)
+            self.assertFalse(mock_setup_tunnel_br.called)
+            self.assertFalse(mock_setup_tunnel_br_flows.called)
             self.assertTrue(mock_init_fw.called)
             self.assertTrue(mock_init_flows.called)
             self.assertTrue(mock_logger_info.called)
@@ -308,16 +308,16 @@ class TestOVSvAppL2Agent(base.TestCase):
                 mock.patch.object(self.agent, "setup_security_br"), \
                 mock.patch.object(self.agent.sg_agent, "init_firewall"
                                   ), \
-                mock.patch.object(self.agent, "reset_tunnel_br"
-                                  ) as mock_reset_tun_br, \
                 mock.patch.object(self.agent, "setup_tunnel_br"
-                                  ) as mock_tun_br, \
+                                  ) as mock_setup_tunnel_br,\
+                mock.patch.object(self.agent, 'setup_tunnel_br_flows'
+                                  ) as mock_setup_tunnel_br_flows, \
                 mock.patch.object(self.agent, "tunnel_sync"
                                   ) as mock_tun_sync, \
                 mock.patch.object(self.agent, "_init_ovs_flows"):
             self.agent.mitigate_ovs_restart()
-            self.assertTrue(mock_reset_tun_br.called)
-            self.assertTrue(mock_tun_br.called)
+            self.assertTrue(mock_setup_tunnel_br.called)
+            self.assertTrue(mock_setup_tunnel_br_flows.called)
             self.assertFalse(mock_phys_brs.called)
             self.assertTrue(mock_tun_sync.called)
             self.assertTrue(mock_logger_info.called)
@@ -336,17 +336,17 @@ class TestOVSvAppL2Agent(base.TestCase):
                                   side_effect=Exception()) as mock_int_br, \
                 mock.patch.object(self.agent, "setup_physical_bridges"
                                   ) as mock_phys_brs, \
-                mock.patch.object(self.agent, "reset_tunnel_br"
-                                  ) as mock_reset_tun_br, \
                 mock.patch.object(self.agent, "setup_tunnel_br"
-                                  ) as mock_tun_br, \
+                                  ) as mock_setup_tunnel_br,\
+                mock.patch.object(self.agent, 'setup_tunnel_br_flows'
+                                  ) as mock_setup_tunnel_br_flows, \
                 mock.patch.object(self.LOG, "exception"
                                   ) as mock_exception_log:
             self.agent.mitigate_ovs_restart()
             self.assertTrue(mock_int_br.called)
             self.assertFalse(mock_phys_brs.called)
-            self.assertFalse(mock_reset_tun_br.called)
-            self.assertFalse(mock_tun_br.called)
+            self.assertFalse(mock_setup_tunnel_br.called)
+            self.assertFalse(mock_setup_tunnel_br_flows.called)
             self.assertFalse(mock_logger_info.called)
             self.assertTrue(mock_exception_log.called)
             self.assertFalse(self.agent.refresh_firewall_required)
