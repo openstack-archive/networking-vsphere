@@ -134,7 +134,7 @@ def get_portgroup_vlan(session, pg_id):
             propset_dict = common_util.convert_propset_to_dict(pg_mor.propSet)
             if propset_dict['key'] == pg_id:
                 pconfig = propset_dict["config.defaultPortConfig"]
-                vlan_id = pconfig["vlan_id"]["vlanId"]
+                vlan_id = pconfig["vlan"]["vlanId"]
                 LOG.debug("VLAN ID for port group is %s.", vlan_id)
                 break
     return vlan_id
