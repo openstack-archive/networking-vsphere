@@ -36,7 +36,7 @@ DEFAULT_MONITOR_INTERVAL = 10
 
 # OVSvApp Fault Management config read from neutron.conf.
 OVSVAPP_MONITOR = [
-    cfg.BoolOpt('enable_ovsvapp_monitor', default=True,
+    cfg.BoolOpt('enable_ovsvapp_monitor', default=False,
                 help=_('To monitor the OVSvApp Agents.'))
 ]
 
