@@ -311,7 +311,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                             'bridge': bridge})
                 raise SystemExit(1)
             br = ovs_lib.OVSBridge(bridge)
-            self.phys_brs[phys_net] = br
             # Interconnect physical and integration bridges using veth/patch
             # ports.
             int_if_name = self.get_peer_name(ovs_const.PEER_INTEGRATION_PREFIX,
@@ -328,6 +327,11 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 raise SystemExit(1)
             self.int_ofports[phys_net] = int_ofport
             self.phys_ofports[phys_net] = phys_ofport
+            eth_name = bridge.split('-').pop()
+            eth_ofport = br.get_port_ofport(eth_name)
+            self.phys_brs[phys_net] = {}
+            self.phys_brs[phys_net]['br'] = br
+            self.phys_brs[phys_net]['eth_ofport'] = eth_ofport
         LOG.info(_("Physical bridges successfully recovered."))
 
     def _init_ovs_flows(self, bridge_mappings):
@@ -519,8 +523,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         return self._pool
 
     def _remove_stale_ports_flows(self, stale_ports):
-        for port in stale_ports:
-            vnic = self.vnic_info[port]
+        for port_id in stale_ports:
+            vnic = self.vnic_info[port_id]
             # Get the vlan id from port group key.
             pg_id = vnic['pg_id']
             mac_addr = vnic['mac_addr']
@@ -529,14 +533,17 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             if vlan:
                 # Delete flows from security bridge.
                 self.sg_agent.firewall.remove_stale_port_flows(
-                    port, mac_addr, vlan)
-                # Delete flows on physical bridge.
-                port = PortInfo(vlan, mac_addr, None, None, None, None, None)
-                self._delete_physical_bridge_flows(port)
+                    port_id, mac_addr, vlan)
+                if self.tenant_network_type == p_const.TYPE_VLAN:
+                    port = PortInfo(port_id, vlan, mac_addr, None, None,
+                                    None, None, None)
+                    # Delete flows on physical bridge.
+                    self._delete_physical_bridge_flows(port)
             else:
                 LOG.info(_("Could not obtain VLAN for port %(port_id)s "
                            "belonging to port group key %(pg_key)s for "
-                           "VM %(vm_id)s."), {'port_id': port, 'pg_key': pg_id,
+                           "VM %(vm_id)s."), {'port_id': port_id,
+                                              'pg_key': pg_id,
                                               'vm_id': vnic['vm_id']})
 
     def _block_stale_ports(self, stale_ports):
