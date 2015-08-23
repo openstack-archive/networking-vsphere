@@ -16,6 +16,7 @@
 import logging
 import threading
 import time
+import uuid
 
 import eventlet
 from oslo_config import cfg
@@ -49,6 +50,7 @@ from networking_vsphere.utils import resource_util
 
 LOG = log.getLogger(__name__)
 CONF = cfg.CONF
+UINT64_BITMASK = (1 << 64) - 1
 
 # To ensure thread safety for the shared variables
 # ports_dict, network_port_count, devices_to_filter,
@@ -142,6 +144,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.br_tun_cls = bridge_classes['br_tun']
         self.int_br = self.br_int_cls(CONF.OVSVAPP.integration_bridge)
         self.firewall_driver = CONF.SECURITYGROUP.ovsvapp_firewall_driver
+        self.agent_uuid_stamp = uuid.uuid4().int & UINT64_BITMASK
         self.ovsvapp_agent_restarted = False
         if not self.check_ovsvapp_agent_restart():
             self.setup_integration_br()
@@ -276,7 +279,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
         :param tun_br_name: the name of the tunnel bridge.
         """
-        self.tun_br = ovs_lib.OVSBridge(tun_br_name)
+        self.tun_br = ovs_lib.OVSBridge(tun_br_name, self.root_helper)
 
         self.patch_tun_ofport = self.int_br.get_port_ofport(
             cfg.CONF.OVS.int_peer_patch_port)
@@ -400,8 +403,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.agent_state['configurations']['tunneling_ip'] = self.local_ip
             self.agent_state['configurations']['l2_population'] = self.l2_pop
             if not self.ovsvapp_agent_restarted:
-                self.reset_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
-                self.setup_tunnel_br()
+                self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
+                self.setup_tunnel_br_flows()
                 LOG.info(_("Tunnel bridge successfully set."))
             else:
                 self.recover_tunnel_bridge(CONF.OVSVAPP.tunnel_bridge)
@@ -650,8 +653,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.setup_integration_br()
             self.setup_security_br()
             if self.enable_tunneling:
-                self.reset_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
-                self.setup_tunnel_br()
+                self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
+                self.setup_tunnel_br_flows()
                 self.tunnel_sync()
             else:
                 self.setup_physical_bridges(self.bridge_mappings)
