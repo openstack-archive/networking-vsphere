@@ -43,6 +43,11 @@ OVSVAPP_VMOPS=$OVSVAPP_NETWORKING_DIR/networking_vsphere/nova/virt/vmwareapi/ovs
 # Entry Points
 # ------------
 
+function configure_ovsvapp_monitoring {
+   echo "Configuring neutron.conf for OVSvApp Monitoring"
+   iniset $NEUTRON_CONF OVSVAPP_MONITOR enable_ovsvapp_monitor $ENABLE_OVSVAPP_MONITOR
+}
+
 function configure_ovsvapp_compute_driver {
     echo "Configuring Nova VCDriver for OVSvApp"
     cp $OVSVAPP_VCDRIVER $NOVA_VCDRIVER
@@ -133,6 +138,7 @@ if is_service_enabled ovsvapp-server; then
     elif [[ "$1" == "stack" && "$2" == "install" ]]; then
         install_ovsvapp_dependency
         install_networking_vsphere
+        configure_ovsvapp_monitoring
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         run_ovsvapp_alembic_migration
     elif [[ "$1" == "stack" && "$2" == "post-extra" ]]; then
