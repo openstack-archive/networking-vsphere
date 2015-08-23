@@ -35,12 +35,12 @@ LOG = log.getLogger(__name__)
 DEFAULT_MONITOR_INTERVAL = 10
 
 # OVSvApp Fault Management config read from neutron.conf.
-OVSVAPP_MONITOR = [
+OVSVAPP_MONITOR_OPTS = [
     cfg.BoolOpt('enable_ovsvapp_monitor', default=True,
                 help=_('To monitor the OVSvApp Agents.'))
 ]
 
-cfg.CONF.register_opts(OVSVAPP_MONITOR, "OVSVAPP_MONITOR")
+cfg.CONF.register_opts(OVSVAPP_MONITOR_OPTS, "OVSVAPP")
 
 
 class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
