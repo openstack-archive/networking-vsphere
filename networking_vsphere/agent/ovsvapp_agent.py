@@ -279,7 +279,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
         :param tun_br_name: the name of the tunnel bridge.
         """
-        self.tun_br = ovs_lib.OVSBridge(tun_br_name, self.root_helper)
+        self.tun_br = ovs_lib.OVSBridge(tun_br_name)
 
         self.patch_tun_ofport = self.int_br.get_port_ofport(
             cfg.CONF.OVS.int_peer_patch_port)
