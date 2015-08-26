@@ -68,7 +68,7 @@ class OVSvAppSecurityGroupAgent(OVSvAppSecurityGroupAgentRpc):
         self.global_refresh_firewall = False
         self._use_enhanced_rpc = None
 
-    def security_groups_provider_updated(self, devices_to_update):
+    def security_groups_provider_updated(self):
         LOG.info(_("Ignoring default security_groups_provider_updated RPC."))
 
     def sg_provider_updated(self, net_id):
