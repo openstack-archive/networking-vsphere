@@ -16,6 +16,7 @@
 
 AGENT_TYPE_OVSVAPP = "OVSvApp Agent"
 OVSVAPP = 'ovsvapp'
+OVSVAPP_SERVICE = 'ovsvapp_service'
 DEVICE = 'device'
 
 # Network type constants.
