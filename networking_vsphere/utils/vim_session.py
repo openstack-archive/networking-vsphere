@@ -37,8 +37,8 @@ class ConnectionHandler(object):
 
     @classmethod
     def set_vc_details(cls, host_ip, host_username, host_password,
-                       api_retry_count, wsdl_url, https_port=443,
-                       scheme="https"):
+                       api_retry_count, wsdl_url, ca_cert,
+                       https_port=443, scheme="https"):
         cls.session = None
         cls.host_ip = host_ip
         cls.host_username = host_username
@@ -49,7 +49,7 @@ class ConnectionHandler(object):
         cls.https_port = https_port
         cls.stopped = False
         cls.create_session = True
-        cls.ca_cert = False
+        cls.ca_cert = ca_cert
 
     @classmethod
     def stop(cls):
