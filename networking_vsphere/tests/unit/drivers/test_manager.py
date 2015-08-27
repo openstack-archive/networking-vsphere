@@ -18,6 +18,8 @@ import contextlib
 import eventlet
 import mock
 
+import os
+
 from networking_vsphere.drivers import dvs_driver
 from networking_vsphere.drivers import manager
 from networking_vsphere.drivers import vc_driver
@@ -72,6 +74,62 @@ class TestVcenterManager(base.TestCase):
                 self.manager.initialize_driver()
                 self.assertIsNotNone(self.manager.driver)
                 self.assertEqual(len(self.manager.cluster_switch_mapping), 1)
+
+    def test_initialize_driver_with_cert_check_and_cert_path(self):
+        fake_tuple = ["dc/host/cluster1:dvs1"]
+        self.flags(vcenter_ip="vcenter.test.com", group='VMWARE')
+        self.flags(vcenter_username="fake_user", group='VMWARE')
+        self.flags(vcenter_password="fake_pass", group='VMWARE')
+        self.flags(vcenter_api_retry_count="1", group='VMWARE')
+        self.flags(wsdl_location="http://fake.test.com", group='VMWARE')
+        self.flags(cert_check=True, group='VMWARE')
+        self.flags(cert_path="/etc/ssl/certs/certs.pem", group='VMWARE')
+        self.flags(cluster_dvs_mapping=fake_tuple, group='VMWARE')
+        with mock.patch.object(vim_session.ConnectionHandler, "stop",
+                               return_value=None), \
+                mock.patch.object(eventlet, "spawn"), \
+                mock.patch.object(vc_driver.VCNetworkDriver, "add_cluster",
+                                  return_value=True), \
+                mock.patch.object(os.path, "isfile", return_value=True):
+            self.assertEqual(len(self.manager.cluster_switch_mapping), 0)
+            self.manager.initialize_driver()
+            self.assertIsNotNone(self.manager.driver)
+            self.assertEqual(len(self.manager.cluster_switch_mapping), 1)
+
+    def test_initialize_driver_without_cert_path_exception(self):
+        fake_tuple = ["dc/host/cluster1:dvs1"]
+        self.flags(vcenter_ip="vcenter.test.com", group='VMWARE')
+        self.flags(vcenter_username="fake_user", group='VMWARE')
+        self.flags(vcenter_password="fake_pass", group='VMWARE')
+        self.flags(vcenter_api_retry_count="1", group='VMWARE')
+        self.flags(wsdl_location="http://fake.test.com", group='VMWARE')
+        self.flags(cert_check=True, group='VMWARE')
+        self.flags(cert_path=None, group='VMWARE')
+        self.flags(cluster_dvs_mapping=fake_tuple, group='VMWARE')
+        with mock.patch.object(vim_session.ConnectionHandler, "stop",
+                               return_value=None), \
+                mock.patch.object(self.LOG, "error") as mock_log_error:
+            self.assertEqual(len(self.manager.cluster_switch_mapping), 0)
+            self.assertRaises(SystemExit, self.manager.initialize_driver)
+            self.assertTrue(mock_log_error.called)
+
+    def test_initialize_driver_invalid_cert_path_exception(self):
+        fake_tuple = ["dc/host/cluster1:dvs1"]
+        self.flags(vcenter_ip="vcenter.test.com", group='VMWARE')
+        self.flags(vcenter_username="fake_user", group='VMWARE')
+        self.flags(vcenter_password="fake_pass", group='VMWARE')
+        self.flags(vcenter_api_retry_count="1", group='VMWARE')
+        self.flags(wsdl_location="http://fake.test.com", group='VMWARE')
+        self.flags(cert_check=True, group='VMWARE')
+        self.flags(cert_path="/etc/ssl/certs/certs.pem", group='VMWARE')
+        self.flags(cluster_dvs_mapping=fake_tuple, group='VMWARE')
+        with mock.patch.object(vim_session.ConnectionHandler, "stop",
+                               return_value=None), \
+                mock.patch.object(self.LOG, "error") as mock_log_error, \
+                mock.patch.object(os.path, "isfile", return_value=False):
+            self.assertEqual(len(self.manager.cluster_switch_mapping), 0)
+            self.assertRaises(SystemExit, self.manager.initialize_driver)
+            self.assertTrue(mock_log_error.called)
 
     def test_start(self):
         self.manager.driver = None
