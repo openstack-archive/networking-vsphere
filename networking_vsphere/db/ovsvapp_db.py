@@ -16,9 +16,13 @@
 from oslo_log import log
 import sqlalchemy.orm.exc as sa_exc
 
+from neutron.common import exceptions as exc
 from neutron.db import api as db_api
+from neutron.db import common_db_mixin
 
 from networking_vsphere.db import ovsvapp_models as models
+from networking_vsphere.extensions import mitigated_cluster
+from networking_vsphere.extensions import vcenter_cluster
 
 LOG = log.getLogger(__name__)
 
@@ -337,3 +341,166 @@ def set_cluster_threshold(vcenter_id, cluster_id):
                                     'threshold_reached': True})
         except sa_exc.NoResultFound:
             LOG.error(_("Cluster row not found for %s."), cluster_id)
+
+
+class VcenterClusterDbMixin(vcenter_cluster.VcenterClusterPluginBase):
+
+    def get_vcenter_cluster(self, context, vcenter_id, fields=None):
+        LOG.info(_("Retreiving Vcenter Cluster Information with vcenter id"
+                   " %s"), vcenter_id)
+        db_table = models.ClusterVNIAllocations
+        query = context.session.query(db_table)
+        filter_query = query.filter(db_table.vcenter_id == vcenter_id)
+        grouped_query = filter_query.group_by('cluster_id')
+        query_objs = grouped_query.all()
+        if len(query_objs) == 0:
+            LOG.warning(_("No details found for venter %s"), vcenter_id)
+            raise exc.InvalidInput(error_message='No data found with given '
+                                   'vcenter')
+        vcenter_dict = dict()
+        vcenter_dict['vcenter_id'] = vcenter_id
+        vcenter_dict['clusters'] = [obj.cluster_id for obj in query_objs]
+        return vcenter_dict
+
+    def get_vcenter_clusters(self, context, filters=None, fields=None):
+        LOG.info(_("Retreiving Vcenter Cluster Information."))
+        if filters:
+            if 'vcenter_id' in filters.keys():
+                v_name = filters['vcenter_id'][0]
+                return [self.get_vcenter_cluster(context, v_name)]
+            LOG.warning(_("Invalid filter specified."))
+            raise exc.InvalidInput(error_message="Invalid filter specified.")
+        query = context.session.query(models.ClusterVNIAllocations).group_by(
+            'vcenter_id')
+        query_objs = query.all()
+        vcenter_set = set([vcenter.vcenter_id for vcenter in query_objs])
+        vcenter_list = list()
+        for vcenter in vcenter_set:
+            filter_query = query.filter(models.ClusterVNIAllocations.
+                                        vcenter_id == vcenter)
+            grouped_objs = filter_query.group_by('cluster_id').all()
+            vcenter_dict = dict()
+            vcenter_dict['vcenter_id'] = vcenter
+            vcenter_dict['clusters'] = [obj.cluster_id for obj in grouped_objs]
+            vcenter_list.append(vcenter_dict)
+        return vcenter_list
+
+    def create_vcenter_cluster(self, context, vcenter_cluster):
+        vcenter = vcenter_cluster['vcenter_cluster']
+        vcenter_clusters = vcenter['clusters']
+        LOG.info(_("Creating a vcenter cluster entry with vcenter id %s."),
+                 vcenter['vcenter_id'])
+        for cluster_name in vcenter_clusters:
+            vcenter_info = dict()
+            vcenter_info['vcenter_id'] = vcenter['vcenter_id']
+            vcenter_info['cluster_id'] = cluster_name
+            if not _initialize_lvids_for_cluster(vcenter_info):
+                raise exc.InvalidInput(error_message='Cannot create DB entry.')
+        return vcenter
+
+    def update_vcenter_cluster(self, context, id, vcenter_cluster):
+        LOG.info(_("Deleting the vcenter cluster entry with vcenter id %s."),
+                 id)
+        vcenter_id = id
+        clusters_list = vcenter_cluster['vcenter_cluster']['clusters']
+        with context.session.begin(subtransactions=True):
+            query = context.session.query(models.ClusterVNIAllocations)
+            for cluster in clusters_list:
+                # Do a bulk delete operation with each cluster.
+                query.filter(
+                    models.ClusterVNIAllocations.vcenter_id == vcenter_id,
+                    models.ClusterVNIAllocations.cluster_id == cluster
+                ).delete()
+        return vcenter_cluster['vcenter_cluster']
+
+
+class MitigatedClusterDbMixin(mitigated_cluster.MitigatedClusterPluginBase,
+                              common_db_mixin.CommonDbMixin):
+
+    def get_mitigated_cluster(self, context, vcenter_id, fields=None):
+        mitigated_info = vcenter_id.split(':')
+        vcenter_id = mitigated_info[0]
+        cluster_id = mitigated_info[1].replace('|', '/')
+        LOG.info(_("Retrieving mitigated information with vcenter id"
+                   " %s"), vcenter_id)
+        mitigated_cluster = dict()
+        try:
+            query = context.session.query(models.OVSvAppClusters)
+            cluster_row = (query.filter(
+                models.OVSvAppClusters.vcenter_id == vcenter_id,
+                models.OVSvAppClusters.cluster_id == cluster_id
+            ).one())
+        except sa_exc.NoResultFound:
+            raise exc.InvalidInput(error_message='No entry found with '
+                                   'specified vcneter cluster')
+        mitigated_cluster['vcenter_id'] = cluster_row.vcenter_id
+        mitigated_cluster['cluster_id'] = cluster_row.cluster_id
+        mitigated_cluster['being_mitigated'] = cluster_row.being_mitigated
+        mitigated_cluster['threshold_reached'] = cluster_row.threshold_reached
+        return mitigated_cluster
+
+    def update_mitigated_cluster(self, context, id, mitigated_cluster):
+        res_dict = mitigated_cluster['mitigated_cluster']
+        vcenter_id = res_dict['vcenter_id']
+        cluster_id = res_dict['cluster_id']
+        update_flags = dict()
+        if 'being_mitigated' in res_dict:
+            update_flags['being_mitigated'] = res_dict['being_mitigated']
+        if 'threshold_reached' in res_dict:
+            update_flags['threshold_reached'] = res_dict['threshold_reached']
+        LOG.error(_("Updating the mitigation properties with vCenter id %s"),
+                  vcenter_id)
+        with context.session.begin(subtransactions=True):
+            try:
+                query = context.session.query(models.OVSvAppClusters)
+                cluster_row = (query.filter(
+                    models.OVSvAppClusters.vcenter_id == vcenter_id,
+                    models.OVSvAppClusters.cluster_id == cluster_id
+                ).with_lockmode('update').one())
+                cluster_row.update(update_flags)
+            except sa_exc.NoResultFound:
+                raise exc.InvalidInput(error_message='No entry found with '
+                                       'specified vcneter cluster')
+        return res_dict
+
+    def get_mitigated_clusters(self, context, filters=None, fields=None):
+        db_filters = dict()
+        if filters:
+            for filter_entry in filters:
+                db_filters[filter_entry] = filters[filter_entry]
+        LOG.info(_("Retrieving mitigated information of all clusters."))
+        mitigated_clusters = list()
+        try:
+            all_entries = self._get_collection_query(context,
+                                                     models.OVSvAppClusters,
+                                                     filters=db_filters).all()
+        except sa_exc.NoResultFound:
+            raise exc.InvalidInput(error_message='Cannot retreive mitigated '
+                                   'information.')
+        for entry in all_entries:
+            mitigated_cluster = dict()
+            mitigated_cluster['vcenter_id'] = entry.vcenter_id
+            mitigated_cluster['cluster_id'] = entry.cluster_id
+            mitigated_cluster['being_mitigated'] = entry.being_mitigated
+            mitigated_cluster['threshold_reached'] = entry.threshold_reached
+            mitigated_clusters.append(mitigated_cluster)
+        return mitigated_clusters
+
+    def delete_mitigated_cluster(self, context, id, filters=None):
+        mitigated_info = id.split(':')
+        if len(mitigated_info) != 2:
+            raise exc.InvalidInput(error_message='Invalid format..')
+        vcenter_id = mitigated_info[0]
+        cluster_id = mitigated_info[1].replace('|', '/')
+        LOG.info(_("Deleting mitigation entry with vcenter_id %s"),
+                 vcenter_id)
+        with context.session.begin(subtransactions=True):
+            try:
+                query = context.session.query(models.OVSvAppClusters)
+                query = query.filter(
+                    models.OVSvAppClusters.vcenter_id == vcenter_id,
+                    models.OVSvAppClusters.cluster_id == cluster_id
+                ).delete()
+            except sa_exc.NoResultFound:
+                raise exc.InvalidInput(error_message='No entry found with '
+                                       'specified vcneter cluster')
