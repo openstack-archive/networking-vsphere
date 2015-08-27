@@ -68,6 +68,45 @@ class TestVcenterManager(base.TestCase):
             self.assertIsNotNone(self.manager.driver)
             self.assertEqual(len(self.manager.cluster_switch_mapping), 1)
 
+    def test_initialize_driver_with_ca_cert(self):
+        fake_tuple = ["dc/host/cluster1:dvs1"]
+        self.flags(vcenter_ip="vcenter.test.com", group='VMWARE')
+        self.flags(vcenter_username="fake_user", group='VMWARE')
+        self.flags(vcenter_password="fake_pass", group='VMWARE')
+        self.flags(vcenter_api_retry_count="1", group='VMWARE')
+        self.flags(wsdl_location="http://fake.test.com", group='VMWARE')
+        self.flags(cert_check=True, group='VMWARE')
+        self.flags(cert_path="/etc/ssl/certs/certs.pem", group='VMWARE')
+        self.flags(cluster_dvs_mapping=fake_tuple, group='VMWARE')
+        with mock.patch.object(vim_session.ConnectionHandler, "stop",
+                               return_value=None), \
+                mock.patch.object(eventlet, "spawn"), \
+                mock.patch.object(vc_driver.VCNetworkDriver, "add_cluster",
+                                  return_value=True), \
+                mock.patch('os.path.isfile'):
+            self.assertEqual(len(self.manager.cluster_switch_mapping), 0)
+            self.manager.initialize_driver()
+            self.assertIsNotNone(self.manager.driver)
+            self.assertEqual(len(self.manager.cluster_switch_mapping), 1)
+
+    def test_initialize_driver_with_ca_cert_excpection(self):
+        fake_tuple = ["dc/host/cluster1:dvs1"]
+        self.flags(vcenter_ip="vcenter.test.com", group='VMWARE')
+        self.flags(vcenter_username="fake_user", group='VMWARE')
+        self.flags(vcenter_password="fake_pass", group='VMWARE')
+        self.flags(vcenter_api_retry_count="1", group='VMWARE')
+        self.flags(wsdl_location="http://fake.test.com", group='VMWARE')
+        self.flags(cert_check=True, group='VMWARE')
+        self.flags(cert_path=None, group='VMWARE')
+        self.flags(cluster_dvs_mapping=fake_tuple, group='VMWARE')
+        with mock.patch.object(vim_session.ConnectionHandler, "stop",
+                               return_value=None), \
+                mock.patch.object(eventlet, "spawn"), \
+                mock.patch.object(vc_driver.VCNetworkDriver, "add_cluster",
+                                  return_value=True):
+            self.assertEqual(len(self.manager.cluster_switch_mapping), 0)
+            self.assertRaises(SystemExit, self.manager.initialize_driver)
+
     def test_start(self):
         self.manager.driver = None
         self.assertIsNone(self.manager.start())

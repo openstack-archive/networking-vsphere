@@ -15,6 +15,7 @@
 
 import eventlet
 import greenlet
+import os
 from oslo_config import cfg
 from oslo_log import log
 
@@ -88,6 +89,17 @@ class VcenterManager(base_manager.DriverManager):
         self.vcenter_api_retry_count = cfg.CONF.VMWARE.vcenter_api_retry_count
         self.wsdl_location = cfg.CONF.VMWARE.wsdl_location
         self.https_port = cfg.CONF.VMWARE.https_port
+        self.ca_path = cfg.CONF.VMWARE.cert_path
+        if cfg.CONF.VMWARE.cert_check:
+            if not cfg.CONF.VMWARE.cert_path:
+                LOG.error(_("Unable to create vCenter connection "
+                            "certificate path is not specified!"))
+                raise SystemExit(1)
+            elif not os.path.isfile(self.ca_path):
+                LOG.error(_("Unable to create vCenter connection "
+                            "certificate path %s doesn't exist."),
+                          self.ca_path)
+                raise SystemExit(1)
         if (self.vcenter_ip and self.vcenter_username and
                 self.vcenter_password and self.wsdl_location):
             vim_session.ConnectionHandler.set_vc_details(
@@ -96,6 +108,7 @@ class VcenterManager(base_manager.DriverManager):
                 self.vcenter_password,
                 self.vcenter_api_retry_count,
                 self.wsdl_location,
+                self.ca_path,
                 self.https_port)
             vim_session.ConnectionHandler.start()
             if self.connection_thread:
