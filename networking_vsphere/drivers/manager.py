@@ -82,12 +82,18 @@ class VcenterManager(base_manager.DriverManager):
     def initialize_driver(self):
         self.stop()
         self.driver = None
+        self.ca_path = None
         self.vcenter_ip = cfg.CONF.VMWARE.vcenter_ip
         self.vcenter_username = cfg.CONF.VMWARE.vcenter_username
         self.vcenter_password = cfg.CONF.VMWARE.vcenter_password
         self.vcenter_api_retry_count = cfg.CONF.VMWARE.vcenter_api_retry_count
         self.wsdl_location = cfg.CONF.VMWARE.wsdl_location
         self.https_port = cfg.CONF.VMWARE.https_port
+        if cfg.CONF.VMWARE.cert_check and cfg.CONF.VMWARE.cert_path:
+            self.ca_path = cfg.CONF.VMWARE.cert_path
+        else:
+            LOG.warn(_("Creating a vCenter connection without using "
+                       "certificate verification."))
         if (self.vcenter_ip and self.vcenter_username and
                 self.vcenter_password and self.wsdl_location):
             vim_session.ConnectionHandler.set_vc_details(
@@ -96,6 +102,7 @@ class VcenterManager(base_manager.DriverManager):
                 self.vcenter_password,
                 self.vcenter_api_retry_count,
                 self.wsdl_location,
+                self.ca_path,
                 self.https_port)
             vim_session.ConnectionHandler.start()
             if self.connection_thread:
