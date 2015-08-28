@@ -410,9 +410,7 @@ class VCNetworkDriver(driver.NetworkDriver):
                                             host_changed)
                         events.append(event)
                         cache.VCCache.add_vm_model_for_uuid(vm_uuid, new_vm)
-                        LOG.debug("Added vm to cache: %s.", new_vm)
-                        LOG.debug("cache.VCCache.vm_uuid_to_model: %s.",
-                                  cache.VCCache.vm_uuid_to_model)
+                        LOG.debug("Added vm to cache: %s.", new_vm.uuid)
                     else:
                         LOG.debug("Ignoring update for VM: %s.",
                                   changes.get('name'))
