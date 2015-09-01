@@ -1,0 +1,11 @@
+Verified+2: Jenkins
+Code-Review+2: garyk <gkotton@vmware.com>
+Workflow+1: garyk <gkotton@vmware.com>
+Code-Review+1: YAMAMOTO Takashi <yamamoto@midokura.com>
+Code-Review+1: Vivekanandan Narasimhan <vivekanandan.narasimhan@hp.com>
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Submitted-by: Jenkins
+Submitted-at: Tue, 01 Sep 2015 11:55:51 +0000
+Reviewed-on: https://review.openstack.org/217085
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/kilo
