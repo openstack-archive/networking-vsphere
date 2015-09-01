@@ -91,15 +91,13 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
         image_meta = objects.ImageMeta.from_dict(image_meta)
-        _vmops = self._get_vmops_for_compute_node(instance['node'])
-        _vmops.spawn(context=context,
-                     instance=instance,
-                     image_meta=image_meta,
-                     injected_files=injected_files,
-                     admin_password=admin_password,
-                     network_info=None,
-                     block_device_info=block_device_info,
-                     power_on=False)
+        self._vmops.spawn(context=context,
+                          instance=instance,
+                          image_meta=image_meta,
+                          injected_files=injected_files,
+                          admin_password=admin_password,
+                          network_info=None,
+                          block_device_info=block_device_info)
 
         vm_ref = vm_util.get_vm_ref(self._session, instance)
         if vm_ref is None:
