@@ -16,6 +16,7 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import strutils
 
+from nova.i18n import _LI
 from nova.virt import configdrive
 from nova.virt import driver
 from nova.virt.vmwareapi import images
@@ -37,6 +38,7 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
               admin_password, network_info, block_device_info=None,
               power_on=False):
 
+        LOG.info(_LI("Inside OVSvApp VMOps spawn method."))
         client_factory = self._session.vim.client.factory
         image_info = images.VMwareImage.from_image(instance.image_ref,
                                                    image_meta)
@@ -126,6 +128,6 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
         if configdrive.required_by(instance):
             self._configure_config_drive(instance, vm_ref, vi.dc_info,
                                          vi.datastore, injected_files,
-                                         admin_password)
+                                         admin_password, network_info)
         if power_on:
             vm_util.power_on_instance(self._session, instance, vm_ref=vm_ref)
