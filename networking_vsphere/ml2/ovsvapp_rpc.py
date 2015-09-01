@@ -309,14 +309,13 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
         devices = kwargs.get('devices')
         for device in devices:
             try:
-                dev = self.update_device_up(rpc_context, device=device,
-                                            **kwargs)
-                LOG.debug("Finished update_device_up for %s ports.",
-                          dev['device'])
+                self.update_device_up(rpc_context, device=device,
+                                      **kwargs)
+                LOG.debug("Finished update_device_up for %s port.", device)
                 devices_up.append(device)
             except Exception:
                 failed_devices_up.append(device)
-                LOG.error(_("Failed to update device %s up."), device)
+                LOG.exception(_("Failed to update device %s up."), device)
         return {'devices_up': devices_up,
                 'failed_devices_up': failed_devices_up}
 
@@ -328,12 +327,12 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
             try:
                 dev = self.update_device_down(rpc_context, device=device,
                                               **kwargs)
-                LOG.debug("Finished update_device_down for %s ports.",
+                LOG.debug("Finished update_device_down for %s port.",
                           dev['device'])
                 devices_down.append(device)
             except Exception:
                 failed_devices_down.append(device)
-                LOG.error(_("Failed to update device %s down."), device)
+                LOG.exception(_("Failed to update device %s down."), device)
         return {'devices_down': devices_down,
                 'failed_devices_down': failed_devices_down}
 
