@@ -30,11 +30,13 @@ class TestVmwareApiSession(base.TestCase):
         self.host_password = "password"
         self.api_retry_count = 2
         self.wsdl_url = "fake_url"
+        self.ca_cert = "fake_cert"
         self.vm_session = vim_session.VMWareAPISession(self.host_ip,
                                                        self.host_username,
                                                        self.host_password,
                                                        self.api_retry_count,
                                                        self.wsdl_url,
+                                                       self.ca_cert,
                                                        create_session=False)
 
     @mock.patch.object(api.VMwareAPISession, "invoke_api")
@@ -78,13 +80,15 @@ class TestConnectionHandler(base.TestCase):
         self.host_password = "password"
         self.api_retry_count = 2
         self.wsdl_url = "fake_url"
+        self.ca_cert = 'fake_cert'
 
     def test_create_connection(self):
         vim_session.ConnectionHandler.set_vc_details(self.host_ip,
                                                      self.host_username,
                                                      self.host_password,
                                                      self.api_retry_count,
-                                                     self.wsdl_url)
+                                                     self.wsdl_url,
+                                                     self.ca_cert)
         vim_session.ConnectionHandler.create_session = False
         vm_session = vim_session.ConnectionHandler.create_connection()
         self.assertEqual(vim_session.ConnectionHandler.host_ip,
@@ -103,7 +107,8 @@ class TestConnectionHandler(base.TestCase):
                                                      self.host_username,
                                                      self.host_password,
                                                      self.api_retry_count,
-                                                     self.wsdl_url)
+                                                     self.wsdl_url,
+                                                     self.ca_cert)
         vim_session.ConnectionHandler.create_session = False
         vim_session.ConnectionHandler.create_connection()
         with mock.patch.object(api.VMwareAPISession,
@@ -121,7 +126,8 @@ class TestConnectionHandler(base.TestCase):
                                                      self.host_username,
                                                      self.host_password,
                                                      self.api_retry_count,
-                                                     self.wsdl_url)
+                                                     self.wsdl_url,
+                                                     self.ca_cert)
         vim_session.ConnectionHandler.create_session = False
         vm_session = vim_session.ConnectionHandler.create_connection()
         new_session = vim_session.ConnectionHandler.get_connection()
