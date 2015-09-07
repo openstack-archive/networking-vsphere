@@ -15,23 +15,29 @@
 #
 
 import logging
+import os
 import signal
 import subprocess
 import sys
 import time
 
+from neutron.common import config as common_config
 
 LOG = logging.getLogger(__name__)
 LOG_FILE_PATH = '/var/log/neutron/ovsvapp-agent/monitor.log'
 JSON_FILE_PATH = '/var/log/neutron/ovsvapp-agent/status.json'
-OVS_MONITOR = '/opt/stack/networking-vsphere/networking_vsphere/monitor/ovsvapp-agent-monitor.sh'  # noqa
 
 
 def start_monitor():
     '''Method to start monitoring the required processes.'''
     try:
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        ovs_monitor_path = str(current_dir) + '/ovsvapp-agent-monitor.sh'
+        os.chmod(ovs_monitor_path, 0o755)
+
         while True:
-            subprocess.call(OVS_MONITOR)
+            LOG.info(_("Loading OVS_MONITOR: %s"), ovs_monitor_path)
+            subprocess.call(ovs_monitor_path)
             f = open(LOG_FILE_PATH)
             for line in f:
                 pass
@@ -53,6 +59,7 @@ def main():
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
+    common_config.setup_logging()
     FORMAT = '%(asctime)-15s %(message)s'
     logging.basicConfig(format=FORMAT,
                         filename=LOG_FILE_PATH,
@@ -69,6 +76,3 @@ def stop(signum, frame):
     '''Signal handler to stop the OVSvApp agent Monitoring.'''
     LOG.info(_("Stopping ovsvapp-agent-monitor."))
     sys.exit(0)
-
-if __name__ == '__main__':
-    main()
