@@ -33,8 +33,6 @@ fi
        stop openvswitch-switch || true
        start openvswitch-switch || true
        echo $restarted_msg >> $logfile ||true
-       stop neutron-ovsvapp-agent || true
-       start neutron-ovsvapp-agent || true
        echo $broken_msg >> $logfile
     fi
 sleep 1
@@ -45,8 +43,6 @@ sleep 1
        stop openvswitch-switch || true
        start openvswitch-switch || true
        echo $restarted_msg >> $logfile || true
-       stop neutron-ovsvapp-agent || true
-       start neutron-ovsvapp-agent || true
        echo $broken_msg >> $logfile
     fi
 sleep 2

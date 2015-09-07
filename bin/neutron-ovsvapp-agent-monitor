@@ -1,12 +1,10 @@
 #!/usr/bin/python
-#vim: tabstop=4 shiftwidth=4 softtabstop=4
-#(c) Copyright 2014 Hewlett-Packard Development Company, L.P.
+# PBR Generated from u'console_scripts'
 
-import os
 import sys
 
-
-sys.path.insert(0, os.getcwd())
 from networking_vsphere.monitor.monitor import main
 
-main()
+
+if __name__ == "__main__":
+    sys.exit(main())
