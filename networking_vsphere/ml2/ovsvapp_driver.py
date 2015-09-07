@@ -51,7 +51,7 @@ class OVSvAppAgentDriver(object):
         self._plugin = None
         self._pool = None
         LOG.info(_("Successfully initialized OVSvApp Mechanism driver."))
-        if cfg.CONF.OVSVAPP_MONITOR.enable_ovsvapp_monitor:
+        if cfg.CONF.OVSVAPP.enable_ovsvapp_monitor:
             self._start_ovsvapp_monitor()
 
     @property

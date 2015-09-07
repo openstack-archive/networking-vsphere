@@ -85,6 +85,9 @@ TUNNEL_BRIDGE=${TUNNEL_BRIDGE:-br-tun}
 # Provide Security Bridge.
 SECURITY_BRIDGE=${SECURITY_BRIDGE:-br-sec}
 
+# Provide to enable Fault Tolerance for OVSvApp.
+ENABLE_OVSVAPP_MONITOR=${ENABLE_OVSVAPP_MONITOR:-False}
+
 case $OVSVAPP_MODE in
     allinone)
         enable_service ovsvapp-server ovsvapp-compute ovsvapp-agent
