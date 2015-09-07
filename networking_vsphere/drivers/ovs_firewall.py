@@ -71,6 +71,11 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         if not self.check_ovs_firewall_restart():
             self.setup_base_flows()
 
+    def security_group_updated(self, action_type, sec_group_ids,
+                               device_id=None):
+        """Called when a security group is updated."""
+        pass
+
     def check_ovs_firewall_restart(self):
         canary_flow = self.sg_br.dump_flows_for_table(
             ovsvapp_const.SG_EGRESS_TABLE_ID)
