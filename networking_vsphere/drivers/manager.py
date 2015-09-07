@@ -92,12 +92,12 @@ class VcenterManager(base_manager.DriverManager):
         self.ca_path = cfg.CONF.VMWARE.cert_path
         if cfg.CONF.VMWARE.cert_check:
             if not cfg.CONF.VMWARE.cert_path:
-                LOG.error(_("Unable to create vCenter connection "
-                            "certificate path is not specified!"))
+                LOG.error(_("SSL certificate path is not defined to establish "
+                            "secure vCenter connection. Aborting agent!"))
                 raise SystemExit(1)
             elif not os.path.isfile(self.ca_path):
-                LOG.error(_("Unable to create vCenter connection "
-                            "certificate path %s doesn't exist."),
+                LOG.error(_("SSL certificate does not exist at the specified "
+                            "path %s. Aborting agent!"),
                           self.ca_path)
                 raise SystemExit(1)
         if (self.vcenter_ip and self.vcenter_username and
