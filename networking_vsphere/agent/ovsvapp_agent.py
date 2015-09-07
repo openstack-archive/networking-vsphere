@@ -886,7 +886,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             if event.event_type == ovsvapp_const.VM_CREATED:
                 LOG.info(_("Handling event %(event_type)s for %(src_obj)s."),
                          {'event_type': event.event_type,
-                          'src_obj': event.src_obj})
+                          'src_obj': event.src_obj.uuid})
                 if not self.cluster_moid:
                     self.cluster_moid = event.cluster_id
                     LOG.info(_("Setting the cluster moid: %s."),
@@ -895,12 +895,12 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             elif event.event_type == ovsvapp_const.VM_UPDATED:
                 LOG.info(_("Handling event %(event_type)s for %(src_obj)s."),
                          {'event_type': event.event_type,
-                          'src_obj': event.src_obj})
+                          'src_obj': event.src_obj.uuid})
                 self._notify_device_updated(vm, host, event.host_changed)
             elif event.event_type == ovsvapp_const.VM_DELETED:
                 LOG.info(_("Handling event %(event_type)s for %(src_obj)s."),
                          {'event_type': event.event_type,
-                          'src_obj': event.src_obj})
+                          'src_obj': event.src_obj.uuid})
                 self._notify_device_deleted(vm, host)
             else:
                 LOG.debug("Ignoring event: %s.", event)
@@ -926,7 +926,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
     def _notify_device_added(self, vm, host):
         """Handle VM created event."""
         if len(vm.vnics) > 0:
-            # This is for existing VM.
+            LOG.debug("Processing for an existing VM %s.", vm.uuid)
             ovsvapplock.acquire()
             for vnic in vm.vnics:
                 self.devices_to_filter.add(vnic.port_uuid)
