@@ -136,6 +136,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.use_veth_interconnection = False
         self.enable_tunneling = False
         self.tun_br = None
+        self.tunnel_csum = CONF.OVSVAPP.tunnel_csum
         bridge_classes = {'br_int': br_int.OVSIntegrationBridge,
                           'br_phys': br_phys.OVSPhysicalBridge,
                           'br_tun': br_tun.OVSTunnelBridge}
@@ -274,13 +275,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             raise SystemExit(1)
         LOG.info(_("Security bridge successfully recovered."))
 
-    def recover_tunnel_bridge(self, tun_br_name=None):
-        """Recover the tunnel bridge.
-
-        :param tun_br_name: the name of the tunnel bridge.
-        """
-        self.tun_br = ovs_lib.OVSBridge(tun_br_name)
-
+    def recover_tunnel_bridge(self):
+        """Recover the tunnel bridge."""
         self.patch_tun_ofport = self.int_br.get_port_ofport(
             cfg.CONF.OVS.int_peer_patch_port)
         self.patch_int_ofport = self.tun_br.get_port_ofport(
@@ -411,7 +407,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.setup_tunnel_br_flows()
                 LOG.info(_("Tunnel bridge successfully set."))
             else:
-                self.recover_tunnel_bridge(CONF.OVSVAPP.tunnel_bridge)
+                self.recover_tunnel_bridge()
 
     def _add_physical_bridge_flows(self, port):
         for phys_net in self.phys_brs:

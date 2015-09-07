@@ -94,6 +94,10 @@ OVSVAPP_OPTS = [
     cfg.IntOpt('vxlan_udp_port',
                default=p_const.VXLAN_UDP_PORT,
                help='The UDP port to use for VXLAN tunnels.'),
+    cfg.BoolOpt('tunnel_csum',
+                default=False,
+                help='Set or un-set the tunnel header checksum on '
+                     'outgoing IP packet carrying GRE/VXLAN tunnel.'),
     cfg.IntOpt('dont_fragment',
                default=True,
                help='Do not fragment.'),
