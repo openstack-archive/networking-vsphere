@@ -36,7 +36,7 @@ VMWARE_OPTS = [
                 default=False,
                 help='Enable SSL certificate check for vCenter.'),
     cfg.StrOpt('cert_path',
-               default='/etc/ssl/certs/certs.pem',
+               default=None,
                help='Certificate chain path containing cacert of vCenters.'),
     cfg.IntOpt('https_port',
                default=443,
