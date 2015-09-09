@@ -124,10 +124,10 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
             self.agent.ovsvapp_sg_update(ports)
             self.assertFalse(mock_prepare.called)
 
-    def test_remove_device_filters(self):
+    def test_remove_devices_filter(self):
         with mock.patch.object(self.agent.firewall,
                                'clean_port_filters') as mock_clean:
-            self.agent.remove_device_filters("123")
+            self.agent.remove_devices_filter("123")
             self.assertTrue(mock_clean.called)
             mock_clean.assert_called_with(["123"], True)
 
