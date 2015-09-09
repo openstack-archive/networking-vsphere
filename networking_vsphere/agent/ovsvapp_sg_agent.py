@@ -94,7 +94,7 @@ class OVSvAppSecurityGroupAgent(OVSvAppSecurityGroupAgentRpc):
             if port_id in self.firewall.ports:
                 self.firewall.prepare_port_filter(port_with_rules[port_id])
 
-    def remove_device_filters(self, device_id):
+    def remove_devices_filter(self, device_id):
         if not device_id:
             return
         self.firewall.clean_port_filters([device_id], True)
