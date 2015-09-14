@@ -463,7 +463,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         self._dump_flows_on_br_sec_for_icmp_type(vapp_ipadd, 'icmp',
                                                  segment_id, mac_addr, '8',
                                                  net_id)
-        body = self.admin_client.list_agents(agent_type='OVSvApp L2 Agent')
+        body = self.admin_client.list_agents(agent_type='OVSvApp Agent')
         agents = body['agents']
         vapp_ipadd_of_host = ""
         for agent in agents:
