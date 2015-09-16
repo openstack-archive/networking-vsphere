@@ -89,7 +89,7 @@ class VcenterManager(base_manager.DriverManager):
         self.vcenter_api_retry_count = cfg.CONF.VMWARE.vcenter_api_retry_count
         self.wsdl_location = cfg.CONF.VMWARE.wsdl_location
         self.https_port = cfg.CONF.VMWARE.https_port
-        self.ca_path = cfg.CONF.VMWARE.cert_path
+        self.ca_path = None
         if cfg.CONF.VMWARE.cert_check:
             if not cfg.CONF.VMWARE.cert_path:
                 LOG.error(_("SSL certificate path is not defined to establish "
@@ -100,6 +100,8 @@ class VcenterManager(base_manager.DriverManager):
                             "path %s. Aborting agent!"),
                           self.ca_path)
                 raise SystemExit(1)
+            else:
+                self.ca_path = cfg.CONF.VMWARE.cert_path
         if (self.vcenter_ip and self.vcenter_username and
                 self.vcenter_password and self.wsdl_location):
             vim_session.ConnectionHandler.set_vc_details(
