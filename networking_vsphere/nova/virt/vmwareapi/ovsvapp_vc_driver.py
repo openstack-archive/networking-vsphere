@@ -15,6 +15,7 @@
 from eventlet import greenthread
 from oslo_config import cfg
 from oslo_log import log
+from oslo_vmware import vim_util
 
 from nova import exception
 from nova.i18n import _LI
@@ -22,7 +23,6 @@ from nova import objects
 from nova.virt.vmwareapi import driver as vmware_driver
 from nova.virt.vmwareapi import images
 from nova.virt.vmwareapi import ovsvapp_vmops as vmops  # noqa
-from nova.virt.vmwareapi import vim_util
 from nova.virt.vmwareapi import vm_util
 
 LOG = log.getLogger(__name__)
@@ -159,23 +159,20 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         LOG.info(_LI("Waiting for the portgroup %s to be created."),
                  port_group_name)
         while count < max_counts:
-            host = session._call_method(vim_util, "get_dynamic_property",
-                                        vm_ref, "VirtualMachine",
-                                        "runtime.host")
-            vm_networks_ret = session._call_method(vim_util,
-                                                   "get_dynamic_property",
-                                                   host, "HostSystem",
-                                                   "network")
+            host = session._call_method(vim_util,
+                                        "get_object_property",
+                                        vm_ref, "runtime.host")
+            vm_networks_ret = session._call_method(
+                vim_util, "get_object_property",
+                host, "network")
             if vm_networks_ret:
                 vm_networks = vm_networks_ret.ManagedObjectReference
                 for network in vm_networks:
                     # Get network properties.
                     if network._type == 'DistributedVirtualPortgroup':
-                        props = session._call_method(vim_util,
-                                                     "get_dynamic_property",
-                                                     network,
-                                                     network._type,
-                                                     "config")
+                        props = session._call_method(
+                            vim_util, "get_object_property",
+                            network, "config")
                         if props.name in port_group_name:
                             LOG.info(_LI("DistributedVirtualPortgroup "
                                          "created."))
@@ -183,26 +180,23 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                             network_obj['dvpg'] = props.key
                             dvs_props = session._call_method(
                                 vim_util,
-                                "get_dynamic_property",
+                                "get_object_property",
                                 props.distributedVirtualSwitch,
-                                "VmwareDistributedVirtualSwitch",
                                 "uuid")
                             network_obj['dvsw'] = dvs_props
                             network_obj['dvpg-name'] = props.name
                             return network_obj
                     elif network._type == 'Network':
-                        netname = session._call_method(vim_util,
-                                                       "get_dynamic_property",
-                                                       network,
-                                                       network._type,
-                                                       "name")
+                        netname = session._call_method(
+                            vim_util, "get_object_property",
+                            network, "name")
                         if netname in port_group_name:
                             LOG.info(_LI("Standard Switch Portgroup created."))
                             network_obj['type'] = 'Network'
                             network_obj['name'] = port_group_name
                             return network_obj
                 count = count + 1
-                LOG.info(_LI("Portgroup not created. Retrying again "
+                LOG.info(_LI("Port group not created. Retrying again "
                              "after 2 seconds."))
                 greenthread.sleep(2)
         return None
