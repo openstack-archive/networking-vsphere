@@ -159,23 +159,20 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         LOG.info(_LI("Waiting for the portgroup %s to be created."),
                  port_group_name)
         while count < max_counts:
-            host = session._call_method(vim_util, "get_dynamic_property",
-                                        vm_ref, "VirtualMachine",
-                                        "runtime.host")
-            vm_networks_ret = session._call_method(vim_util,
-                                                   "get_dynamic_property",
-                                                   host, "HostSystem",
-                                                   "network")
+            host = session._call_method(vim_util,
+                                        "get_object_properties_dict",
+                                        vm_ref, "runtime.host")
+            vm_networks_ret = session._call_method(
+                vim_util, "get_object_properties_dict",
+                host, "network")
             if vm_networks_ret:
                 vm_networks = vm_networks_ret.ManagedObjectReference
                 for network in vm_networks:
                     # Get network properties.
                     if network._type == 'DistributedVirtualPortgroup':
-                        props = session._call_method(vim_util,
-                                                     "get_dynamic_property",
-                                                     network,
-                                                     network._type,
-                                                     "config")
+                        props = session._call_method(
+                            vim_util, "get_object_properties_dict",
+                            network, network._type, "config")
                         if props.name in port_group_name:
                             LOG.info(_LI("DistributedVirtualPortgroup "
                                          "created."))
@@ -183,7 +180,7 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                             network_obj['dvpg'] = props.key
                             dvs_props = session._call_method(
                                 vim_util,
-                                "get_dynamic_property",
+                                "get_object_properties_dict",
                                 props.distributedVirtualSwitch,
                                 "VmwareDistributedVirtualSwitch",
                                 "uuid")
@@ -191,11 +188,9 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                             network_obj['dvpg-name'] = props.name
                             return network_obj
                     elif network._type == 'Network':
-                        netname = session._call_method(vim_util,
-                                                       "get_dynamic_property",
-                                                       network,
-                                                       network._type,
-                                                       "name")
+                        netname = session._call_method(
+                            vim_util, "get_object_properties_dict",
+                            network, network._type, "name")
                         if netname in port_group_name:
                             LOG.info(_LI("Standard Switch Portgroup created."))
                             network_obj['type'] = 'Network'
