@@ -4,4 +4,4 @@ source = networking_vsphere
 omit = networking_vsphere/tests/*,networking_vsphere/openstack/*
 
 [report]
-ignore-errors = True
+ignore_errors = True
