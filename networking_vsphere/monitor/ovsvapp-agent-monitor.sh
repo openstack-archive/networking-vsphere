@@ -18,7 +18,7 @@ logfile=/var/log/neutron/ovsvapp-agent/monitor.log
 broken_msg="ovs: broken"
 ok_msg="ovs: ok"
 stopped_msg="openvswitch-switch process is not responding. Going to restart"
-restarted_msg="openvswitch-switch process is restarted. Going to restart hpvcn-neutron-agent"
+restarted_msg="openvswitch-switch process is restarted."
 if [ ! -f $logfile ]; then
    touch $logfile
    chown neutron:neutron $logfile
