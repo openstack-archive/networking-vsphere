@@ -89,6 +89,15 @@ class FakePlugin(agents_db.AgentDbMixin):
         return
 
 
+class FakeResponse(object):
+
+    def __init__(self, response):
+        self.response = response
+
+    def json(self):
+        return jsonutils.loads(self.response)
+
+
 class TestAgentMonitor(base.BaseTestCase):
 
     fake_active_agent_list = []
@@ -336,22 +345,28 @@ class TestAgentMonitor(base.BaseTestCase):
             self.assertFalse(device_update.called)
 
     def test_check_datapath_health_ok(self):
-        mgmt_ip = "1.1.1.1"
+        monitoring_ip = "1.1.1.1"
         url = 'http://1.1.1.1:8080/status.json'
-        status = jsonutils.dumps({"ovs": "OK"})
-        with mock.patch('requests.get', return_value=status) as http_call:
-            self.ovsvapp_monitor._check_datapath_health(mgmt_ip)
+        response = FakeResponse(jsonutils.dumps({"ovs": "OK"}))
+        with mock.patch('requests.get', return_value=response) as http_call:
+            ret = self.ovsvapp_monitor._check_datapath_health(monitoring_ip)
             self.assertTrue(http_call.called)
             http_call.assert_called_with(url, timeout=5)
+            self.assertTrue(ret)
 
     def test_check_datapath_health_exception(self):
-        mgmt_ip = "1.1.1.1"
+        monitoring_ip = "1.1.1.1"
         url = 'http://1.1.1.1:8080/status.json'
         with mock.patch('requests.get', side_effect=Exception) as http_call:
-            ret = self.ovsvapp_monitor._check_datapath_health(mgmt_ip)
+            ret = self.ovsvapp_monitor._check_datapath_health(monitoring_ip)
             self.assertTrue(http_call.called)
             http_call.assert_called_with(url, timeout=5)
             self.assertFalse(ret)
+
+    def test_check_datapath_health_without_monitoring_ip(self):
+        monitoring_ip = None
+        ret = self.ovsvapp_monitor._check_datapath_health(monitoring_ip)
+        self.assertIsNone(ret)
 
     def test_monitor_agent_state(self):
         config = {'cluster_id': FAKE_CLUSTER_1, 'vcenter_id': FAKE_VCENTER}

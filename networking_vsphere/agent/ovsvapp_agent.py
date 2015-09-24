@@ -89,7 +89,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.conf = cfg.CONF
         self.esx_hostname = CONF.VMWARE.esx_hostname
         self.vcenter_id = CONF.VMWARE.vcenter_id
-        self.mgmt_ip = CONF.OVSVAPP.mgmt_ip
+        self.monitoring_ip = CONF.OVSVAPP.monitoring_ip
         self.esx_maintenance_mode = CONF.VMWARE.esx_maintenance_mode
         if not self.vcenter_id:
             self.vcenter_id = CONF.VMWARE.vcenter_ip
@@ -129,7 +129,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                'cluster_id': self.cluster_id,
                                'vcenter_id': self.vcenter_id,
                                'esx_host_name': self.esx_hostname,
-                               'mgmt_ip': self.mgmt_ip},
+                               'monitoring_ip': self.monitoring_ip},
             'agent_type': ovsvapp_const.AGENT_TYPE_OVSVAPP,
             'start_flag': True}
         self.veth_mtu = CONF.OVSVAPP.veth_mtu
