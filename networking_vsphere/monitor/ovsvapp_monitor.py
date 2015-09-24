@@ -159,17 +159,18 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
             LOG.exception(_("Unable to inform the OVSvApp agent for "
                             "Host - maintenance or shutdown operation."))
 
-    def _check_datapath_health(self, mgmt_ip):
-        if mgmt_ip:
-            url = 'http://%s:8080/status.json' % mgmt_ip
+    def _check_datapath_health(self, monitoring_ip):
+        if monitoring_ip:
+            url = 'http://%s:8080/status.json' % monitoring_ip
             try:
                 response = requests.get(url, timeout=5)
                 if response:
-                    LOG.debug("HTTP response from OVSvApp agent@ %(mgmt)s is "
-                              "%(res)s", {'res': response, 'mgmt': mgmt_ip})
+                    LOG.debug("HTTP response from OVSvApp agent@ %(ip)s is "
+                              "%(res)s", {'res': response,
+                                          'ip': monitoring_ip})
                     status = response.json()
-                    LOG.info(_("ovs status is %(st)s from agent@ %(mgmt)s")
-                             % {'st': status, 'mgmt': mgmt_ip})
+                    LOG.info(_("ovs status is %(st)s from agent@ %(ip)s")
+                             % {'st': status, 'ip': monitoring_ip})
                     return (status.get('ovs') == "OK")
             except Exception:
                 LOG.exception(_("Failed to get OVS status. Will continue "
@@ -179,8 +180,8 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
     def check_ovsvapp_data_path(self, agent):
         agent_config = agent['configurations']
         # Check if the Data path is alright.
-        mgmt_ip = agent_config.get('mgmt_ip')
-        datapath_health = self._check_datapath_health(mgmt_ip)
+        monitoring_ip = agent_config.get('monitoring_ip')
+        datapath_health = self._check_datapath_health(monitoring_ip)
         if datapath_health:
             LOG.info(_("Data path looks to be OK on %s. "
                        "Skipping mitigation."), agent['host'])
