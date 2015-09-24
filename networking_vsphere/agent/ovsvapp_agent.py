@@ -1471,12 +1471,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self._add_ports_to_host_ports(port_ids)
         else:
             self._add_ports_to_host_ports(port_ids, False)
-            ovsvapplock.acquire()
-            try:
-                self.devices_to_filter |= set(port_ids)
-            finally:
-                ovsvapplock.release()
-            self.refresh_firewall_required = True
         if self.tenant_network_type == p_const.TYPE_VLAN:
             self._process_create_portgroup_vlan(context, ports_list, host,
                                                 sg_rules[device_id])
