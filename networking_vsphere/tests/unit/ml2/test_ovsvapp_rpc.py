@@ -504,11 +504,12 @@ class OVSvAppPluginApiTest(test_rpc.RpcApiTestCase):
                                    'cluster_id': FAKE_CLUSTER_ID},
                            agent_id=FAKE_AGENT_ID, host=FAKE_HOST)
 
-    def test_update_port_binding(self):
+    def test_update_device_binding(self):
         rpcapi = ovsvapp_agent.OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
         self._test_rpc_api(rpcapi, None,
-                           'update_port_binding', rpc_method='call',
-                           port_id=FAKE_PORT_ID,
+                           'update_device_binding', rpc_method='call',
+                           device=FAKE_DEVICE_1,
+                           net_type=ovsvapp_const.NETWORK_VXLAN,
                            host=FAKE_HOST, agent_id=FAKE_AGENT_ID)
 
     def test_update_ports_binding(self):

@@ -170,7 +170,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                          'physical_network':
                          network['provider:physical_network']})
 
-                    if port['network_type'] == 'vxlan':
+                    if port['network_type'] == ovsvapp_const.NETWORK_VXLAN:
                         port_info = {'port_id': port['id'],
                                      'vcenter_id': vcenter_id,
                                      'cluster_id': cluster_id,
@@ -237,6 +237,65 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                             "device: %s."), device_id)
         LOG.error(_("Failed to retrieve ports for device: %s."), device_id)
         return False
+
+    def update_device_binding(self, rpc_context, **kwargs):
+        agent_id = kwargs.get('agent_id')
+        device_id = kwargs.get('device')
+        host = kwargs.get('host')
+        network_type = kwargs.get('net_type')
+        updated_ports = set()
+        ports = None
+        # Wait till all the ports of the device become ACTIVE
+        if network_type == ovsvapp_const.NETWORK_VXLAN:
+            retry_count = 3
+            while retry_count > 0:
+                sleep = False
+                ports = self.plugin.get_ports(rpc_context,
+                                              filters={'device_id':
+                                                       [device_id]})
+                for port in ports:
+                    if port['status'] != common_const.PORT_STATUS_ACTIVE:
+                        sleep = True
+                        break
+                if sleep:
+                    time.sleep(retry_count * 3)
+                    retry_count -= 1
+                else:
+                    break
+            if retry_count == 0:
+                LOG.error(_("Failed to update binding for device %s, "
+                            "as the device has one of more ports "
+                            "in BUILD state."), device_id)
+                return
+        else:
+            ports = self.plugin.get_ports(rpc_context,
+                                          filters={'device_id': [device_id]})
+        for port in ports:
+            port_id = port['id']
+            LOG.debug("Port %(port_id)s update_port invoked by agent "
+                      "%(agent_id)s for host %(host)s.",
+                      {'port_id': port_id, 'agent_id': agent_id,
+                       'host': host})
+            new_port = {'port': {portbindings.HOST_ID: host}}
+            try:
+                updated_port = self.plugin.update_port(rpc_context, port_id,
+                                                       new_port)
+                updated_ports.add(updated_port['id'])
+                if network_type == ovsvapp_const.NETWORK_VXLAN:
+                    time.sleep(1)
+                    new_status = (common_const.PORT_STATUS_BUILD
+                                  if port['admin_state_up'] else
+                                  common_const.PORT_STATUS_DOWN)
+                    if port['status'] != new_status:
+                        self.plugin.update_port_status(rpc_context, port['id'],
+                                                       new_status, host)
+                        time.sleep(1)
+                        kwargs['device'] = port_id
+                        self.update_device_up(rpc_context, **kwargs)
+            except Exception:
+                LOG.exception(_("Failed to update binding for port "
+                                "%s."), port_id)
+        return updated_ports
 
     def update_port_binding(self, rpc_context, **kwargs):
         agent_id = kwargs.get('agent_id')
@@ -329,7 +388,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                              'vif_type': port[portbindings.VIF_TYPE]})
                 continue
             bound_port['lvid'] = None
-            if segment[api.NETWORK_TYPE] == 'vxlan':
+            if segment[api.NETWORK_TYPE] == ovsvapp_const.NETWORK_VXLAN:
                 port_info = {'port_id': bound_port['id'],
                              'vcenter_id': vcenter_id,
                              'cluster_id': cluster_id,
