@@ -1127,11 +1127,15 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent._add_ports_to_host_ports([FAKE_PORT_1])
         with mock.patch.object(self.agent, "_delete_physical_bridge_flows"
                                ) as mock_del_phy_bridge_flow, \
+                mock.patch.object(self.agent.ovsvapp_rpc,
+                                  "update_device_binding"
+                                  ) as mock_update_device_binding, \
                 mock.patch.object(self.LOG, 'exception'
                                   ) as mock_log_exception:
             self.agent._notify_device_updated(vm, FAKE_HOST_2, True)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertTrue(mock_del_phy_bridge_flow.called)
+            self.assertFalse(mock_update_device_binding.called)
             self.assertFalse(mock_log_exception.called)
 
     def test_notify_device_updated_host_vlan(self):
@@ -1146,23 +1150,12 @@ class TestOVSvAppL2Agent(base.TestCase):
         with mock.patch.object(self.agent, "_add_physical_bridge_flows"
                                ) as mock_add_phy_bridge_flow, \
                 mock.patch.object(self.agent.ovsvapp_rpc,
-                                  "update_ports_binding"
-                                  ) as mock_update_ports_binding, \
-                mock.patch.object(self.agent.plugin_rpc,
-                                  "get_device_details"
-                                  ) as mock_get_device_details, \
-                mock.patch.object(self.agent.plugin_rpc,
-                                  "update_device_up"
-                                  ) as mock_update_device_up, \
-                mock.patch.object(self.LOG, 'exception'
-                                  ) as mock_log_exception:
+                                  "update_device_binding"
+                                  ) as mock_update_device_binding:
             self.agent._notify_device_updated(vm, host, True)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertTrue(mock_add_phy_bridge_flow.called)
-            self.assertTrue(mock_update_ports_binding.called)
-            self.assertFalse(mock_get_device_details.called)
-            self.assertFalse(mock_update_device_up.called)
-            self.assertFalse(mock_log_exception.called)
+            self.assertTrue(mock_update_device_binding.called)
 
     def test_notify_device_updated_vlan_rpc_exception(self):
         host = FAKE_HOST_1
@@ -1176,25 +1169,17 @@ class TestOVSvAppL2Agent(base.TestCase):
         with mock.patch.object(self.agent, "_add_physical_bridge_flows"
                                ) as mock_add_phy_bridge_flow, \
                 mock.patch.object(self.agent.ovsvapp_rpc,
-                                  "update_ports_binding",
+                                  "update_device_binding",
                                   side_effect=Exception()
-                                  ) as mock_update_ports_binding, \
-                mock.patch.object(self.agent.plugin_rpc,
-                                  "get_device_details"
-                                  ) as mock_get_device_details, \
-                mock.patch.object(self.agent.plugin_rpc,
-                                  "update_device_up"
-                                  ) as mock_update_device_up, \
+                                  ) as mock_update_device_binding, \
                 mock.patch.object(self.LOG, 'exception'
                                   ) as mock_log_exception:
             self.assertRaises(
                 error.OVSvAppNeutronAgentError,
                 self.agent._notify_device_updated, vm, host, True)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
-            self.assertTrue(mock_add_phy_bridge_flow.called)
-            self.assertTrue(mock_update_ports_binding.called)
-            self.assertFalse(mock_get_device_details.called)
-            self.assertFalse(mock_update_device_up.called)
+            self.assertFalse(mock_add_phy_bridge_flow.called)
+            self.assertTrue(mock_update_device_binding.called)
             self.assertTrue(mock_log_exception.called)
 
     def test_notify_device_updated_host_vlan_multiple_nic(self):
@@ -1212,24 +1197,16 @@ class TestOVSvAppL2Agent(base.TestCase):
         with mock.patch.object(self.agent, "_add_physical_bridge_flows"
                                ) as mock_add_phy_bridge_flow, \
                 mock.patch.object(self.agent.ovsvapp_rpc,
-                                  "update_ports_binding"
-                                  ) as mock_update_ports_binding, \
-                mock.patch.object(self.agent.plugin_rpc,
-                                  "get_device_details"
-                                  ) as mock_get_device_details, \
-                mock.patch.object(self.agent.plugin_rpc,
-                                  "update_device_up"
-                                  ) as mock_update_device_up, \
+                                  "update_device_binding"
+                                  ) as mock_update_device_binding, \
                 mock.patch.object(self.LOG, 'exception'
                                   ) as mock_log_exception:
             self.agent._notify_device_updated(vm, host, True)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertTrue(mock_add_phy_bridge_flow.called)
-            self.assertTrue(mock_update_ports_binding.called)
-            self.assertFalse(mock_get_device_details.called)
-            self.assertFalse(mock_update_device_up.called)
+            self.assertTrue(mock_update_device_binding.called)
             self.assertFalse(mock_log_exception.called)
-            self.assertEqual(1, mock_update_ports_binding.call_count)
+            self.assertEqual(1, mock_update_device_binding.call_count)
             self.assertEqual(2, mock_add_phy_bridge_flow.call_count)
 
     def test_notify_device_updated_host_vxlan(self):
@@ -1240,21 +1217,13 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         self.agent.tenant_network_type = p_const.TYPE_VXLAN
         with mock.patch.object(self.agent.ovsvapp_rpc,
-                               "update_port_binding"
-                               ) as mock_update_port_binding, \
-                mock.patch.object(self.agent.plugin_rpc,
-                                  "get_device_details"
-                                  ) as mock_get_device_details, \
-                mock.patch.object(self.agent.plugin_rpc,
-                                  "update_device_up"
-                                  ) as mock_update_device_up, \
+                               "update_device_binding"
+                               ) as mock_update_device_binding, \
                 mock.patch.object(self.LOG, 'exception'
                                   ) as mock_log_exception:
             self.agent._notify_device_updated(vm, host, True)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
-            self.assertTrue(mock_update_port_binding.called)
-            self.assertTrue(mock_get_device_details.called)
-            self.assertTrue(mock_update_device_up.called)
+            self.assertTrue(mock_update_device_binding.called)
             self.assertFalse(mock_log_exception.called)
 
     def test_notify_device_updated_vxlan_rpc_exception(self):
@@ -1265,24 +1234,16 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         self.agent.tenant_network_type = p_const.TYPE_VXLAN
         with mock.patch.object(self.agent.ovsvapp_rpc,
-                               "update_port_binding",
+                               "update_device_binding",
                                side_effect=Exception()
-                               ) as mock_update_port_binding, \
-                mock.patch.object(self.agent.plugin_rpc,
-                                  "get_device_details"
-                                  ) as mock_get_device_details, \
-                mock.patch.object(self.agent.plugin_rpc,
-                                  "update_device_up"
-                                  ) as mock_update_device_up, \
+                               ) as mock_update_device_binding, \
                 mock.patch.object(self.LOG, 'exception'
                                   ) as mock_log_exception:
             self.assertRaises(
                 error.OVSvAppNeutronAgentError,
                 self.agent._notify_device_updated, vm, host, True)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
-            self.assertTrue(mock_update_port_binding.called)
-            self.assertFalse(mock_get_device_details.called)
-            self.assertFalse(mock_update_device_up.called)
+            self.assertTrue(mock_update_device_binding.called)
             self.assertTrue(mock_log_exception.called)
 
     def test_map_port_to_common_model_vlan(self):
