@@ -1408,7 +1408,6 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.cluster_moid = FAKE_CLUSTER_MOID
         self.agent.esx_hostname = FAKE_HOST_1
         self.agent.tenant_network_type = p_const.TYPE_VXLAN
-        self.agent.devices_up_list = []
         self.agent.local_vlan_map = {}
         self.agent.tenant_networks = set()
         self.agent.devices_to_filter = set()
@@ -1424,6 +1423,8 @@ class TestOVSvAppL2Agent(base.TestCase):
                 mock.patch.object(self.agent.sg_agent, 'expand_sg_rules',
                                   return_value=FAKE_SG_RULES
                                   ) as mock_expand_sg_rules, \
+                mock.patch.object(self.agent.plugin_rpc, 'update_device_up'
+                                  ) as mock_update_device_up, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
@@ -1434,11 +1435,11 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertNotIn(FAKE_PORT_1, self.agent.devices_to_filter)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
-            self.assertEqual([FAKE_PORT_1], self.agent.devices_up_list)
             self.assertIn(NETWORK_ID, self.agent.tenant_networks)
             mock_add_devices_fn.assert_called_with(ports)
             self.assertTrue(mock_sg_update_fn.called)
             self.assertTrue(mock_expand_sg_rules.called)
+            self.assertTrue(mock_update_device_up.called)
 
     def test_device_create_hosted_vm_vxlan_sg_rule_missing(self):
         ports = [self._build_port(FAKE_PORT_1)]
@@ -1447,7 +1448,6 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.cluster_moid = FAKE_CLUSTER_MOID
         self.agent.esx_hostname = FAKE_HOST_1
         self.agent.tenant_network_type = p_const.TYPE_VXLAN
-        self.agent.devices_up_list = []
         self.agent.local_vlan_map = {}
         self.agent.tenant_networks = set()
         self.agent.devices_to_filter = set()
@@ -1463,6 +1463,8 @@ class TestOVSvAppL2Agent(base.TestCase):
                 mock.patch.object(self.agent.sg_agent, 'expand_sg_rules',
                                   return_value=FAKE_SG_RULES_MISSING
                                   ) as mock_expand_sg_rules, \
+                mock.patch.object(self.agent.plugin_rpc, 'update_device_up'
+                                  ) as mock_update_device_up, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
@@ -1473,11 +1475,11 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.devices_to_filter)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
-            self.assertEqual([FAKE_PORT_1], self.agent.devices_up_list)
             self.assertIn(NETWORK_ID, self.agent.tenant_networks)
             mock_add_devices_fn.assert_called_with(ports)
             self.assertFalse(mock_sg_update_fn.called)
             self.assertTrue(mock_expand_sg_rules.called)
+            self.assertTrue(mock_update_device_up.called)
 
     def test_device_create_hosted_vm_create_port_exception(self):
         ports = [self._build_port(FAKE_PORT_1)]
