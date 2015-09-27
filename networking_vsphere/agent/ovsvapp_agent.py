@@ -1022,12 +1022,35 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         """Handle VM updated event."""
         try:
             if host == self.esx_hostname:
-                ports_to_bind = set()
-                for vnic in vm.vnics:
-                    self._add_ports_to_host_ports([vnic.port_uuid])
-                    # host_changed flag being True indicates, that
-                    # this VM_UPDATED event is because of a vMotion.
-                    if host_changed:
+                self._add_ports_to_host_ports(
+                    [vnic.port_uuid for vnic in vm.vnics])
+                # host_changed flag being True indicates, that
+                # this VM_UPDATED event is because of a vMotion.
+                if host_changed:
+                    # Bulk migrations result in racing for
+                    # update_port_postcommit in the controller-side
+                    # default l2pop mech driver. This results in the l2pop
+                    # mech driver generating incorrect fdb entries and
+                    # it ships them to all other L2Pop enabled nodes
+                    # creating havoc with tunnel port allocations/releases
+                    # of them.
+                    ovsvapp_l2pop_lock.acquire()
+                    try:
+                        LOG.info(_("Invoking update_device_binding RPC for "
+                                   "device %s.") % vm.uuid)
+                        self.ovsvapp_rpc.update_device_binding(
+                            self.context,
+                            agent_id=self.agent_id,
+                            device=vm.uuid,
+                            host=self.hostname,
+                            net_type=self.tenant_network_type)
+                    except Exception as e:
+                        LOG.exception(_("Failed to handle VM migration "
+                                        "for device: %s.") % vm.uuid)
+                        raise error.OVSvAppNeutronAgentError(e)
+                    finally:
+                        ovsvapp_l2pop_lock.release()
+                    for vnic in vm.vnics:
                         if self.tenant_network_type == p_const.TYPE_VLAN:
                             # Updated the physical bridge flows.
                             updated_port = self.ports_dict[vnic.port_uuid]
@@ -1035,62 +1058,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             port['mac_address'] = updated_port.mac_addr
                             port['segmentation_id'] = updated_port.vlanid
                             self._add_physical_bridge_flows(port)
-                            ports_to_bind.add(vnic.port_uuid)
-                            if len(ports_to_bind) == len(vm.vnics):
-                                    LOG.info(_("Invoking update_ports_binding "
-                                               "RPC for ports: %s."),
-                                             ports_to_bind)
-                                    self.ovsvapp_rpc.update_ports_binding(
-                                        self.context, agent_id=self.agent_id,
-                                        ports=ports_to_bind,
-                                        host=self.hostname)
-                            continue
-                        # Bulk migrations result in racing for
-                        # update_port_postcommit in the controller-side
-                        # default l2pop mech driver. This results in the l2pop
-                        # mech driver generating incorrect fdb entries and
-                        # it ships them to all other L2Pop enabled nodes
-                        # creating havoc with tunnel port allocations/releases
-                        # of them.
-                        # So we serialize the calls to update_device_up within
-                        # this OVSvAPP agent.
-                        ovsvapp_l2pop_lock.acquire()
-                        try:
-                            LOG.info(_("Invoking update_port_binding RPC for "
-                                       "port: %s."), vnic.port_uuid)
-                            self.ovsvapp_rpc.update_port_binding(
-                                self.context, agent_id=self.agent_id,
-                                port_id=vnic.port_uuid, host=self.hostname)
-                            # For migration usecase, need to set the port-state
-                            # to BUILD, just to mimic the way Nova does it
-                            # in kvm. For that we invoke get_device_details
-                            # to transition the port status to BUILD.
-                            LOG.info(_("Invoking get_device_details RPC for "
-                                       "port: %s."), vnic.port_uuid)
-                            self.plugin_rpc.get_device_details(
-                                self.context,
-                                agent_id=self.agent_id,
-                                device=vnic.port_uuid,
-                                host=self.hostname)
-                            # Now make the port status to ACTIVE again for
-                            # this host, so that L2POP rules ensure tunnel to
-                            # this new host from others.
-                            LOG.info(_("Invoking update_device_up RPC for "
-                                       "port: %s."), vnic.port_uuid)
-                            self.plugin_rpc.update_device_up(
-                                self.context,
-                                vnic.port_uuid,
-                                self.agent_id,
-                                self.hostname)
-                        except Exception as e:
-                            LOG.exception(_("Failed to handle VM migration "
-                                            "for VM: %s.") % vm.uuid)
-                            raise error.OVSvAppNeutronAgentError(e)
-                        finally:
-                            ovsvapp_l2pop_lock.release()
-                    else:
-                        LOG.debug("Ignoring VM_UPDATED event for VM %s.",
-                                  vm.uuid)
             else:
                 for vnic in vm.vnics:
                     if host_changed:
@@ -1776,10 +1743,10 @@ class OVSvAppPluginApi(object):
         return cctxt.call(context, 'get_ports_for_device', device=device,
                           agent_id=agent_id, host=host)
 
-    def update_port_binding(self, context, agent_id, port_id, host):
+    def update_device_binding(self, context, agent_id, device, host, net_type):
         cctxt = self.client.prepare()
-        return cctxt.call(context, 'update_port_binding', agent_id=agent_id,
-                          port_id=port_id, host=host)
+        return cctxt.call(context, 'update_device_binding', agent_id=agent_id,
+                          device=device, host=host, net_type=net_type)
 
     def update_ports_binding(self, context, agent_id, ports, host):
         cctxt = self.client.prepare()
