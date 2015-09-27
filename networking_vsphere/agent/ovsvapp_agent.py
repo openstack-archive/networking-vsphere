@@ -401,6 +401,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.tun_br = self.br_tun_cls(CONF.OVSVAPP.tunnel_bridge)
             self.agent_state['configurations']['tunneling_ip'] = self.local_ip
             self.agent_state['configurations']['l2_population'] = self.l2_pop
+            # Maintain a set of tenant networks.
+            self.tenant_networks = set()
             if not self.ovsvapp_agent_restarted:
                 self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
                 self.setup_tunnel_br_flows()
@@ -1343,11 +1345,30 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                      network.name)
             return local_vlan_id
 
+    def _check_sg_provider_rule(self, port_rules):
+        flag = True
+        keys = ['source_port_range_min', 'port_range_max',
+                'source_port_range_max', 'port_range_min']
+        sg_rules = port_rules['security_group_rules']
+        for rule in sg_rules:
+            for key in keys:
+                if key not in rule:
+                    flag = False
+                    break
+            if flag:
+                if (rule['source_port_range_min'] == 67 and
+                    rule['source_port_range_max'] == 67 and
+                    rule['port_range_min'] == 68 and
+                        rule['port_range_max'] == 68):
+                    return True
+        return False
+
     def _process_create_portgroup_vxlan(self, context, ports_list, host,
                                         device_id, ports_sg_rules):
         try:
             ovsvapplock.acquire()
             valid_ports = []
+            missed_provider_rule_ports = set()
             for port in ports_list:
                 local_vlan_id = port['lvid']
                 if host == self.esx_hostname:
@@ -1370,6 +1391,11 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                            'port_id': port['id']})
                                 continue
                             self._populate_lvm(port)
+                            # Add to missed provider rule ports list
+                            # if sg provider rule is missing in ports_sg_rules.
+                            if not self._check_sg_provider_rule(
+                                ports_sg_rules[port['id']]):
+                                missed_provider_rule_ports.add(port['id'])
                         except Exception:
                             LOG.exception(_("Port group creation failed for "
                                             "network %(net_id)s, "
@@ -1400,15 +1426,43 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.sg_agent.add_devices_to_filter(valid_ports)
             for port in valid_ports:
                 port_id = port['id']
-                if port_id in ports_sg_rules:
-                    self.sg_agent.ovsvapp_sg_update(
-                        {port_id: ports_sg_rules[port_id]})
+                if host != self.esx_hostname:
+                    if port_id in ports_sg_rules:
+                        if port['network_id'] in self.tenant_networks:
+                            self.sg_agent.ovsvapp_sg_update(
+                                {port_id: ports_sg_rules[port_id]})
+                        else:
+                            self.tenant_networks.add(port['network_id'])
+                            if self._check_sg_provider_rule(
+                                ports_sg_rules[port_id]):
+                                self.sg_agent.ovsvapp_sg_update(
+                                    {port_id: ports_sg_rules[port_id]})
+                            else:
+                                ovsvapplock.acquire()
+                                LOG.info(_("Missing Provider rule for port "
+                                           "%s. Will be tried during firewall "
+                                           "refresh."), port_id)
+                                self.devices_to_filter.add(port_id)
+                                self.refresh_firewall_required = True
+                                ovsvapplock.release()
                 self._populate_tunnel_flows_for_port(port)
                 if host == self.esx_hostname:
                     # All update device calls from the same
                     # OVSvApp agent, to be serialized for VXLAN case
                     # in order to workaround races that arise in default
                     # l2pop mech driver.
+                    if port['network_id'] not in self.tenant_networks:
+                        self.tenant_networks.add(port['network_id'])
+                    if port_id in ports_sg_rules:
+                        if port_id in missed_provider_rule_ports:
+                            LOG.info(_("Missing Provider rule for port %s. "
+                                       "Will be tried during firewall "
+                                       "refresh."), port_id)
+                            self.devices_to_filter.add(port_id)
+                            self.refresh_firewall_required = True
+                        else:
+                            self.sg_agent.ovsvapp_sg_update(
+                                {port_id: ports_sg_rules[port_id]})
                     ovsvapp_l2pop_lock.acquire()
                     ovsvapplock.acquire()
                     self.devices_up_list.append(port_id)
@@ -1418,6 +1472,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
     def _process_create_portgroup_vlan(self, context, ports_list, host,
                                        ports_sg_rules):
         ovsvapplock.acquire()
+        missed_provider_rule_ports = set()
         try:
             for port in ports_list:
                 self.ports_dict[port['id']] = self._build_port_info(port)
@@ -1425,6 +1480,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     ports_sg_rules[port['id']]['security_group_source_groups'])
                 if port['network_id'] not in self.network_port_count.keys():
                     self.network_port_count[port['network_id']] = 1
+                    missed_provider_rule_ports.add(port['id'])
                 else:
                     self.network_port_count[port['network_id']] += 1
                 LOG.info(_("Network: %(net_id)s - Port Count: %(port_count)s"),
@@ -1445,8 +1501,22 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 # Add physical bridge flows.
                 self._add_physical_bridge_flows(port)
             if port_id in ports_sg_rules:
-                self.sg_agent.ovsvapp_sg_update(
-                    {port_id: ports_sg_rules[port_id]})
+                if port_id in missed_provider_rule_ports:
+                    if not self._check_sg_provider_rule(
+                        ports_sg_rules[port_id]):
+                        ovsvapplock.acquire()
+                        LOG.info(_("Missing Provider rule for port %s. Will "
+                                   "be tried during firewall refresh."),
+                                 port_id)
+                        self.devices_to_filter.add(port_id)
+                        self.refresh_firewall_required = True
+                        ovsvapplock.release()
+                    else:
+                        self.sg_agent.ovsvapp_sg_update(
+                            {port_id: ports_sg_rules[port_id]})
+                else:
+                    self.sg_agent.ovsvapp_sg_update(
+                        {port_id: ports_sg_rules[port_id]})
             if host == self.esx_hostname:
                 ovsvapplock.acquire()
                 self.devices_up_list.append(port_id)
