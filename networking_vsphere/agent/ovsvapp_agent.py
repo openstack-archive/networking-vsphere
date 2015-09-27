@@ -1433,10 +1433,15 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             self.sg_agent.ovsvapp_sg_update(
                                 {port_id: ports_sg_rules[port_id]})
                     ovsvapp_l2pop_lock.acquire()
-                    ovsvapplock.acquire()
-                    self.devices_up_list.append(port_id)
-                    ovsvapplock.release()
-                    ovsvapp_l2pop_lock.release()
+                    try:
+                        self.plugin_rpc.update_device_up(
+                            context, agent_id=self.agent_id,
+                            device=port_id, host=self.hostname)
+                    except Exception:
+                        LOG.exception(_("Exception during update_device_up "
+                                        "RPC for port %s."), port_id)
+                    finally:
+                        ovsvapp_l2pop_lock.release()
 
     def _process_create_portgroup_vlan(self, context, ports_list, host,
                                        ports_sg_rules):
