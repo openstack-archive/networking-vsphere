@@ -404,7 +404,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.network_port_count = {}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
-        self.agent.vnic_info[FAKE_PORT_1] = {}
+        self.agent.vnic_info[FAKE_PORT_1] = fakeport
         with mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
                                ) as mock_add_devices, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
@@ -415,6 +415,7 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertEqual(1, self.agent.network_port_count['fake_network'])
             mock_add_devices.assert_called_with([fakeport])
             mock_add_phy_br_flows.assert_called_with(fakeport)
+            self.assertNotIn(FAKE_PORT_1, self.agent.vnic_info)
 
     def test_update_port_dict_existing_network(self):
         fakeport = self._get_fake_port(FAKE_PORT_1)
@@ -465,7 +466,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.network_port_count = {}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
-        self.agent.vnic_info[FAKE_PORT_1] = {}
+        self.agent.vnic_info[FAKE_PORT_1] = fakeport_1
         devices = [FAKE_PORT_1]
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
@@ -484,6 +485,7 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertTrue(mock_refresh_firewall.called)
             self.assertTrue(mock_add_physical_bridge_flows.called)
             self.assertFalse(mock_log_exception.called)
+            self.assertNotIn(FAKE_PORT_1, self.agent.vnic_info)
 
     def test_process_uncached_devices_sublist_multiple_port_vlan(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)
@@ -493,8 +495,8 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
         self.agent.cluster_host_ports.add(FAKE_PORT_2)
-        self.agent.vnic_info[FAKE_PORT_1] = {}
-        self.agent.vnic_info[FAKE_PORT_2] = {}
+        self.agent.vnic_info[FAKE_PORT_1] = fakeport_1
+        self.agent.vnic_info[FAKE_PORT_2] = fakeport_2
         devices = [FAKE_PORT_1, FAKE_PORT_2]
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
@@ -513,6 +515,8 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertTrue(mock_refresh_firewall.called)
             self.assertTrue(mock_add_physical_bridge_flows.called)
             self.assertFalse(mock_log_exception.called)
+            self.assertNotIn(FAKE_PORT_1, self.agent.vnic_info)
+            self.assertNotIn(FAKE_PORT_2, self.agent.vnic_info)
 
     def test_process_uncached_devices_sublist_single_port_vxlan(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)
@@ -521,7 +525,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.local_vlan_map = {}
         self.agent.tenant_network_type = p_const.TYPE_VXLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
-        self.agent.vnic_info[FAKE_PORT_1] = {}
+        self.agent.vnic_info[FAKE_PORT_1] = fakeport_1
         devices = [FAKE_PORT_1]
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
@@ -541,6 +545,7 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertEqual(1, mock_add_devices_to_filter.call_count)
             self.assertTrue(mock_refresh_firewall.called)
             self.assertFalse(mock_log_exception.called)
+            self.assertNotIn(FAKE_PORT_1, self.agent.vnic_info)
 
     def test_process_uncached_devices_sublist_multiple_port_vxlan(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)
@@ -551,8 +556,8 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent.tenant_network_type = p_const.TYPE_VXLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
         self.agent.cluster_host_ports.add(FAKE_PORT_2)
-        self.agent.vnic_info[FAKE_PORT_1] = {}
-        self.agent.vnic_info[FAKE_PORT_2] = {}
+        self.agent.vnic_info[FAKE_PORT_1] = fakeport_1
+        self.agent.vnic_info[FAKE_PORT_2] = fakeport_2
         devices = [FAKE_PORT_1, FAKE_PORT_2]
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
@@ -572,19 +577,22 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertEqual(2, mock_add_devices_to_filter.call_count)
             self.assertTrue(mock_refresh_firewall.called)
             self.assertFalse(mock_log_exception.called)
+            self.assertNotIn(FAKE_PORT_1, self.agent.vnic_info)
+            self.assertNotIn(FAKE_PORT_2, self.agent.vnic_info)
 
     def test_process_uncached_devices_sublist_stale_vm_port(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)
         fakeport_2 = self._get_fake_port(FAKE_PORT_2)
+        fakeport_3 = self._get_fake_port(FAKE_PORT_3)
         self.agent.ports_dict = {}
         self.agent.network_port_count = {}
         self.agent.tenant_network_type = p_const.TYPE_VLAN
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
         self.agent.cluster_host_ports.add(FAKE_PORT_2)
         self.agent.ports_to_bind = set([FAKE_PORT_3, FAKE_PORT_4])
-        self.agent.vnic_info[FAKE_PORT_1] = {}
-        self.agent.vnic_info[FAKE_PORT_2] = {}
-        self.agent.vnic_info[FAKE_PORT_3] = {}
+        self.agent.vnic_info[FAKE_PORT_1] = fakeport_1
+        self.agent.vnic_info[FAKE_PORT_2] = fakeport_2
+        self.agent.vnic_info[FAKE_PORT_3] = fakeport_3
         devices = [FAKE_PORT_1, FAKE_PORT_2, FAKE_PORT_3]
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
@@ -607,6 +615,9 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertFalse(mock_log_exception.called)
             self.assertNotIn(FAKE_PORT_3, self.agent.ports_to_bind)
             self.assertIn(FAKE_PORT_4, self.agent.ports_to_bind)
+            self.assertNotIn(FAKE_PORT_1, self.agent.vnic_info)
+            self.assertNotIn(FAKE_PORT_2, self.agent.vnic_info)
+            self.assertNotIn(FAKE_PORT_3, self.agent.vnic_info)
 
     def test_update_firewall(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)

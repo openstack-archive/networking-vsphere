@@ -476,7 +476,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 if port['id'] in self.cluster_host_ports:
                     self._add_physical_bridge_flows(port)
             # Remove this port from vnic_info.
-            self.vnic_info.pop(port['id'])
+            if port['id'] in self.vnic_info:
+                self.vnic_info.pop(port['id'])
             return True
         finally:
             ovsvapplock.release()
@@ -565,7 +566,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.context, devices, self.agent_id, self.vcenter_id,
                 self.cluster_id)
             for port in ports:
-                if port and 'port_id' in port:
+                if port and 'port_id' in port.keys():
                     port['id'] = port['port_id']
                     status = self._update_port_dict(port)
                     if status:
@@ -587,8 +588,9 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self._block_stale_ports(stale_ports)
                 # Remove entries from vnic_info.
                 with ovsvapplock:
-                    for port in stale_ports:
-                        self.vnic_info.pop(port)
+                    for port_id in stale_ports:
+                        if port_id in self.vnic_info:
+                            self.vnic_info.pop(port_id)
         except Exception as e:
             LOG.exception(_("RPC get_ports_details_list failed %s."), e)
             # Process the ports again in the next iteration.
