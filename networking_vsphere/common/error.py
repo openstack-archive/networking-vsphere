@@ -16,7 +16,7 @@
 
 class OVSvAppNeutronAgentError(Exception):
 
-    '''OVSvApp L2 Agent Exception.'''
+    '''OVSvApp Agent Exception.'''
     pass
 
 

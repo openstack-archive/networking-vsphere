@@ -370,7 +370,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         """Validate upd security group rule with port range.
 
         This test verifies the flow creation on br-sec
-        for udp security group at OVSvApp L2 Agent.
+        for udp security group at OVSvApp Agent.
         """
         security_group, vapp_ipadd, segment_id, mac_addr, net_id = \
             self._create_security_group_rule_with_specified_port_range()
@@ -390,7 +390,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         """Validate secgroup rules for tcp protocol with specified port-range.
 
         This test verifies the tcp rules for a given range based on the flow
-        creation on br-sec at the OVSvApp L2 Agent.
+        creation on br-sec at the OVSvApp Agent.
         """
         security_group, vapp_ipadd, segment_id, mac_addr, net_id = \
             self._create_security_group_rule_with_specified_port_range()
@@ -411,7 +411,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         """Validate upd security group rule with port range.
 
         This test verifies the flow creation on br-sec
-        for icmp security group at OVSvApp L2 Agent.
+        for icmp security group at OVSvApp Agent.
         """
         security_group, vapp_ipadd, segment_id, mac_addr, net_id = \
             self._create_security_group_rule_with_specified_port_range()
