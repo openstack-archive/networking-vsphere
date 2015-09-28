@@ -27,21 +27,21 @@ fi
 
 # Case when openvswitch-switch process is not responding.
 # Check for ovs-vswitch process.
-    ovs-ofctl show br-int
+    sudo ovs-ofctl show br-int
     if [ $? -ne 0 ]; then
        echo $stopped_msg >> $logfile ||true
-       stop openvswitch-switch || true
-       start openvswitch-switch || true
+       sudo service openvswitch-switch stop || true
+       sudo service openvswitch-switch start || true
        echo $restarted_msg >> $logfile ||true
        echo $broken_msg >> $logfile
     fi
 sleep 1
 # Check for ovsdb-server process.
-    ovs-vsctl show
+    sudo ovs-vsctl show
     if [ $? -ne 0 ]; then
        echo $stopped_msg >> $logfile || true
-       stop openvswitch-switch || true
-       start openvswitch-switch || true
+       sudo service openvswitch-switch stop || true
+       sudo service openvswitch-switch start || true
        echo $restarted_msg >> $logfile || true
        echo $broken_msg >> $logfile
     fi
