@@ -107,9 +107,9 @@ OVSVAPP_OPTS = [
     cfg.StrOpt('local_ip',
                default='',
                help='Local IP address of VXLAN tunnel endpoint.'),
-    cfg.StrOpt('mgmt_ip',
+    cfg.StrOpt('monitoring_ip',
                default='',
-               help='IP address of the Management interface.')
+               help='IP address for monitoring OVS Status.')
 ]
 
 # OVSvApp Security Group related config read from ovsvapp_agent.ini.
