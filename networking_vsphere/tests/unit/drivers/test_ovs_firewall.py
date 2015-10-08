@@ -357,8 +357,8 @@ class TestOVSFirewallDriver(base.TestCase):
                                   ) as mock_add_flow_fn, \
                 mock.patch.object(self.mock_br, 'add_flow'):
             self.ovs_firewall.prepare_port_filter(fake_port)
-            mock_aap_flow_fn.assertCalledWith(self.mock_br, fake_port)
-            mock_add_flow_fn.assertCalledWith(self.mock_br, fake_port)
+            mock_aap_flow_fn.assert_called_with(self.mock_br, fake_port)
+            mock_add_flow_fn.assert_called_with(self.mock_br, fake_port)
             ret_port = self.ovs_firewall.filtered_ports['123']
             self.assertEqual(res_port, ret_port)
 
@@ -373,7 +373,7 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch.object(self.LOG, 'exception'
                                   ) as mock_exception_log:
             self.ovs_firewall.prepare_port_filter(fake_port)
-            mock_aap_flow_fn.assertCalledWith(self.mock_br, fake_port)
+            mock_aap_flow_fn.assert_called_with(self.mock_br, fake_port)
             self.assertFalse(mock_add_flow_fn.called)
             self.assertTrue(mock_exception_log.called)
 
@@ -430,7 +430,7 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch.object(self.ovs_firewall, '_remove_flows'
                                   ) as mock_rem_flow:
             self.ovs_firewall.clean_port_filters(["123"])
-            mock_rem_flow.assertCalledWith(self.mock_br, "123")
+            mock_rem_flow.assert_called_with(self.mock_br, "123")
             self.assertIn("123", self.ovs_firewall.filtered_ports)
 
     def test_clean_port_filters_remove_port(self):
@@ -447,7 +447,7 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch.object(self.ovs_firewall, '_remove_flows'
                                   ) as mock_rem_flow:
             self.ovs_firewall.clean_port_filters(["123"], True)
-            mock_rem_flow.assertCalledWith(self.mock_br, "123")
+            mock_rem_flow.assert_called_with(self.mock_br, "123")
             self.assertNotIn("123", self.ovs_firewall.filtered_ports)
 
     def test_clean_port_filters_exception(self):
@@ -467,7 +467,7 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch.object(self.LOG, 'exception'
                                   ) as mock_exception_log:
             self.ovs_firewall.clean_port_filters(["123"])
-            mock_rem_flow_fn.assertCalledWith(self.mock_br, "123")
+            mock_rem_flow_fn.assert_called_with(self.mock_br, "123")
             self.assertTrue(mock_exception_log.called)
 
     def test_update_port_filters(self):
@@ -488,9 +488,9 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch.object(self.ovs_firewall, '_add_flows'
                                   ) as mock_add_flow_fn:
             self.ovs_firewall.update_port_filter(fake_port)
-            mock_rem_flow.assertCalledWith(self.mock_br, "123")
-            mock_aap_flow_fn.assertCalledWith(self.mock_br, fake_port)
-            mock_add_flow_fn.assertCalledWith(self.mock_br, fake_port)
+            mock_rem_flow.assert_called_with(self.mock_br, "123")
+            mock_aap_flow_fn.assert_called_with(self.mock_br, fake_port)
+            mock_add_flow_fn.assert_called_with(self.mock_br, fake_port)
             self.assertIn("123", self.ovs_firewall.filtered_ports)
 
     def test_update_port_filters_exception(self):
@@ -511,7 +511,7 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch.object(self.LOG, 'exception'
                                   ) as mock_exception_log:
             self.ovs_firewall.update_port_filter(fake_port)
-            mock_rem_flow.assertCalledWith(self.mock_br, "123")
+            mock_rem_flow.assert_called_with(self.mock_br, "123")
             self.assertFalse(mock_aap_flow_fn.called)
             self.assertIn("123", self.ovs_firewall.filtered_ports)
             self.assertTrue(mock_exception_log.called)
