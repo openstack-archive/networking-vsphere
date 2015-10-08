@@ -18,6 +18,7 @@ import mock
 
 import time
 
+import logging
 from oslo_config import cfg
 
 from networking_vsphere.agent import ovsvapp_agent
@@ -164,6 +165,7 @@ class TestOVSvAppL2Agent(base.TestCase):
         self.agent = ovsvapp_agent.OVSvAppL2Agent()
         self.agent.run_refresh_firewall_loop = False
         self.LOG = ovsvapp_agent.LOG
+        self.agent.monitor_log = logging.getLogger('monitor')
 
     def _build_port(self, port):
         port = {'admin_state_up': False,
@@ -316,7 +318,11 @@ class TestOVSvAppL2Agent(base.TestCase):
                 mock.patch.object(self.agent, 'setup_tunnel_br_flows'
                                   ) as mock_setup_tunnel_br_flows, \
                 mock.patch.object(self.agent, "_init_ovs_flows"
-                                  ) as mock_init_flows:
+                                  ) as mock_init_flows, \
+                mock.patch.object(self.agent.monitor_log, "warn"
+                                  ) as monitor_warning, \
+                mock.patch.object(self.agent.monitor_log, "info"
+                                  ) as monitor_info:
             self.agent.mitigate_ovs_restart()
             self.assertTrue(mock_int_br.called)
             self.assertTrue(mock_phys_brs.called)
@@ -325,9 +331,11 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertFalse(mock_setup_tunnel_br_flows.called)
             self.assertTrue(mock_init_fw.called)
             self.assertTrue(mock_init_flows.called)
-            self.assertTrue(mock_logger_info.called)
             self.assertTrue(self.agent.refresh_firewall_required)
             self.assertEqual(2, len(self.agent.devices_to_filter))
+            monitor_warning.assert_called_with("ovs: broken")
+            monitor_info.assert_called_with("ovs: ok")
+            self.assertTrue(mock_logger_info.called)
 
     def test_mitigate_ovs_restart_vxlan(self):
         self.agent.enable_tunneling = True
@@ -348,15 +356,21 @@ class TestOVSvAppL2Agent(base.TestCase):
                                   ) as mock_setup_tunnel_br_flows, \
                 mock.patch.object(self.agent, "tunnel_sync"
                                   ) as mock_tun_sync, \
-                mock.patch.object(self.agent, "_init_ovs_flows"):
+                mock.patch.object(self.agent, "_init_ovs_flows"), \
+                mock.patch.object(self.agent.monitor_log, "warn"
+                                  ) as monitor_warning, \
+                mock.patch.object(self.agent.monitor_log, "info"
+                                  ) as monitor_info:
             self.agent.mitigate_ovs_restart()
             self.assertTrue(mock_setup_tunnel_br.called)
             self.assertTrue(mock_setup_tunnel_br_flows.called)
             self.assertFalse(mock_phys_brs.called)
             self.assertTrue(mock_tun_sync.called)
-            self.assertTrue(mock_logger_info.called)
             self.assertTrue(self.agent.refresh_firewall_required)
             self.assertEqual(len(self.agent.devices_to_filter), 2)
+            monitor_warning.assert_called_with("ovs: broken")
+            monitor_info.assert_called_with("ovs: ok")
+            self.assertTrue(mock_logger_info.called)
 
     def test_mitigate_ovs_restart_exception(self):
         self.agent.enable_tunneling = False
@@ -375,7 +389,11 @@ class TestOVSvAppL2Agent(base.TestCase):
                 mock.patch.object(self.agent, 'setup_tunnel_br_flows'
                                   ) as mock_setup_tunnel_br_flows, \
                 mock.patch.object(self.LOG, "exception"
-                                  ) as mock_exception_log:
+                                  ) as mock_exception_log, \
+                mock.patch.object(self.agent.monitor_log, "warn"
+                                  ) as monitor_warning, \
+                mock.patch.object(self.agent.monitor_log, "info"
+                                  ) as monitor_info:
             self.agent.mitigate_ovs_restart()
             self.assertTrue(mock_int_br.called)
             self.assertFalse(mock_phys_brs.called)
@@ -385,6 +403,8 @@ class TestOVSvAppL2Agent(base.TestCase):
             self.assertTrue(mock_exception_log.called)
             self.assertFalse(self.agent.refresh_firewall_required)
             self.assertEqual(0, len(self.agent.devices_to_filter))
+            monitor_warning.assert_called_with("ovs: broken")
+            self.assertFalse(monitor_info.called)
 
     def _get_fake_port(self, port_id):
         return {'id': port_id,
@@ -640,7 +660,11 @@ class TestOVSvAppL2Agent(base.TestCase):
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
                                   ), \
                 mock.patch.object(self.agent, '_remove_stale_ports_flows'), \
-                mock.patch.object(self.agent, '_block_stale_ports'):
+                mock.patch.object(self.agent, '_block_stale_ports'), \
+                mock.patch.object(self.agent.monitor_log, "warn"
+                                  ) as monitor_warning, \
+                mock.patch.object(self.agent.monitor_log, "info"
+                                  ) as monitor_info:
             self.agent._update_firewall()
             self.assertFalse(self.agent.refresh_firewall_required)
             self.assertFalse(self.agent.devices_to_filter)
@@ -653,6 +677,8 @@ class TestOVSvAppL2Agent(base.TestCase):
                 self.agent.cluster_id)
             mock_refresh_firewall.assert_called_with(set([FAKE_PORT_1,
                                                           FAKE_PORT_2]))
+            self.assertEqual(2, monitor_warning.call_count)
+            self.assertEqual(2, monitor_info.call_count)
 
     def test_update_firewall_get_ports_exception(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)
@@ -667,7 +693,11 @@ class TestOVSvAppL2Agent(base.TestCase):
                                side_effect=Exception()
                                ) as mock_get_ports_details_list, \
                 mock.patch.object(self.agent.sg_agent, 'refresh_firewall'
-                                  ) as mock_refresh_firewall:
+                                  ) as mock_refresh_firewall, \
+                mock.patch.object(self.agent.monitor_log, "warn"
+                                  ) as monitor_warning, \
+                mock.patch.object(self.agent.monitor_log, "info"
+                                  ) as monitor_info:
             self.agent._update_firewall()
             self.assertTrue(self.agent.refresh_firewall_required)
             self.assertEqual(set([FAKE_PORT_2]), self.agent.devices_to_filter)
@@ -679,6 +709,8 @@ class TestOVSvAppL2Agent(base.TestCase):
                 self.agent.vcenter_id,
                 self.agent.cluster_id)
             mock_refresh_firewall.assert_called_with(set([FAKE_PORT_1]))
+            self.assertEqual(2, monitor_warning.call_count)
+            self.assertEqual(1, monitor_info.call_count)
 
     def test_check_for_updates_no_updates(self):
         self.agent.refresh_firewall_required = False
