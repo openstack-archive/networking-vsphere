@@ -20,6 +20,7 @@ from oslo_log import log
 from oslo_service import loopingcall
 from oslo_utils import timeutils
 
+import random
 import requests
 
 from neutron import context as neutron_context
@@ -96,7 +97,6 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                                               agent_state)
 
     def _get_eligible_ovsvapp_agent(self, cluster_id, vcenter_id):
-        chosen_agent = None
         cluster_agents = []
         agents = self.plugin.get_agents(
             self.context,
@@ -110,19 +110,19 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
             cluster_agents.append(agent)
         if not cluster_agents:
             return
-        _agent = cluster_agents[0]
+        _agent = random.choice(cluster_agents)
         recent_time = _agent['heartbeat_timestamp']
-        cluster_agents = cluster_agents[1:]
+        if not timeutils.is_older_than(recent_time,
+                                       cfg.CONF.agent_down_time):
+            return _agent
+        cluster_agents.remove(_agent)
         for agent in cluster_agents:
             delta = timeutils.delta_seconds(recent_time,
                                             agent['heartbeat_timestamp'])
             if delta > 0:
                 if not timeutils.is_older_than(agent['heartbeat_timestamp'],
                                                cfg.CONF.agent_down_time):
-                    recent_time = agent['heartbeat_timestamp']
-                    chosen_agent = agent
-                    break
-        return chosen_agent
+                    return agent
 
     def process_ovsvapp_agent(self, agent):
         """Inform the OVSvApp agent.
