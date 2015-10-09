@@ -269,6 +269,10 @@ class TestAgentMonitor(base.BaseTestCase):
                                            'cluster_id': FAKE_CLUSTER_2},
                         'host': FAKE_HOST_2,
                         'id': '1111'}
+        device_data = {'assigned_agent_host': FAKE_HOST_2,
+                       'esx_host_name': FAKE_HOST_1,
+                       'ovsvapp_agent': 'ovsvapp-' + FAKE_HOST_1,
+                       }
         self.ovsvapp_monitor.active_agents = ['1111']
         with mock.patch.object(self.ovsvapp_monitor,
                                '_get_eligible_ovsvapp_agent',
@@ -285,7 +289,8 @@ class TestAgentMonitor(base.BaseTestCase):
             self.assertFalse(exception_log.called)
             self.assertEqual(info_log.call_count, 2)
             self.assertEqual(len(self.ovsvapp_monitor.active_agents), 1)
-            self.assertTrue(device_update.called)
+            device_update.assert_called_with(self.context, device_data,
+                                             FAKE_CLUSTER_2)
 
     def test_process_ovsvapp_agent_no_eligible_agents(self):
         dead_agent = {'configurations': {'esx_host_name': FAKE_HOST_1,

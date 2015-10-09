@@ -141,7 +141,8 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                 cluster_id = chosen_agent['configurations'].get('cluster_id')
                 device_data['assigned_agent_host'] = chosen_agent['host']
                 device_data['esx_host_name'] = source_host
-                device_data['ovsvapp_agent'] = agent['host']
+                device_data['ovsvapp_agent'] = '-'.join(
+                    ['ovsvapp', source_host.replace('.', '-')])
                 LOG.info(_("Invoking device_update RPC with target host %s."),
                          chosen_agent['host'])
                 self.notifier.device_update(self.context,
