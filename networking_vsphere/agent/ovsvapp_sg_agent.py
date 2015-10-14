@@ -25,6 +25,7 @@ import time
 
 from networking_vsphere.common import constants as ovsvapp_const
 
+from neutron._i18n import _LE
 from neutron._i18n import _LI
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.common import rpc as n_rpc
@@ -225,6 +226,26 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                 self.prepare_firewall(other_devices)
         LOG.info(_LI("Finished refresh for devices: %s."),
                  len(devices_to_refilter))
+
+    # TODO(Adolfo): investigate if method needs to be implemented.
+    def setup_port_filters(self, new_devices, updated_devices):
+        """Currently this method is not implemented.
+
+        :param new_devices:
+        :param updated_devices:
+        :return:
+        """
+
+        LOG.error(_LE("method setup_port_filter  NOT implemented"))
+        return
+
+    # TODO(Adolfo): investigate if method needs to be implemented.
+    def security_groups_member_updated(self, security_groups):
+        LOG.error(_LE("Security group "
+                      "member updated %r"), security_groups)
+        LOG.error(_LE("But security_groups_member_updated method NOT"
+                      " implemented"))
+        return
 
 
 class OVSvAppSecurityGroupServerRpcApi(object):
