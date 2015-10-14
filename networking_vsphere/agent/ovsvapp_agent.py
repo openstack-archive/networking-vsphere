@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
 import logging
 import threading
 import time
@@ -24,10 +25,17 @@ from oslo_log import log
 import oslo_messaging
 from oslo_service import loopingcall
 import six
+from six import moves
 
-from neutron._i18n import _, _LE, _LI, _LW
+from neutron._i18n import _
+from neutron._i18n import _LE
+from neutron._i18n import _LI
+from neutron._i18n import _LW
+
 from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
+from neutron.api.rpc.handlers import dvr_rpc
+from neutron.common import constants as n_const
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.common import utils as n_utils
@@ -37,7 +45,9 @@ from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ov
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_int  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_phys  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_tun  # noqa
+from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_dvr_neutron_agent as ovs_dvr_agent  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa
+from neutron.plugins.ml2.drivers.openvswitch.agent.ovs_neutron_agent import LocalVLANMapping  # noqa
 
 from networking_vsphere.agent import agent
 from networking_vsphere.agent import ovsvapp_sg_agent as sgagent
@@ -59,14 +69,6 @@ ovsvapplock = threading.RLock()
 ovsvapp_l2pop_lock = threading.RLock()
 
 
-class LocalVLANMapping(object):
-    """Maps Global VNI to local VLAN Id."""
-    def __init__(self, vlan, network_type, segmentation_id):
-        self.vlan = vlan
-        self.network_type = network_type
-        self.segmentation_id = segmentation_id
-
-
 class PortInfo(object):
     def __init__(self, port_id, vlanid, mac_addr, sec_gps, fixed_ips,
                  admin_state_up, network_id, vm_uuid):
@@ -81,11 +83,15 @@ class PortInfo(object):
 
 
 class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
-
     """OVSvApp Agent."""
 
-    def __init__(self):
+    def __init__(self, enable_distributed_routing=False):
         agent.Agent.__init__(self)
+
+        # TODO(Adolfo) this are only debug variables. take out
+        self.prevent_arp_spoofing = False
+        # TODO(Adolfo) End of debug variables Take out
+
         self.conf = cfg.CONF
         self.esx_hostname = CONF.VMWARE.esx_hostname
         self.vcenter_id = CONF.VMWARE.vcenter_id
@@ -111,6 +117,14 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.run_check_for_updates = True
         self.use_call = True
         self.hostname = cfg.CONF.host
+
+        self.enable_distributed_routing = enable_distributed_routing
+        self.patch_int_ofport = ovs_const.OFPORT_INVALID
+        self.patch_tun_ofport = ovs_const.OFPORT_INVALID
+
+        # Keep track of int_br's device count for use by _report_state()
+        self.int_br_device_count = 0
+
         # TODO(romilg): Add a config check for all configurable options.
         # Examples: bridge_mappings, tunnel_types, tenant_network_type,
         # cluster_dvs_ampping.
@@ -133,6 +147,10 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             'agent_type': ovsvapp_const.AGENT_TYPE_OVSVAPP,
             'start_flag': True}
         self.veth_mtu = CONF.OVSVAPP.veth_mtu
+
+        self.available_local_vlans = set(moves.range(p_const.MIN_VLAN_TAG,
+                                                     p_const.MAX_VLAN_TAG))
+
         self.use_veth_interconnection = False
         self.enable_tunneling = False
         self.tun_br = None
@@ -161,15 +179,35 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.ovsvapp_agent_restarted = True
         self.setup_ovs_bridges()
         self.setup_rpc()
+        self.init_extension_manager(self.connection)
         defer_apply = CONF.SECURITYGROUP.defer_apply
         self.monitor_log = self.initiate_monitor_log()
         if self.monitor_log:
             self.monitor_log.warn(_LW("ovs: pending"))
+
+        self.network_ports = collections.defaultdict(set)
+
+        self._restore_local_vlan_map()
         self.sg_agent = sgagent.OVSvAppSecurityGroupAgent(self.context,
                                                           self.ovsvapp_sg_rpc,
                                                           defer_apply)
         if self.monitor_log:
             self.monitor_log.info(_LI("ovs: ok"))
+
+        self.dvr_agent = ovs_dvr_agent.OVSDVRNeutronAgent(
+            self.context,
+            self.dvr_plugin_rpc,
+            self.int_br,
+            self.tun_br,
+            self.bridge_mappings,
+            self.phys_brs,
+            self.int_ofports,
+            self.phys_ofports,
+            self.patch_int_ofport,
+            self.patch_tun_ofport,
+            self.hostname,
+            self.enable_tunneling,
+            self.enable_distributed_routing)
 
     def initiate_monitor_log(self):
         try:
@@ -349,7 +387,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.int_br.add_flow(priority=2,
                                  in_port=self.patch_sec_ofport,
                                  actions="output:%s"
-                                 % self.int_ofports[phys_net])
+                                         % self.int_ofports[phys_net])
             br = ovs_lib.OVSBridge(bridge)
             eth_name = bridge.split('-').pop()
             eth_ofport = br.get_port_ofport(eth_name)
@@ -408,11 +446,14 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             # Maintain a set of tenant networks.
             self.tenant_networks = set()
             if not self.ovsvapp_agent_restarted:
+                self.setup_physical_bridges(self.bridge_mappings)
+                LOG.info(_LI("Physical bridges successfully setup."))
                 self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
                 self.setup_tunnel_br_flows()
                 LOG.info(_LI("Tunnel bridge successfully set."))
             else:
                 self.recover_tunnel_bridge()
+                self.recover_physical_bridges(self.bridge_mappings)
 
     def _add_physical_bridge_flows(self, port):
         for phys_net in self.phys_brs:
@@ -437,23 +478,24 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         lvid = port['lvid']
         if self.tenant_network_type in ovs_const.TUNNEL_NETWORK_TYPES:
             ofports = self._ofport_set_to_str(self.tun_br_ofports[
-                port['network_type']].values())
+                                              port['network_type']].values())
             if ofports:
                 self.tun_br.mod_flow(table=ovs_const.FLOOD_TO_TUN,
                                      dl_vlan=lvid,
                                      actions="strip_vlan,"
-                                     "set_tunnel:%s,output:%s" %
-                                     (port['segmentation_id'], ofports))
+                                             "set_tunnel:%s,output:%s" %
+                                             (port['segmentation_id'], ofports))
             self.tun_br.add_flow(
                 table=ovs_const.TUN_TABLE[port['network_type']],
                 priority=1,
                 tun_id=port['segmentation_id'],
                 actions="mod_vlan_vid:%s,resubmit(,%s)" %
-                (lvid, ovs_const.LEARN_FROM_TUN))
+                        (lvid, ovs_const.LEARN_FROM_TUN))
 
     def _populate_lvm(self, port):
         self.local_vlan_map[port['network_id']] = LocalVLANMapping(
-            port['lvid'], port['network_type'], port['segmentation_id'])
+            port['lvid'], port['network_type'], port['physical_network'],
+            port['segmentation_id'])
 
     def _update_port_dict(self, port):
         ovsvapplock.acquire()
@@ -614,8 +656,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         dev_list = list(devices)
         if len(dev_list) > ovsvapp_const.RPC_BATCH_SIZE:
             sublists = ([dev_list[x:x + ovsvapp_const.RPC_BATCH_SIZE]
-                        for x in six.moves.range(0, len(dev_list),
-                        ovsvapp_const.RPC_BATCH_SIZE)])
+                         for x in six.moves.range(0, len(dev_list),
+                                                  ovsvapp_const.RPC_BATCH_SIZE)])
         else:
             sublists = [dev_list]
         for dev_ids in sublists:
@@ -748,8 +790,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         ovsvapplock.release()
         if len(devices_up) > ovsvapp_const.RPC_BATCH_SIZE:
             sublists = ([devices_up[x:x + ovsvapp_const.RPC_BATCH_SIZE]
-                        for x in six.moves.range(0, len(devices_up),
-                        ovsvapp_const.RPC_BATCH_SIZE)])
+                         for x in six.moves.range(0, len(devices_up),
+                                                  ovsvapp_const.RPC_BATCH_SIZE)])
         else:
             sublists = [devices_up]
         for devices in sublists:
@@ -789,8 +831,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         ovsvapplock.release()
         if len(devices_down) > ovsvapp_const.RPC_BATCH_SIZE:
             sublists = ([devices_down[x:x + ovsvapp_const.RPC_BATCH_SIZE]
-                        for x in six.moves.range(0, len(devices_down),
-                        ovsvapp_const.RPC_BATCH_SIZE)])
+                         for x in six.moves.range(0, len(devices_down),
+                                                  ovsvapp_const.RPC_BATCH_SIZE)])
         else:
             sublists = [devices_down]
         for devices in sublists:
@@ -881,13 +923,14 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
     def setup_rpc(self):
         # Ensure that the control exchange is set correctly.
         LOG.info(_LI("Started setting up RPC topics and endpoints."))
+        self.ovsvapp_rpc = OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
         self.agent_id = "ovsvapp-agent %s" % self.hostname
         self.topic = topics.AGENT
         self.plugin_rpc = RpcPluginApi()
-        self.state_rpc = agent_rpc.PluginReportStateAPI(topics.PLUGIN)
-        self.ovsvapp_rpc = OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
         self.ovsvapp_sg_rpc = sgagent.OVSvAppSecurityGroupServerRpcApi(
             ovsvapp_const.OVSVAPP)
+        self.dvr_plugin_rpc = dvr_rpc.DVRServerRpcApi(topics.PLUGIN)
+        self.state_rpc = agent_rpc.PluginReportStateAPI(topics.PLUGIN)
 
         # RPC network init.
         self.context = context.get_admin_context_without_session()
@@ -903,9 +946,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             [cluster_device_topic, topics.DELETE],
             [ovs_const.TUNNEL, topics.UPDATE],
             [topics.SECURITY_GROUP, topics.UPDATE],
+            [topics.DVR, topics.UPDATE],
             [ovsvapp_const.OVSVAPP + '_' + topics.SECURITY_GROUP,
              topics.UPDATE]
         ]
+        # if l2 pop is to be used here we need to add:
+        # if self.l2_pop:
+        #    consumers.append([topics.L2POPULATION, topics.UPDATE])
         self.connection = agent_rpc.create_consumers(self.endpoints,
                                                      self.topic,
                                                      consumers)
@@ -913,6 +960,10 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def _report_state(self):
         """Reporting agent state to neutron server."""
+        self.agent_state.get('configurations')['devices'] = (
+            self.int_br_device_count)
+        self.agent_state.get('configurations')['in_distributed_mode'] = (
+            self.dvr_agent.in_distributed_mode())
 
         try:
             self.state_rpc.report_state(self.context,
@@ -1311,9 +1362,9 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     exception_str = str(e)
                     if ("The name" and "already exists" in exception_str):
                         pg_vlan_id = (self.net_mgr.get_driver().
-                                      get_vlanid_for_port_group(
-                                      self.cluster_dvs_info[1],
-                                      pg_name))
+                        get_vlanid_for_port_group(
+                            self.cluster_dvs_info[1],
+                            pg_name))
                         local_vlan_id = pg_vlan_id
                         break
                     else:
@@ -1340,9 +1391,9 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     break
             if flag:
                 if (rule['source_port_range_min'] == 67 and
-                    rule['source_port_range_max'] == 67 and
-                    rule['port_range_min'] == 68 and
-                        rule['port_range_max'] == 68):
+                            rule['source_port_range_max'] == 67 and
+                            rule['port_range_min'] == 68 and
+                            rule['port_range_max'] == 68):
                     return True
         return False
 
@@ -1378,7 +1429,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             # Add to missed provider rule ports list
                             # if sg provider rule is missing in ports_sg_rules.
                             if not self._check_sg_provider_rule(
-                                ports_sg_rules[port['id']]):
+                                    ports_sg_rules[port['id']]):
                                 missed_provider_rule_ports.add(port['id'])
                         except Exception:
                             LOG.exception(_LE("Port group creation failed for "
@@ -1418,7 +1469,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                         else:
                             self.tenant_networks.add(port['network_id'])
                             if self._check_sg_provider_rule(
-                                ports_sg_rules[port_id]):
+                                    ports_sg_rules[port_id]):
                                 self.sg_agent.ovsvapp_sg_update(
                                     {port_id: ports_sg_rules[port_id]})
                             else:
@@ -1476,7 +1527,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                              "%(port_count)s"),
                          {'net_id': port['network_id'],
                           'port_count': self.network_port_count[
-                          port['network_id']]})
+                              port['network_id']]})
                 self.sg_agent.add_devices_to_filter(ports_list)
         finally:
             LOG.debug("Port count per network details after VM creation: %s.",
@@ -1493,7 +1544,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             if port_id in ports_sg_rules:
                 if port_id in missed_provider_rule_ports:
                     if not self._check_sg_provider_rule(
-                        ports_sg_rules[port_id]):
+                            ports_sg_rules[port_id]):
                         ovsvapplock.acquire()
                         LOG.info(_LI("Missing Provider rule for port %s. Will "
                                      "be tried during firewall refresh."),
@@ -1568,10 +1619,51 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     raise error.OVSvAppNeutronAgentError(e)
                 time.sleep(2)
 
+    def _router_port_update(self, context, **kwargs):
+        port = kwargs.get('port')
+
+        device = port['id']
+        details = self.plugin_rpc.get_device_details(context,
+                                                     device,
+                                                     self.agent_id,
+                                                     self.conf.host)
+        vif_port = self.int_br.get_vif_port_by_id(details['device'])
+        LOG.debug("Processing port: %s", details)
+
+        if not vif_port:
+            # The port disappeared and cannot be processed
+            LOG.info(_LI("Port %s was not found on the integration bridge "
+                         "and will therefore not be processed"), device)
+            return
+
+        if 'port_id' not in details:
+            LOG.warn(_LW("Device %s not defined on plugin"), device)
+            return
+
+        need_binding = self.treat_vif_port(vif_port, details['port_id'],
+                                           details['network_id'],
+                                           details['network_type'],
+                                           details['physical_network'],
+                                           details['segmentation_id'],
+                                           details['admin_state_up'],
+                                           details['fixed_ips'],
+                                           details['device_owner'],
+                                           True)
+
+        if need_binding:
+            details['vif_port'] = vif_port
+            self._bind_devices([details])
+
     def port_update(self, context, **kwargs):
         """Update the port details from plugin using RPC call."""
         new_port = kwargs.get('port')
         LOG.info(_LI("RPC port_update received for port: %s."), new_port)
+        if new_port['device_owner'] in (n_const.ROUTER_INTERFACE_OWNERS_SNAT +
+                                            (n_const.DEVICE_OWNER_FLOATINGIP,)):
+            time.sleep(5)
+            self._router_port_update(context, **kwargs)
+            return
+
         local_vlan_id = kwargs.get('segmentation_id')
         ovsvapplock.acquire()
         old_port_object = None
@@ -1618,7 +1710,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     ovsvapp_l2pop_lock.acquire()
                 try:
                     ovsvapplock.acquire()
-                    if(new_port['admin_state_up']):
+                    if (new_port['admin_state_up']):
                         self.devices_up_list.append(new_port['id'])
                     else:
                         self.devices_down_list.append(new_port['id'])
@@ -1673,7 +1765,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 seg_id = None
                 if 'segmentation_id' in network_info:
                     seg_id = network_info['segmentation_id']
-                    lvm = LocalVLANMapping(lvid, network_type, seg_id)
+                    lvm = LocalVLANMapping(lvid, network_type, None, seg_id)
                     self._remove_tunnel_flows_for_network(lvm)
             else:
                 self._remove_tunnel_flows_for_network(lvm)
@@ -1751,13 +1843,11 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
 
 class RpcPluginApi(agent_rpc.PluginApi):
-
     def __init__(self):
         super(RpcPluginApi, self).__init__(topic=topics.PLUGIN)
 
 
 class OVSvAppPluginApi(object):
-
     def __init__(self, topic):
         target = oslo_messaging.Target(topic=topic, version='1.0')
         self.client = n_rpc.get_client(target)
