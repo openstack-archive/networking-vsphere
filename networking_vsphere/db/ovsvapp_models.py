@@ -47,10 +47,10 @@ class ClusterVNIAllocations(model_base.BASEV2):
                 self.network_port_count == other.network_port_count)
 
 
-class OVSvAppClusters(model_base.BASEV2):
+class OVSvAppMitigatedClusters(model_base.BASEV2):
     """Represents a OVSvApp managed clusters."""
 
-    __tablename__ = "ovsvapp_clusters"
+    __tablename__ = "ovsvapp_mitigated_clusters"
 
     vcenter_id = sa.Column(sa.String(36), nullable=False, primary_key=True)
     cluster_id = sa.Column(sa.String(255), nullable=False, primary_key=True)
@@ -59,7 +59,7 @@ class OVSvAppClusters(model_base.BASEV2):
 
     def __repr__(self):
         """OVSvApp managed clusters."""
-        return ("<OVSvAppClusters(%s,%s,%s,%s)>" %
+        return ("<OVSvAppMitigatedClusters(%s,%s,%s,%s)>" %
                 (self.vcenter_id, self.cluster_id,
                  self.being_mitigated, self.threshold_reached))
 
