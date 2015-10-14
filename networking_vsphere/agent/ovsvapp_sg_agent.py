@@ -226,6 +226,14 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         LOG.info(_LI("Finished refresh for devices: %s."),
                  len(devices_to_refilter))
 
+    def setup_port_filters(self, new_devices, updated_devices):
+        LOG.info(_LI("Ignoring default setup_port_filters RPC."))
+        return
+
+    def security_groups_member_updated(self, security_groups):
+        LOG.info(_LI("Ignoring default security_groups_member_updated RPC."))
+        return
+
 
 class OVSvAppSecurityGroupServerRpcApi(object):
     """RPC client for security group methods in the plugin."""
