@@ -44,8 +44,9 @@ class OVSvAppMitigatedClusterDBTestCase(testlib_api.SqlTestCase):
                     'cluster_id': db_entry_dict['cluster_id'],
                     'threshold_reached': db_entry_dict['threshold_reached'],
                     'being_mitigated': db_entry_dict['being_mitigated']}
-        session.execute(ovsvapp_models.OVSvAppClusters.__table__.insert(),
-                        db_entry)
+        session.execute(
+            ovsvapp_models.OVSvAppMitigatedClusters.__table__.insert(),
+            db_entry)
         return ovsvapp_mitigated_cluster['ovsvapp_mitigated_cluster']
 
     def _get_ovsvapp_mitigated_cluster_data(self, vcenter_id, cluster_id,

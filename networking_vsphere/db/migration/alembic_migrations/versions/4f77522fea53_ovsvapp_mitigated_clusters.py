@@ -29,11 +29,11 @@ import sqlalchemy as sa
 
 
 def downgrade():
-    op.drop_table('ovsvapp_clusters')
+    op.drop_table('ovsvapp_mitigated_clusters')
 
 
 def upgrade():
-    op.create_table('ovsvapp_clusters',
+    op.create_table('ovsvapp_mitigated_clusters',
                     sa.Column('vcenter_id', sa.String(length=36),
                               nullable=False),
                     sa.Column('cluster_id', sa.String(length=255),

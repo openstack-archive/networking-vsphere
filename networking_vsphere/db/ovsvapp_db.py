@@ -257,10 +257,10 @@ def update_and_get_cluster_lock(vcenter_id, cluster_id):
     session = db_api.get_session()
     with session.begin(subtransactions=True):
         try:
-            query = session.query(models.OVSvAppClusters)
+            query = session.query(models.OVSvAppMitigatedClusters)
             cluster_row = (query.filter(
-                models.OVSvAppClusters.vcenter_id == vcenter_id,
-                models.OVSvAppClusters.cluster_id == cluster_id
+                models.OVSvAppMitigatedClusters.vcenter_id == vcenter_id,
+                models.OVSvAppMitigatedClusters.cluster_id == cluster_id
             ).with_lockmode('update').one())
             if not cluster_row.threshold_reached:
                 if not cluster_row.being_mitigated:
@@ -283,7 +283,7 @@ def update_and_get_cluster_lock(vcenter_id, cluster_id):
             cluster_row = {'vcenter_id': vcenter_id,
                            'cluster_id': cluster_id,
                            'being_mitigated': True}
-            session.execute(models.OVSvAppClusters.__table__.insert(),
+            session.execute(models.OVSvAppMitigatedClusters.__table__.insert(),
                             cluster_row)
             LOG.info(_("Blocked the cluster %s for maintenance."),
                      cluster_id)
@@ -294,10 +294,10 @@ def release_cluster_lock(vcenter_id, cluster_id):
     session = db_api.get_session()
     with session.begin(subtransactions=True):
         try:
-            query = session.query(models.OVSvAppClusters)
+            query = session.query(models.OVSvAppMitigatedClusters)
             cluster_row = (query.filter(
-                models.OVSvAppClusters.vcenter_id == vcenter_id,
-                models.OVSvAppClusters.cluster_id == cluster_id
+                models.OVSvAppMitigatedClusters.vcenter_id == vcenter_id,
+                models.OVSvAppMitigatedClusters.cluster_id == cluster_id
             ).with_lockmode('update').one())
             cluster_row.update({'being_mitigated': False,
                                 'threshold_reached': False})
@@ -309,10 +309,10 @@ def reset_cluster_threshold(vcenter_id, cluster_id):
     session = db_api.get_session()
     with session.begin(subtransactions=True):
         try:
-            query = session.query(models.OVSvAppClusters)
+            query = session.query(models.OVSvAppMitigatedClusters)
             cluster_row = (query.filter(
-                models.OVSvAppClusters.vcenter_id == vcenter_id,
-                models.OVSvAppClusters.cluster_id == cluster_id
+                models.OVSvAppMitigatedClusters.vcenter_id == vcenter_id,
+                models.OVSvAppMitigatedClusters.cluster_id == cluster_id
             ).with_lockmode('update').one())
             if cluster_row.threshold_reached:
                 cluster_row.update({'being_mitigated': False,
@@ -322,7 +322,7 @@ def reset_cluster_threshold(vcenter_id, cluster_id):
             LOG.error(_("Cluster row not found for %s."), cluster_id)
             cluster_row = {'vcenter_id': vcenter_id,
                            'cluster_id': cluster_id}
-            session.execute(models.OVSvAppClusters.__table__.insert(),
+            session.execute(models.OVSvAppMitigatedClusters.__table__.insert(),
                             cluster_row)
 
 
@@ -330,10 +330,10 @@ def set_cluster_threshold(vcenter_id, cluster_id):
     session = db_api.get_session()
     with session.begin(subtransactions=True):
         try:
-            query = session.query(models.OVSvAppClusters)
+            query = session.query(models.OVSvAppMitigatedClusters)
             cluster_row = (query.filter(
-                models.OVSvAppClusters.vcenter_id == vcenter_id,
-                models.OVSvAppClusters.cluster_id == cluster_id
+                models.OVSvAppMitigatedClusters.vcenter_id == vcenter_id,
+                models.OVSvAppMitigatedClusters.cluster_id == cluster_id
             ).with_lockmode('update').one())
             LOG.info(_("Cluster row found for %s."), cluster_row)
             if not cluster_row.threshold_reached:
@@ -438,10 +438,10 @@ class OVSvAppMitigatedClusterDbMixin(vapp_mc.OVSvAppMitigatedClusterPluginBase,
                    " %s."), vcenter_id)
         mitigated_cluster = dict()
         try:
-            query = context.session.query(models.OVSvAppClusters)
+            query = context.session.query(models.OVSvAppMitigatedClusters)
             cluster_row = (query.filter(
-                models.OVSvAppClusters.vcenter_id == vcenter_id,
-                models.OVSvAppClusters.cluster_id == cluster_id
+                models.OVSvAppMitigatedClusters.vcenter_id == vcenter_id,
+                models.OVSvAppMitigatedClusters.cluster_id == cluster_id
             ).one())
         except sa_exc.NoResultFound:
             _msg = ("No entry found for specified vCenter %(vcenter_id)s "
@@ -469,10 +469,10 @@ class OVSvAppMitigatedClusterDbMixin(vapp_mc.OVSvAppMitigatedClusterPluginBase,
                   vcenter_id)
         with context.session.begin(subtransactions=True):
             try:
-                query = context.session.query(models.OVSvAppClusters)
+                query = context.session.query(models.OVSvAppMitigatedClusters)
                 cluster_row = (query.filter(
-                    models.OVSvAppClusters.vcenter_id == vcenter_id,
-                    models.OVSvAppClusters.cluster_id == cluster_id
+                    models.OVSvAppMitigatedClusters.vcenter_id == vcenter_id,
+                    models.OVSvAppMitigatedClusters.cluster_id == cluster_id
                 ).with_lockmode('update').one())
                 cluster_row.update(update_flags)
             except sa_exc.NoResultFound:
@@ -492,9 +492,9 @@ class OVSvAppMitigatedClusterDbMixin(vapp_mc.OVSvAppMitigatedClusterPluginBase,
         LOG.info(_("Retrieving mitigated information of all clusters."))
         mitigated_clusters = list()
         try:
-            all_entries = self._get_collection_query(context,
-                                                     models.OVSvAppClusters,
-                                                     filters=db_filters).all()
+            all_entries = self._get_collection_query(
+                context, models.OVSvAppMitigatedClusters,
+                filters=db_filters).all()
         except sa_exc.NoResultFound:
             raise exc.InvalidInput(error_message='Cannot retreive mitigated '
                                    'information.')
@@ -518,10 +518,10 @@ class OVSvAppMitigatedClusterDbMixin(vapp_mc.OVSvAppMitigatedClusterPluginBase,
                  vcenter_id)
         with context.session.begin(subtransactions=True):
             try:
-                query = context.session.query(models.OVSvAppClusters)
+                query = context.session.query(models.OVSvAppMitigatedClusters)
                 query = query.filter(
-                    models.OVSvAppClusters.vcenter_id == vcenter_id,
-                    models.OVSvAppClusters.cluster_id == cluster_id
+                    models.OVSvAppMitigatedClusters.vcenter_id == vcenter_id,
+                    models.OVSvAppMitigatedClusters.cluster_id == cluster_id
                 ).delete()
             except sa_exc.NoResultFound:
                 _msg = ("No entry found for specified vCenter %(vcenter_id)s"
