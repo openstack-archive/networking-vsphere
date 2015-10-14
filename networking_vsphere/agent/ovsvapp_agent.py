@@ -28,6 +28,7 @@ import six
 from neutron._i18n import _, _LE, _LI, _LW
 from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
+from neutron.api.rpc.handlers import dvr_rpc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.common import utils as n_utils
@@ -37,7 +38,9 @@ from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ov
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_int  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_phys  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_tun  # noqa
+from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_dvr_neutron_agent as ovs_dvr_agent  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa
+
 
 from networking_vsphere.agent import agent
 from networking_vsphere.agent import ovsvapp_sg_agent as sgagent
@@ -84,7 +87,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     """OVSvApp Agent."""
 
-    def __init__(self):
+    def __init__(self, enable_distributed_routing=False):
         agent.Agent.__init__(self)
         self.conf = cfg.CONF
         self.esx_hostname = CONF.VMWARE.esx_hostname
@@ -111,6 +114,14 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.run_check_for_updates = True
         self.use_call = True
         self.hostname = cfg.CONF.host
+
+        self.enable_distributed_routing = enable_distributed_routing
+        self.patch_int_ofport = ovs_const.OFPORT_INVALID
+        self.patch_tun_ofport = ovs_const.OFPORT_INVALID
+
+        # Keep track of int_br's device count for use by _report_state()
+        self.int_br_device_count = 0
+
         # TODO(romilg): Add a config check for all configurable options.
         # Examples: bridge_mappings, tunnel_types, tenant_network_type,
         # cluster_dvs_ampping.
@@ -170,6 +181,21 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                                           defer_apply)
         if self.monitor_log:
             self.monitor_log.info(_LI("ovs: ok"))
+
+        self.dvr_agent = ovs_dvr_agent.OVSDVRNeutronAgent(
+            self.context,
+            self.dvr_plugin_rpc,
+            self.int_br,
+            self.tun_br,
+            self.bridge_mappings,
+            self.phys_brs,
+            self.int_ofports,
+            self.phys_ofports,
+            self.patch_int_ofport,
+            self.patch_tun_ofport,
+            self.hostname,
+            self.enable_tunneling,
+            self.enable_distributed_routing)
 
     def initiate_monitor_log(self):
         try:
@@ -406,11 +432,14 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             # Maintain a set of tenant networks.
             self.tenant_networks = set()
             if not self.ovsvapp_agent_restarted:
+                self.setup_physical_bridges(self.bridge_mappings)
+                LOG.info(_LI("Physical bridges successfully setup."))
                 self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
                 self.setup_tunnel_br_flows()
                 LOG.info(_LI("Tunnel bridge successfully set."))
             else:
                 self.recover_tunnel_bridge()
+                self.recover_physical_bridges(self.bridge_mappings)
 
     def _add_physical_bridge_flows(self, port):
         for phys_net in self.phys_brs:
@@ -886,6 +915,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.ovsvapp_rpc = OVSvAppPluginApi(ovsvapp_const.OVSVAPP)
         self.ovsvapp_sg_rpc = sgagent.OVSvAppSecurityGroupServerRpcApi(
             ovsvapp_const.OVSVAPP)
+        self.dvr_plugin_rpc = dvr_rpc.DVRServerRpcApi(topics.PLUGIN)
 
         # RPC network init.
         self.context = context.get_admin_context_without_session()
@@ -911,6 +941,10 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def _report_state(self):
         """Reporting agent state to neutron server."""
+        self.agent_state.get('configurations')['devices'] = (
+            self.int_br_device_count)
+        self.agent_state.get('configurations')['in_distributed_mode'] = (
+            self.dvr_agent.in_distributed_mode())
 
         try:
             self.state_rpc.report_state(self.context,
