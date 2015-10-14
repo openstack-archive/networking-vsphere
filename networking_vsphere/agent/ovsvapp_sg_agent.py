@@ -226,6 +226,16 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         LOG.info(_LI("Finished refresh for devices: %s."),
                  len(devices_to_refilter))
 
+    def setup_port_filters(self, new_devices, updated_devices):
+        """ Currently this method is not implemented.
+        :param new_devices:
+        :param updated_devices:
+        :return:
+        """
+        LOG.error(_LE("method setup_port_filter is NOT implemented by %s" %
+                      self))
+        return
+
 
 class OVSvAppSecurityGroupServerRpcApi(object):
     """RPC client for security group methods in the plugin."""
