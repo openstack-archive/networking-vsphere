@@ -30,6 +30,7 @@ from networking_vsphere.utils import resource_util
 
 from neutron.agent.common import ovs_lib
 from neutron.plugins.common import constants as p_const
+from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_dvr_neutron_agent
 
 NETWORK_ID = 'fake_net_id'
 VNIC_ADDED = 'VNIC_ADDED'
@@ -136,10 +137,6 @@ class TestOVSvAppAgent(base.TestCase):
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
                 'OVSvAppAgent.check_ovsvapp_agent_restart')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
-                'OVSvAppAgent.setup_ovs_bridges')
-    @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
-                'OVSvAppAgent.setup_security_br')
-    @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
                 'OVSvAppAgent._init_ovs_flows')
     @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
                 'check_ovs_firewall_restart')
@@ -148,11 +145,24 @@ class TestOVSvAppAgent(base.TestCase):
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.create')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.set_secure_mode')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
-    def setUp(self, mock_get_port_ofport,
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.bridge_exists')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.remove_all_flows')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.delete_port')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.add_patch_port')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.add_flow')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_bridges')
+    def setUp(self,
+              mock_get_bridges,
+              mock_add_flow,
+              mock_add_patch_port,
+              mock_delete_port,
+              mock_remove_all_flows,
+              mock_bridge_exists,
+              mock_get_port_ofport,
               mock_set_secure_mode, mock_create_ovs_bridge,
               mock_setup_base_flows, mock_check_ovs_firewall_restart,
-              mock_init_ovs_flows, mock_setup_security_br,
-              mock_setup_ovs_bridges, mock_check_ovsvapp_agent_restart,
+              mock_init_ovs_flows,
+              mock_check_ovsvapp_agent_restart,
               mock_setup_integration_br, mock_create_consumers,
               mock_get_admin_context_without_session, mock_ovsvapp_pluginapi,
               mock_plugin_report_stateapi, mock_securitygroup_server_rpcapi,
@@ -162,10 +172,15 @@ class TestOVSvAppAgent(base.TestCase):
                               "fake_sec_br:fake_if", 'SECURITYGROUP')
         mock_check_ovsvapp_agent_restart.return_value = False
         mock_get_port_ofport.return_value = 5
+        mock_bridge_exists.return_value = True
+        mock_add_patch_port.return_value = mock.MagicMock()
+        mock_get_bridges.return_value = mock.MagicMock()
         self.agent = ovsvapp_agent.OVSvAppAgent()
         self.agent.run_refresh_firewall_loop = False
         self.LOG = ovsvapp_agent.LOG
         self.agent.monitor_log = logging.getLogger('monitor')
+
+        self.agent.phys_brs = mock.MagicMock()
 
     def _build_port(self, port):
         port = {'admin_state_up': False,
@@ -755,6 +770,10 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertFalse(mock_update_firewall.called)
             self.assertTrue(mock_firewall_refresh.called)
             self.assertFalse(mock_update_port_bindings.called)
+
+    def test___init__(self):
+        self.assertIsInstance(self.agent.dvr_agent,
+                              ovs_dvr_neutron_agent.OVSDVRNeutronAgent)
 
     def test_check_for_updates_devices_to_filter(self):
         self.agent.refresh_firewall_required = True
