@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: Sudhakar Babu Gariganti <sudhakar-babu.gariganti@hp.com>
+Workflow+1: Sudhakar Babu Gariganti <sudhakar-babu.gariganti@hp.com>
+Submitted-by: Jenkins
+Submitted-at: Thu, 15 Oct 2015 12:08:53 +0000
+Reviewed-on: https://review.openstack.org/232959
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
