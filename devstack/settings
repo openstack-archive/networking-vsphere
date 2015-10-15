@@ -8,7 +8,7 @@
 # ovsvapp-compute - Add this config flag for Nova VCDriver changes in
 #                   OpenStack ComputeNode for OVSvApp.
 #
-# ovsvapp-agent - Add this config flag for OVSvApp L2 Agent in OVSvApp VM.
+# ovsvapp-agent - Add this config flag for OVSvApp Agent in OVSvApp VM.
 
 # An example of enabling all-in-one OVSvApp solution is below.
 # enable_service ovsvapp-server ovsvapp-compute ovsvapp-agent

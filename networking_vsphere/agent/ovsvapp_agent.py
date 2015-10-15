@@ -81,7 +81,7 @@ class PortInfo(object):
 
 class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
-    """OVSvApp L2 Agent."""
+    """OVSvApp Agent."""
 
     def __init__(self):
         agent.Agent.__init__(self)
@@ -842,7 +842,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                            'elapsed': elapsed})
 
     def start(self):
-        LOG.info(_("Starting OVSvApp L2 Agent."))
+        LOG.info(_("Starting OVSvApp Agent."))
         self.set_node_state(True)
         self.setup_report_states()
         t = eventlet.spawn(self.check_for_updates)
@@ -857,7 +857,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             t2.wait()
 
     def stop(self):
-        LOG.info(_("Stopping OVSvApp L2 Agent."))
+        LOG.info(_("Stopping OVSvApp Agent."))
         self.set_node_state(False)
         self.run_check_for_updates = False
         self.run_update_devices_loop = False

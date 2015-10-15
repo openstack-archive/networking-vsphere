@@ -57,12 +57,12 @@ function configure_ovsvapp_compute_driver {
 
 function start_ovsvapp_agent {
     OVSVAPP_AGENT_BINARY="$NEUTRON_BIN_DIR/neutron-ovsvapp-agent"
-    echo "Starting OVSvApp L2 Agent"
+    echo "Starting OVSvApp Agent"
     run_process ovsvapp-agent "python $OVSVAPP_AGENT_BINARY --config-file $NEUTRON_CONF --config-file /$OVSVAPP_CONF_FILE"
 }
 
 function cleanup_ovsvapp_bridges {
-    echo "Removing Bridges for OVSvApp L2 Agent"
+    echo "Removing Bridges for OVSvApp Agent"
     sudo ovs-vsctl del-br $INTEGRATION_BRIDGE
     sudo ovs-vsctl del-br $TUNNEL_BRIDGE
     sudo ovs-vsctl del-br $SECURITY_BRIDGE
@@ -70,7 +70,7 @@ function cleanup_ovsvapp_bridges {
 }
 
 function setup_ovsvapp_bridges {
-    echo "Adding Bridges for OVSvApp L2 Agent"
+    echo "Adding Bridges for OVSvApp Agent"
     sudo ovs-vsctl --no-wait -- --may-exist add-br $INTEGRATION_BRIDGE
     if [ "$OVSVAPP_TENANT_NETWORK_TYPE" == "vxlan" ]; then
         sudo ovs-vsctl --no-wait -- --may-exist add-br $TUNNEL_BRIDGE
@@ -109,7 +109,7 @@ function add_ovsvapp_config {
 }
 
 function pre_configure_ovsvapp {
-    echo "Configuring Neutron for OVSvApp L2 Agent"
+    echo "Configuring Neutron for OVSvApp Agent"
     configure_neutron
     _configure_neutron_service
 }

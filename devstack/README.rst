@@ -16,7 +16,7 @@
      Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovsvapp
 
 
-4. Add the following required flags in local.conf to enable the OVSvApp L2 Agent::
+4. Add the following required flags in local.conf to enable the OVSvApp Agent::
 
      # Provide IP address for vCenter.
      OVSVAPP_VCENTER_IP=$vCenter_ip_address
@@ -67,7 +67,7 @@
      Kindly, refer the ovsvapp_agent.ini for other default config parameters.
 
      # We have to disable the Neutron L2 agent. OVSvApp solution does not use the
-     # Neutron L2 agent, instead uses a OVSvApp L2 Agent to program OVS on each
+     # Neutron L2 agent, instead uses a OVSvApp Agent to program OVS on each
      # ESX host.
      disable_service q-agt
 
