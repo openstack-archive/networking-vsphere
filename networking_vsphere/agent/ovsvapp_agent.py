@@ -163,7 +163,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         defer_apply = CONF.SECURITYGROUP.defer_apply
         self.monitor_log = self.initiate_monitor_log()
         if self.monitor_log:
-            self.monitor_log.info(_("ovs: pending"))
+            self.monitor_log.warn(_("ovs: pending"))
         self.sg_agent = sgagent.OVSvAppSecurityGroupAgent(self.context,
                                                           self.ovsvapp_sg_rpc,
                                                           defer_apply)
@@ -562,6 +562,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         try:
             LOG.info(_("RPC get_ports_details_list is called with "
                        "port_ids: %s."), devices)
+            if self.monitor_log:
+                self.monitor_log.warn(_("ovs: pending"))
             ports = self.ovsvapp_rpc.get_ports_details_list(
                 self.context, devices, self.agent_id, self.vcenter_id,
                 self.cluster_id)
@@ -591,6 +593,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     for port_id in stale_ports:
                         if port_id in self.vnic_info:
                             self.vnic_info.pop(port_id)
+            if self.monitor_log:
+                self.monitor_log.info(_("ovs: ok"))
         except Exception as e:
             LOG.exception(_("RPC get_ports_details_list failed %s."), e)
             # Process the ports again in the next iteration.
@@ -637,13 +641,13 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if device_list:
             LOG.info(_("Going to update firewall for ports: "
                        "%s."), device_list)
+            if self.monitor_log:
+                self.monitor_log.warn(_("ovs: pending"))
             self.sg_agent.refresh_firewall(device_list)
             if self.monitor_log:
                 self.monitor_log.info(_("ovs: ok"))
         if uncached_devices:
             self._process_uncached_devices(uncached_devices)
-            if self.monitor_log:
-                self.monitor_log.info(_("ovs: ok"))
 
     def mitigate_ovs_restart(self):
         """Mitigates OpenvSwitch process restarts.
@@ -655,7 +659,7 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         """
         try:
             if self.monitor_log:
-                self.monitor_log.info(_("ovs: broken"))
+                self.monitor_log.warn(_("ovs: broken"))
             self.setup_integration_br()
             self.setup_security_br()
             if self.enable_tunneling:
@@ -678,6 +682,8 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.refresh_firewall_required = True
             finally:
                 ovsvapplock.release()
+            if self.monitor_log:
+                self.monitor_log.info(_("ovs: ok"))
             LOG.info(_("Finished resetting the bridges post ovs restart."))
         except Exception:
             LOG.exception(_("Exception encountered while mitigating the ovs "
@@ -702,8 +708,6 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.mitigate_ovs_restart()
         # Case where devices_to_filter is having some entries.
         if self.refresh_firewall_required:
-            if self.monitor_log:
-                self.monitor_log.warn(_("ovs: pending"))
             self._update_firewall()
         # Case where sgagent's devices_to_refilter is having some
         # entries or global_refresh_firewall flag is set to True.
