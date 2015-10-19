@@ -71,7 +71,7 @@ OVSVAPP_OPTS = [
                 help='Bridge mappings.'),
     cfg.StrOpt('agent_driver',
                default='networking_vsphere.agent.ovsvapp_agent'
-                       '.OVSvAppL2Agent',
+                       '.OVSvAppAgent',
                help='OVSvApp Agent implementation.'),
     cfg.StrOpt('network_manager',
                default='networking_vsphere.drivers.manager.'
