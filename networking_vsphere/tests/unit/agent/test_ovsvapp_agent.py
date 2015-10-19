@@ -121,7 +121,7 @@ class SamplePortUIDMac(object):
         self.mac_address = mac_address
 
 
-class TestOVSvAppL2Agent(base.TestCase):
+class TestOVSvAppAgent(base.TestCase):
 
     @mock.patch('neutron.common.config.init')
     @mock.patch('neutron.common.config.setup_logging')
@@ -134,13 +134,13 @@ class TestOVSvAppL2Agent(base.TestCase):
     @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent.'
                 'ovs_neutron_agent.OVSNeutronAgent.setup_integration_br')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
-                'OVSvAppL2Agent.check_ovsvapp_agent_restart')
+                'OVSvAppAgent.check_ovsvapp_agent_restart')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
-                'OVSvAppL2Agent.setup_ovs_bridges')
+                'OVSvAppAgent.setup_ovs_bridges')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
-                'OVSvAppL2Agent.setup_security_br')
+                'OVSvAppAgent.setup_security_br')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
-                'OVSvAppL2Agent._init_ovs_flows')
+                'OVSvAppAgent._init_ovs_flows')
     @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
                 'check_ovs_firewall_restart')
     @mock.patch('networking_vsphere.drivers.ovs_firewall.'
@@ -157,12 +157,12 @@ class TestOVSvAppL2Agent(base.TestCase):
               mock_get_admin_context_without_session, mock_ovsvapp_pluginapi,
               mock_plugin_report_stateapi, mock_securitygroup_server_rpcapi,
               mock_rpc_pluginapi, mock_setup_logging, mock_init):
-        super(TestOVSvAppL2Agent, self).setUp()
+        super(TestOVSvAppAgent, self).setUp()
         cfg.CONF.set_override('security_bridge_mapping',
                               "fake_sec_br:fake_if", 'SECURITYGROUP')
         mock_check_ovsvapp_agent_restart.return_value = False
         mock_get_port_ofport.return_value = 5
-        self.agent = ovsvapp_agent.OVSvAppL2Agent()
+        self.agent = ovsvapp_agent.OVSvAppAgent()
         self.agent.run_refresh_firewall_loop = False
         self.LOG = ovsvapp_agent.LOG
         self.agent.monitor_log = logging.getLogger('monitor')
