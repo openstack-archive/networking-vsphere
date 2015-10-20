@@ -1085,11 +1085,11 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
         if self.tenant_network_type == p_const.TYPE_VLAN:
             network = model.Network(name=network_id,
-                                    network_type=ovsvapp_const.NETWORK_VLAN)
+                                    network_type=p_const.TYPE_VLAN)
         elif self.tenant_network_type == p_const.TYPE_VXLAN:
             network_id = str(network_id) + "-" + self.cluster_moid
             network = model.Network(name=network_id,
-                                    network_type=ovsvapp_const.NETWORK_VXLAN)
+                                    network_type=p_const.TYPE_VXLAN)
         retry_count = 3
         while retry_count > 0:
             try:
@@ -1264,12 +1264,12 @@ class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if self.tenant_network_type == p_const.TYPE_VLAN:
             vlan = model.Vlan(vlanIds=[segmentation_id])
             network = model.Network(name=network_id,
-                                    network_type=ovsvapp_const.NETWORK_VLAN,
+                                    network_type=p_const.TYPE_VLAN,
                                     config=model.NetworkConfig(vlan))
         elif self.tenant_network_type == p_const.TYPE_VXLAN:
             vlan = model.Vlan(vlanIds=[local_vlan_id])
             network = model.Network(name=network_id,
-                                    network_type=ovsvapp_const.NETWORK_VXLAN,
+                                    network_type=p_const.TYPE_VXLAN,
                                     config=model.NetworkConfig(vlan))
 
         # Create Common Model Port Object.

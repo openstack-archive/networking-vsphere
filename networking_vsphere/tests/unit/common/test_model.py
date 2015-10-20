@@ -13,7 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from networking_vsphere.common import constants
+from neutron.plugins.common import constants as p_const
+
 from networking_vsphere.common import model
 from networking_vsphere.tests import base
 
@@ -74,7 +75,7 @@ class CommonModelTestCase(base.TestCase):
     def test_model_network(self):
         key = "1-2-3"
         name = "net1"
-        network_type = constants.NETWORK_VLAN
+        network_type = p_const.TYPE_VLAN
         vs_name = "dvs1"
         port_name = "port1"
         vlanIds = [1001]
