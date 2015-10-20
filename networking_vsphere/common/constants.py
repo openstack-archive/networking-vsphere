@@ -19,10 +19,6 @@ OVSVAPP = 'ovsvapp'
 OVSVAPP_PLUGIN = 'ovsvapp_service_plugin'
 DEVICE = 'device'
 
-# Network type constants.
-NETWORK_VLAN = 'VLAN'
-NETWORK_VXLAN = 'VXLAN'
-
 # Port status constants.
 PORT_STATUS_UP = 'UP'
 PORT_STATUS_DOWN = 'DOWN'

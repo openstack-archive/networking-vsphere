@@ -15,6 +15,8 @@
 
 import mock
 
+from neutron.plugins.common import constants as p_const
+
 from networking_vsphere.common import constants
 from networking_vsphere.common import error
 from networking_vsphere.common import model
@@ -54,7 +56,7 @@ class TestDvsDriver(base.TestCase):
         vlan = model.Vlan(vlanIds=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
-            name="net-1234", network_type=constants.NETWORK_VLAN,
+            name="net-1234", network_type=p_const.TYPE_VLAN,
             config=network_config)
         vswitch = model.VirtualSwitch("test_dvs", hosts=None)
         with mock.patch.object(network_util, "get_portgroup_mor_by_name",
@@ -66,7 +68,7 @@ class TestDvsDriver(base.TestCase):
     def test_delete_network(self):
         pg_name = fake_vmware_api.Constants.PORTGROUP_NAME
         network = model.Network(
-            name=pg_name, network_type=constants.NETWORK_VLAN)
+            name=pg_name, network_type=p_const.TYPE_VLAN)
         vswitch = model.VirtualSwitch("test_dvs", hosts=None)
         self.assertFalse(self.vc_driver.delete_network(network, vswitch))
 
@@ -77,7 +79,7 @@ class TestDvsDriver(base.TestCase):
         vlan = model.Vlan(vlanIds=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
-            name="net-1234", network_type=constants.NETWORK_VLAN,
+            name="net-1234", network_type=p_const.TYPE_VLAN,
             config=network_config)
         port = model.Port(uuid=port_id,
                           name=None,
@@ -96,7 +98,7 @@ class TestDvsDriver(base.TestCase):
         vlan = model.Vlan(vlanIds=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
-            name="net-1234", network_type=constants.NETWORK_VLAN,
+            name="net-1234", network_type=p_const.TYPE_VLAN,
             config=network_config)
         port = model.Port(uuid=port_id,
                           name=None,
@@ -115,7 +117,7 @@ class TestDvsDriver(base.TestCase):
         vlan = model.Vlan(vlanIds=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
-            name="net-1234", network_type=constants.NETWORK_VLAN,
+            name="net-1234", network_type=p_const.TYPE_VLAN,
             config=network_config)
         port = model.Port(uuid=port_id,
                           name=None,
@@ -136,7 +138,7 @@ class TestDvsDriver(base.TestCase):
         vlan = model.Vlan(vlanIds=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
-            name="net-1234", network_type=constants.NETWORK_VLAN,
+            name="net-1234", network_type=p_const.TYPE_VLAN,
             config=network_config)
         port = model.Port(uuid=port_id,
                           name=None,
@@ -156,7 +158,7 @@ class TestDvsDriver(base.TestCase):
         vlan = model.Vlan(vlanIds=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
-            name="net-1234", network_type=constants.NETWORK_VLAN,
+            name="net-1234", network_type=p_const.TYPE_VLAN,
             config=network_config)
         port = model.Port(uuid=port_id,
                           name=None,

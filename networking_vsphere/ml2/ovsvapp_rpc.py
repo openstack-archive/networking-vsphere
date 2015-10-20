@@ -31,6 +31,7 @@ from neutron.db import models_v2
 from neutron.db import securitygroups_rpc_base as sg_rpc_base
 from neutron.extensions import portbindings
 from neutron import manager
+from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import db
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2 import driver_context
@@ -170,7 +171,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                          'physical_network':
                          network['provider:physical_network']})
 
-                    if port['network_type'] == ovsvapp_const.NETWORK_VXLAN:
+                    if port['network_type'] == p_const.TYPE_VXLAN:
                         port_info = {'port_id': port['id'],
                                      'vcenter_id': vcenter_id,
                                      'cluster_id': cluster_id,
@@ -246,7 +247,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
         updated_ports = set()
         ports = None
         # Wait till all the ports of the device become ACTIVE
-        if network_type == ovsvapp_const.NETWORK_VXLAN:
+        if network_type == p_const.TYPE_VXLAN:
             retry_count = 3
             while retry_count > 0:
                 sleep = False
@@ -281,7 +282,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                 updated_port = self.plugin.update_port(rpc_context, port_id,
                                                        new_port)
                 updated_ports.add(updated_port['id'])
-                if network_type == ovsvapp_const.NETWORK_VXLAN:
+                if network_type == p_const.TYPE_VXLAN:
                     time.sleep(1)
                     new_status = (common_const.PORT_STATUS_BUILD
                                   if port['admin_state_up'] else
@@ -388,7 +389,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                              'vif_type': port[portbindings.VIF_TYPE]})
                 continue
             bound_port['lvid'] = None
-            if segment[api.NETWORK_TYPE] == ovsvapp_const.NETWORK_VXLAN:
+            if segment[api.NETWORK_TYPE] == p_const.TYPE_VXLAN:
                 port_info = {'port_id': bound_port['id'],
                              'vcenter_id': vcenter_id,
                              'cluster_id': cluster_id,
