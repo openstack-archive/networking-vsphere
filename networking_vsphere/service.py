@@ -41,7 +41,7 @@ def run():
                                       agent.Agent)
         agent_obj.start()
     except Exception as e:
-        LOG.exception(_("Error in L2 agent service."))
+        LOG.exception(_("Error in OVSvApp agent service."))
         if agent_obj:
             agent_obj.stop()
         sys.exit(_("ERROR: %s.") % e)

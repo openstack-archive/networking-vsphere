@@ -79,7 +79,7 @@ class PortInfo(object):
         self.vm_uuid = vm_uuid
 
 
-class OVSvAppL2Agent(agent.Agent, ovs_agent.OVSNeutronAgent):
+class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     """OVSvApp Agent."""
 
