@@ -142,15 +142,91 @@ class OVSvAppAgentDriver(object):
                 self.notifier.enhanced_sg_provider_updated(self.context,
                                                            port['network_id'])
 
+    def create_network_precommit(self, context):
+        pass
+
+    def create_network_postcommit(self, context):
+        pass
+
+    def update_network_precommit(self, context):
+        pass
+
+    def update_network_postcommit(self, context):
+        pass
+
+    def delete_network_precommit(self, context):
+        pass
+
+    def delete_network_postcommit(self, context):
+        try:
+            network = context.current
+            segments = context.network_segments
+            vxlan_segments = []
+            if segments:
+                for segment in segments:
+                    if segment[api.NETWORK_TYPE] == p_const.TYPE_VXLAN:
+                        vxlan_segments.append(segment)
+            if not vxlan_segments:
+                return
+            stale_entries = ovsvapp_db.get_stale_local_vlans_for_network(
+                network['id'])
+            if stale_entries:
+                for (vcenter, cluster, lvid) in stale_entries:
+                    network_info = {'vcenter_id': vcenter,
+                                    'cluster_id': cluster,
+                                    'lvid': lvid,
+                                    'network_id': network['id']}
+                    if len(vxlan_segments) == 1:
+                        seg_id = vxlan_segments[0][api.SEGMENTATION_ID]
+                        network_info.update({'segmentation_id': seg_id})
+                    LOG.debug("Spawning thread for releasing network "
+                              "VNI allocations for %s.", network_info)
+                    self.threadpool.spawn_n(self._notify_agent, network_info)
+                    LOG.info(_("Spawned a thread for releasing network "
+                               "vni allocations for network: %s."),
+                             network_info)
+        except Exception:
+            LOG.exception(_("Failed checking stale local vlan allocations."))
+
+    def create_subnet_precommit(self, context):
+        pass
+
+    def create_subnet_postcommit(self, context):
+        pass
+
+    def update_subnet_precommit(self, context):
+        pass
+
+    def update_subnet_postcommit(self, context):
+        pass
+
+    def delete_subnet_precommit(self, context):
+        pass
+
+    def delete_subnet_postcommit(self, context):
+        pass
+
+    def create_port_precommit(self, context):
+        pass
+
     def create_port_postcommit(self, context):
         port = context.current
         self._check_and_fire_provider_update(port)
+
+    def update_port_precommit(self, context):
+        pass
+
+    def update_port_postcommit(self, context):
+        pass
+
+    def delete_port_precommit(self, context):
+        pass
 
     def delete_port_postcommit(self, context):
         """Delete port non-database commit event."""
         port = context.current
         if port and port['device_owner'].startswith('compute'):
-            segment = context.bound_segment
+            segment = context.top_bound_segment
             if segment and segment[api.NETWORK_TYPE] == p_const.TYPE_VXLAN:
                 LOG.debug("OVSvApp Mech driver - delete_port_postcommit for "
                           "port: %s.", port['id'])
@@ -191,34 +267,3 @@ class OVSvAppAgentDriver(object):
                                     "local vlan."))
         else:
             self._check_and_fire_provider_update(port)
-
-    def delete_network_postcommit(self, context):
-        try:
-            network = context.current
-            segments = context.network_segments
-            vxlan_segments = []
-            if segments:
-                for segment in segments:
-                    if segment[api.NETWORK_TYPE] == p_const.TYPE_VXLAN:
-                        vxlan_segments.append(segment)
-            if not vxlan_segments:
-                return
-            stale_entries = ovsvapp_db.get_stale_local_vlans_for_network(
-                network['id'])
-            if stale_entries:
-                for (vcenter, cluster, lvid) in stale_entries:
-                    network_info = {'vcenter_id': vcenter,
-                                    'cluster_id': cluster,
-                                    'lvid': lvid,
-                                    'network_id': network['id']}
-                    if len(vxlan_segments) == 1:
-                        seg_id = vxlan_segments[0][api.SEGMENTATION_ID]
-                        network_info.update({'segmentation_id': seg_id})
-                    LOG.debug("Spawning thread for releasing network "
-                              "VNI allocations for %s.", network_info)
-                    self.threadpool.spawn_n(self._notify_agent, network_info)
-                    LOG.info(_("Spawned a thread for releasing network "
-                               "vni allocations for network: %s."),
-                             network_info)
-        except Exception:
-            LOG.exception(_("Failed checking stale local vlan allocations."))
