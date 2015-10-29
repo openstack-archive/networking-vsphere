@@ -20,6 +20,7 @@ import eventlet
 eventlet.monkey_patch()
 from oslo_config import cfg
 from oslo_log import log
+from neutron.common import config as common_config
 
 from networking_vsphere.agent import agent
 from networking_vsphere.common import config as ovsvapp_config
@@ -61,3 +62,9 @@ def signal_handler(signum, frame):
             pass
     signal.signal(signum, signal.SIG_DFL)
     sys.exit(0)
+
+
+def main():
+    common_config.init(sys.argv[1:])
+    common_config.setup_logging()
+    run()
