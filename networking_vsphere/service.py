@@ -18,6 +18,7 @@ import sys
 
 import eventlet
 eventlet.monkey_patch()
+from neutron.common import config as common_config
 from oslo_config import cfg
 from oslo_log import log
 
@@ -61,3 +62,9 @@ def signal_handler(signum, frame):
             pass
     signal.signal(signum, signal.SIG_DFL)
     sys.exit(0)
+
+
+def main():
+    common_config.init(sys.argv[1:])
+    common_config.setup_logging()
+    run()
