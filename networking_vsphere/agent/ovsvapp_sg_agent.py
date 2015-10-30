@@ -33,17 +33,7 @@ LOG = log.getLogger(__name__)
 ovsvapplock = threading.RLock()
 
 
-class OVSvAppSecurityGroupAgentRpc(sg_rpc.SecurityGroupAgentRpc):
-
-    def enhanced_sg_provider_updated(self, context, **kwargs):
-        """Callback for security group provider update."""
-        net_id = kwargs.get('network_id', [])
-        LOG.info(_("Received enhanced_sg_provider_updated RPC for network %s"),
-                 net_id)
-        self.sg_provider_updated(net_id)
-
-
-class OVSvAppSecurityGroupAgent(OVSvAppSecurityGroupAgentRpc):
+class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
     """OVSvApp derived class from OVSSecurityGroupAgent
 
     This class is to override the default behavior of some methods.
