@@ -1755,3 +1755,12 @@ class TestOVSvAppAgent(base.TestCase):
                                             success=False)
             self.assertTrue(log_exception.called)
             self.assertTrue(time_sleep.called)
+
+    def test_enhanced_sg_provider_updated(self):
+        kwargs = {'network_id': NETWORK_ID}
+        with mock.patch.object(self.LOG, 'info') as log_info, \
+                mock.patch.object(self.agent.sg_agent, "sg_provider_updated"
+                                  ) as mock_sg_provider_updated:
+            self.agent.enhanced_sg_provider_updated(FAKE_CONTEXT, **kwargs)
+            self.assertTrue(log_info.called)
+            mock_sg_provider_updated.assert_called_with(NETWORK_ID)

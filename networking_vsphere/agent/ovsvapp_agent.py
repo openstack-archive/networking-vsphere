@@ -1734,6 +1734,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 LOG.debug("Ignoring the device_update RPC as it is for "
                           "a different host")
 
+    def enhanced_sg_provider_updated(self, context, **kwargs):
+        """Callback for security group provider update."""
+        net_id = kwargs.get('network_id', [])
+        LOG.info(_("Received enhanced_sg_provider_updated RPC for network %s"),
+                 net_id)
+        self.sg_agent.sg_provider_updated(net_id)
+
 
 class RpcPluginApi(agent_rpc.PluginApi):
 
