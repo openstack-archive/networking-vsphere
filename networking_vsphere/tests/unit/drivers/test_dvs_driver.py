@@ -53,7 +53,7 @@ class TestDvsDriver(base.TestCase):
         self.assertFalse(valid)
 
     def test_create_network(self):
-        vlan = model.Vlan(vlanIds=["1001"])
+        vlan = model.Vlan(vlan_ids=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
@@ -76,7 +76,7 @@ class TestDvsDriver(base.TestCase):
         port_id = "PORT-1234-5678"
         vm_id = fake_vmware_api.Constants.VM_UUID
         mac_address = fake_vmware_api.Constants.VM_MAC
-        vlan = model.Vlan(vlanIds=["1001"])
+        vlan = model.Vlan(vlan_ids=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
@@ -95,7 +95,7 @@ class TestDvsDriver(base.TestCase):
         port_id = "PORT-1234-5678"
         vm_id = fake_vmware_api.Constants.VM_UUID
         mac_address = fake_vmware_api.Constants.VM_MAC
-        vlan = model.Vlan(vlanIds=["1001"])
+        vlan = model.Vlan(vlan_ids=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
@@ -114,7 +114,7 @@ class TestDvsDriver(base.TestCase):
         port_id = "PORT-1234-5678"
         vm_id = fake_vmware_api.Constants.VM_UUID
         mac_address = fake_vmware_api.Constants.VM_MAC
-        vlan = model.Vlan(vlanIds=["1001"])
+        vlan = model.Vlan(vlan_ids=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
@@ -135,7 +135,7 @@ class TestDvsDriver(base.TestCase):
         port_id = "PORT-1234-5678"
         vm_id = "INVALID-VM"
         mac_address = fake_vmware_api.Constants.VM_MAC
-        vlan = model.Vlan(vlanIds=["1001"])
+        vlan = model.Vlan(vlan_ids=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
@@ -155,7 +155,7 @@ class TestDvsDriver(base.TestCase):
         port_id = "PORT-1234-5678"
         vm_id = fake_vmware_api.Constants.VM_UUID
         mac_address = "in:va:li:d0:ma:c0"
-        vlan = model.Vlan(vlanIds=["1001"])
+        vlan = model.Vlan(vlan_ids=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,

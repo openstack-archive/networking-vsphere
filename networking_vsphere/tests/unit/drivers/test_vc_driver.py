@@ -141,7 +141,7 @@ class TestVmwareDriver(base.TestCase):
 
     def test_create_port(self):
         vm_id = fake_vmware_api.Constants.VM_UUID
-        vlan = model.Vlan(vlanIds=["1001"])
+        vlan = model.Vlan(vlan_ids=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
@@ -162,7 +162,7 @@ class TestVmwareDriver(base.TestCase):
 
     def test_create_port_exc(self):
         vm_id = fake_vmware_api.Constants.VM_UUID
-        vlan = model.Vlan(vlanIds=["1001"])
+        vlan = model.Vlan(vlan_ids=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
@@ -186,7 +186,7 @@ class TestVmwareDriver(base.TestCase):
 
     def test_create_port_invalid_cluster(self):
         vm_id = fake_vmware_api.Constants.VM_UUID
-        vlan = model.Vlan(vlanIds=["1001"])
+        vlan = model.Vlan(vlan_ids=["1001"])
         network_config = model.NetworkConfig(vlan)
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,

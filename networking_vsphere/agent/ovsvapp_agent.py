@@ -1262,12 +1262,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
         # Create Common Model Network Object.
         if self.tenant_network_type == p_const.TYPE_VLAN:
-            vlan = model.Vlan(vlanIds=[segmentation_id])
+            vlan = model.Vlan(vlan_ids=[segmentation_id])
             network = model.Network(name=network_id,
                                     network_type=p_const.TYPE_VLAN,
                                     config=model.NetworkConfig(vlan))
         elif self.tenant_network_type == p_const.TYPE_VXLAN:
-            vlan = model.Vlan(vlanIds=[local_vlan_id])
+            vlan = model.Vlan(vlan_ids=[local_vlan_id])
             network = model.Network(name=network_id,
                                     network_type=p_const.TYPE_VXLAN,
                                     config=model.NetworkConfig(vlan))

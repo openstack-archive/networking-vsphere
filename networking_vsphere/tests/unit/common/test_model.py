@@ -78,10 +78,10 @@ class CommonModelTestCase(base.TestCase):
         network_type = p_const.TYPE_VLAN
         vs_name = "dvs1"
         port_name = "port1"
-        vlanIds = [1001]
+        vlan_ids = [1001]
         operation_mode = "mode1"
         vlan_type = "Native"
-        vlan = model.Vlan(vlanIds, operation_mode, vlan_type)
+        vlan = model.Vlan(vlan_ids, operation_mode, vlan_type)
         config = model.NetworkConfig(vlan)
         vs = model.VirtualSwitch(vs_name)
         port = model.Port(port_name, None, None, None, None)
@@ -96,7 +96,7 @@ class CommonModelTestCase(base.TestCase):
         self.assertEqual(network.config.vlan.operation_mode, operation_mode)
         self.assertEqual(network.config.vlan.vlan_type, vlan_type)
         self.assertEqual(len(network.config.vlan.vlanIds), 1)
-        self.assertEqual(network.config.vlan.vlanIds[0], vlanIds[0])
+        self.assertEqual(network.config.vlan.vlanIds[0], vlan_ids[0])
         self.assertEqual(len(network.vswitches), 1)
         self.assertEqual(network.vswitches[0].name, vs_name)
         self.assertEqual(len(network.ports), 1)
