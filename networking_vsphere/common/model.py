@@ -24,10 +24,10 @@ class NetworkConfig(object):
 
 class Vlan(object):
 
-    def __init__(self, vlanIds=[], operation_mode=None, vlan_type="Native"):
-        self.vlan_type = vlan_type
+    def __init__(self, vlan_ids=None, operation_mode=None, vlan_type="Native"):
+        self.vlanIds = vlan_ids
         self.operation_mode = operation_mode
-        self.vlanIds = vlanIds
+        self.vlan_type = vlan_type
 
 
 class ResourceEntity(object):
