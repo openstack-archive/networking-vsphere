@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
+from oslo_config import cfg
 
 import logging
 import os
@@ -23,9 +24,40 @@ import time
 
 from neutron.common import config as common_config
 
+OVSVAPP_MONITORING_OPTS = [
+    cfg.StrOpt('monitor_log_path',
+               default=None,
+               help='Provide monitor.log file location for monitoring '
+                    'OVS module with-in OVSvApp VM to prevent datapath loss.'),
+    cfg.StrOpt('monitoring_ip',
+               default=None,
+               help='IP address for monitoring OVS module status with-in'
+                    'OVsvApp VM.'),
+    cfg.StrOpt('status_json_path',
+               default=None,
+               help='Provide status.json file location to populate the OVS '
+                    'module status with-in OVSvApp VM.')
+]
+
 LOG = logging.getLogger(__name__)
-LOG_FILE_PATH = '/var/log/neutron/ovsvapp-agent/monitor.log'
-JSON_FILE_PATH = '/var/log/neutron/ovsvapp-agent/status.json'
+
+
+def register_opts():
+    common_config.init(sys.argv[1:])
+    common_config.setup_logging()
+    cfg.CONF.register_opts(OVSVAPP_MONITORING_OPTS, "OVSVAPP_MONITORING")
+
+
+def initiate_monitor_log():
+    register_opts()
+    try:
+        logger = logging.getLogger('monitor')
+        logger.addHandler(logging.FileHandler
+                          (cfg.CONF.OVSVAPP_MONITORING.monitor_log_path))
+        return logger
+    except Exception:
+        LOG.error(_("Could not get handle for %s."),
+                  cfg.CONF.OVSVAPP_MONITORING.monitor_log_path)
 
 
 def start_monitor():
@@ -35,13 +67,19 @@ def start_monitor():
         ovs_monitor_path = str(current_dir) + '/ovsvapp-agent-monitor.sh'
         os.chmod(ovs_monitor_path, 0o755)
         LOG.info(_("Loading OVS_MONITOR: %s"), ovs_monitor_path)
+        LOG_FILE_PATH = cfg.CONF.OVSVAPP_MONITORING.monitor_log_path
         while True:
+#             if LOG_FILE_PATH is '':
+#                 LOG.info(_("=========AMAN123========: %s"), LOG_FILE_PATH)
+#                 except Exception as er:
+#                     LOG.exception(_("Error in start_monitor method %(err)s."),
+#                                   {'err': er})
             subprocess.call(ovs_monitor_path)
             f = open(LOG_FILE_PATH)
             for line in f:
                 pass
             status = line
-            sf = open(JSON_FILE_PATH, 'w')
+            sf = open(cfg.CONF.OVSVAPP_MONITORING.status_json_path, 'w')
             if 'broken' in status or 'pending' in status:
                 sf.write('{"ovs": "BAD"}')
             else:
@@ -58,10 +96,10 @@ def main():
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    common_config.setup_logging()
+    register_opts()
     FORMAT = '%(asctime)-15s %(message)s'
     logging.basicConfig(format=FORMAT,
-                        filename=LOG_FILE_PATH,
+                        filename=cfg.CONF.OVSVAPP_MONITORING.monitor_log_path,
                         level=logging.DEBUG)
     try:
         LOG.info(_("Starting ovsvapp-agent-monitor."))

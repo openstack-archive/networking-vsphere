@@ -14,6 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+
 logfile=/var/log/neutron/ovsvapp-agent/monitor.log
 broken_msg="ovs: broken"
 ok_msg="ovs: ok"
