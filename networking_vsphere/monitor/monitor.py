@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
+from oslo_config import cfg
 
 import logging
 import os
@@ -22,11 +23,23 @@ import sys
 import time
 
 from neutron._i18n import _LE, _LI
+from networking_vsphere.common import config as ovsvapp_config
 from neutron.common import config as common_config
 
+
 LOG = logging.getLogger(__name__)
-LOG_FILE_PATH = '/var/log/neutron/ovsvapp-agent/monitor.log'
-JSON_FILE_PATH = '/var/log/neutron/ovsvapp-agent/status.json'
+
+
+def initiate_monitor_log():
+    ovsvapp_config.register_monitoring_opts()
+    try:
+        logger = logging.getLogger('monitor')
+        logger.addHandler(logging.FileHandler
+                          (cfg.CONF.OVSVAPP_MONITORING.monitor_log_path))
+        return logger
+    except Exception:
+        LOG.error(_LE("Could not get handle for %s."),
+                  cfg.CONF.OVSVAPP_MONITORING.monitor_log_path)
 
 
 def start_monitor():
@@ -38,11 +51,11 @@ def start_monitor():
         LOG.info(_LI("Loading OVS_MONITOR: %s"), ovs_monitor_path)
         while True:
             subprocess.call(ovs_monitor_path)
-            f = open(LOG_FILE_PATH)
+            f = open(cfg.CONF.OVSVAPP_MONITORING.monitor_log_path)
             for line in f:
                 pass
             status = line
-            sf = open(JSON_FILE_PATH, 'w')
+            sf = open(cfg.CONF.OVSVAPP_MONITORING.status_json_path, 'w')
             if 'broken' in status or 'pending' in status:
                 sf.write('{"ovs": "BAD"}')
             else:
@@ -59,10 +72,12 @@ def main():
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
+    common_config.init(sys.argv[1:])
     common_config.setup_logging()
+    ovsvapp_config.register_monitoring_opts()
     FORMAT = '%(asctime)-15s %(message)s'
     logging.basicConfig(format=FORMAT,
-                        filename=LOG_FILE_PATH,
+                        filename=cfg.CONF.OVSVAPP_MONITORING.monitor_log_path,
                         level=logging.DEBUG)
     try:
         LOG.info(_LI("Starting ovsvapp-agent-monitor."))
