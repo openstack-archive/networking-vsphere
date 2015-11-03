@@ -14,7 +14,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-logfile=/var/log/neutron/ovsvapp-agent/monitor.log
+from oslo_config import cfg
+
+logfile=cfg.CONF.OVSVAPPMONITORING.monitor_log_path
 broken_msg="ovs: broken"
 ok_msg="ovs: ok"
 stopped_msg="openvswitch-switch process is not responding. Going to restart"
