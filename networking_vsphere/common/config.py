@@ -14,7 +14,9 @@
 #    under the License.
 
 from oslo_config import cfg
+import sys
 
+from neutron.common import config as common_config
 from neutron.plugins.common import constants as p_const
 
 # vCenter server and ESX host related config read from ovsvapp_agent.ini.
@@ -126,6 +128,27 @@ SECURITYGROUP_OPTS = [
                help='DriverManager implementation for '
                     'OVS based Firewall.')
 ]
+
+OVSVAPP_MONITORING_OPTS = [
+    cfg.StrOpt('monitor_log_path',
+               default=None,
+               help='Provide monitor.log file location for monitoring '
+                    'OVS module with-in OVSvApp VM to prevent datapath loss.'),
+    cfg.StrOpt('monitoring_ip',
+               default=None,
+               help='IP address for monitoring OVS module status with-in'
+                    'OVsvApp VM.'),
+    cfg.StrOpt('status_json_path',
+               default=None,
+               help='Provide status.json file location to populate the OVS '
+                    'module status with-in OVSvApp VM.')
+]
+
+
+def register_monitoring_opts():
+    common_config.init(sys.argv[1:])
+    common_config.setup_logging()
+    cfg.CONF.register_opts(OVSVAPP_MONITORING_OPTS, "OVSVAPP_MONITORING")
 
 
 def register_options():
