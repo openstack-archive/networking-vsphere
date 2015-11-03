@@ -39,6 +39,21 @@
      # Provide the IP for VXLAN tunnel endpoint.
      OVSVAPP_LOCAL_IP=
 
+     # Provide IP address for monitoring OVS Status.
+     OVSVAPP_MONITORING_IP=
+     # For Example:
+     # OVSVAPP_MONITORING_IP=100.30.30.0/24
+
+     # Provide monitor.log file location for monitoring OVS module with-in OVSvApp VM to prevent datapath loss
+     OVSVAPP_MONITORING_LOG_PATH=
+     # For Example:
+     # OVSVAPP_MONITORING_LOG_PATH=/opt/stack/logs/monitor.log
+
+     # Provide status.json file location to populate the OVS module status with-in OVSvApp VM
+     OVSVAPP_STATUS_JSON_PATH=
+     # For Example:
+     # OVSVAPP_STATUS_JSON_PATH=/opt/stack/logs/status.json
+
      # Provide Physical Bridge name.
      OVSVAPP_PHYSICAL_BRIDGE=
      # For Example:
