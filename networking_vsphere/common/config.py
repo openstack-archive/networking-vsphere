@@ -128,6 +128,21 @@ SECURITYGROUP_OPTS = [
                     'OVS based Firewall.')
 ]
 
+OVSVAPP_MONITORING_OPTS = [
+    cfg.StrOpt('monitor_log_path',
+               default=None,
+               help='Provide monitor.log file location for monitoring '
+                    'OVS module with-in OVSvApp VM to prevent datapath loss.'),
+    cfg.StrOpt('status_json_path',
+               default=None,
+               help='Provide status.json file location to populate the OVS '
+                    'module status with-in OVSvApp VM.')
+]
+
+
+def register_monitoring_opts():
+    cfg.CONF.register_opts(OVSVAPP_MONITORING_OPTS, "OVSVAPP_MONITORING")
+
 
 def register_options():
     cfg.CONF.register_opts(VMWARE_OPTS, "VMWARE")

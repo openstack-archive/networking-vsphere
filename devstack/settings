@@ -61,6 +61,16 @@ OVSVAPP_TENANT_NETWORK_TYPE=${OVSVAPP_TENANT_NETWORK_TYPE:-vlan}
 # Provide the IP for VXLAN tunnel endpoint.
 OVSVAPP_LOCAL_IP=${OVSVAPP_LOCAL_IP:-None}
 
+# Provide IP address for monitoring OVS Status.
+OVSVAPP_MONITORING_IP=${OVSVAPP_MONITORING_IP:-None}
+
+# Provide monitor.log file location for monitoring OVS module with-in OVSvApp VM to prevent
+# datapath loss.
+OVSVAPP_MONITORING_LOG_PATH=${OVSVAPP_MONITORING_LOG_PATH:-/opt/stack/logs/monitor.log}
+
+# Provide status.json file location to populate the OVS module status with-in OVSvApp VM.
+OVSVAPP_STATUS_JSON_PATH=${OVSVAPP_STATUS_JSON_PATH:-/opt/stack/logs/status.json}
+
 # Provide Physical Bridge name.
 OVSVAPP_PHYSICAL_BRIDGE=${OVSVAPP_PHYSICAL_BRIDGE:-br-ethx}
 
