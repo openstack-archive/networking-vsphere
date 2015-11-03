@@ -11,6 +11,7 @@
 # ``stack.sh`` calls the entry points in this order:
 #
 # - install_ovsvapp_dependency
+# - install_nginx_server
 # - install_networking_vsphere
 # - run_ovsvapp_alembic_migration
 # - pre_configure_ovsvapp
@@ -18,8 +19,11 @@
 # - configure_ovsvapp_config
 # - setup_ovsvapp_bridges
 # - start_ovsvapp_agent
+# - create_monitor_log_files
+# - start_ovsvapp_agent_monitor
 # - configure_ovsvapp_compute_driver
 # - cleanup_ovsvapp_bridges
+# - configure_nginx_default
 
 # Save trace setting
 XTRACE=$(set +o | grep xtrace)
@@ -59,6 +63,12 @@ function start_ovsvapp_agent {
     OVSVAPP_AGENT_BINARY="$NEUTRON_BIN_DIR/neutron-ovsvapp-agent"
     echo "Starting OVSvApp Agent"
     run_process ovsvapp-agent "python $OVSVAPP_AGENT_BINARY --config-file $NEUTRON_CONF --config-file /$OVSVAPP_CONF_FILE"
+}
+
+function start_ovsvapp_agent_monitor {
+    OVSVAPP_AGENT_MONITOR_BINARY="$NEUTRON_BIN_DIR/neutron-ovsvapp-agent-monitor"
+    echo "Starting OVSvApp Agent Monitor"
+    run_process ovsvapp-agent-monitor "python $OVSVAPP_AGENT_MONITOR_BINARY --config-file /$OVSVAPP_CONF_FILE"
 }
 
 function cleanup_ovsvapp_bridges {
@@ -123,11 +133,44 @@ function install_ovsvapp_dependency {
     install_nova
     install_neutron
     _neutron_ovs_base_install_agent_packages
+    install_nginx_server
+}
+
+function install_nginx_server {
+    echo "Installing nginx_server"
+    sudo apt-get install -y nginx
+}
+
+function configure_nginx_default {
+    NGINX_DEFAULT_FILE=etc/nginx/sites-available/default
+    echo "Adding configuration file for nginx server"
+    sudo cp $OVSVAPP_NETWORKING_DIR/etc/nginx-default /$NGINX_DEFAULT_FILE
+    sudo sed -i "s%<monitoring_ip>%$OVSVAPP_MONITORING_IP%g" "/$NGINX_DEFAULT_FILE"
+
+    NGINX_DEFAULT_JSON_PATH=$(dirname "${OVSVAPP_STATUS_JSON_PATH}")
+    sudo sed -i "s%/var/log/neutron/ovsvapp-agent%$NGINX_DEFAULT_JSON_PATH%g" "/$NGINX_DEFAULT_FILE"
+
+    iniset /$OVSVAPP_CONF_FILE ovsvapp_monitoring monitoring_ip $OVSVAPP_MONITORING_IP
+    iniset /$OVSVAPP_CONF_FILE ovsvapp_monitoring monitor_log_path $OVSVAPP_MONITORING_LOG_PATH
+    iniset /$OVSVAPP_CONF_FILE ovsvapp_monitoring status_json_path $OVSVAPP_STATUS_JSON_PATH
+
+    sudo service nginx restart
 }
 
 function install_networking_vsphere {
     echo "Installing the Networking-vSphere for OVSvApp"
     setup_develop $OVSVAPP_NETWORKING_DIR
+}
+
+function create_monitor_log_files {
+    touch $OVSVAPP_MONITORING_LOG_PATH
+    touch $OVSVAPP_STATUS_JSON_PATH
+
+    OVSVAPP_MONITOR_PATH=opt/stack/networking-vsphere/networking_vsphere/monitor
+    OVSVAPP_MONITOR_FILENAME=ovsvapp-agent-monitor.sh
+    mkdir -p /$OVSVAPP_MONITOR_PATH
+    OVSVAPP_MONITOR_FILE=$OVSVAPP_MONITOR_PATH/$OVSVAPP_MONITOR_FILENAME
+    sudo sed -i "s%/var/log/neutron/ovsvapp-agent/monitor.log%$OVSVAPP_MONITORING_LOG_PATH%g" "/$OVSVAPP_MONITOR_FILE"
 }
 
 # main loop
@@ -170,6 +213,9 @@ if is_service_enabled ovsvapp-agent; then
         configure_ovsvapp_config
         setup_ovsvapp_bridges
         start_ovsvapp_agent
+        create_monitor_log_files
+        start_ovsvapp_agent_monitor
+        configure_nginx_default
     elif [[ "$1" == "stack" && "$2" == "post-extra" ]]; then
         # no-op
         :
