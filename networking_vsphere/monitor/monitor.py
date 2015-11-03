@@ -14,6 +14,8 @@
 #    under the License.
 #
 
+from oslo_config import cfg
+
 import logging
 import os
 import signal
@@ -23,9 +25,27 @@ import time
 
 from neutron.common import config as common_config
 
+OVSVAPP_MONITORING_OPTS = [
+    cfg.StrOpt('monitor_log_path',
+               default=None,
+               help='Provide monitor.log file location for monitoring '
+                    'OVS module with-in OVSvApp VM to prevent datapath loss.'),
+    cfg.StrOpt('monitoring_ip',
+               default=None,
+               help='IP address for monitoring OVS module status with-in'
+                    'OVsvApp VM.'),
+    cfg.StrOpt('status_json_path',
+               default=None,
+               help='Provide status.json file location to populate the OVS '
+                    'module status with-in OVSvApp VM.')
+]
+
 LOG = logging.getLogger(__name__)
-LOG_FILE_PATH = '/var/log/neutron/ovsvapp-agent/monitor.log'
-JSON_FILE_PATH = '/var/log/neutron/ovsvapp-agent/status.json'
+common_config.init(sys.argv[1:])
+common_config.setup_logging()
+cfg.CONF.register_opts(OVSVAPP_MONITORING_OPTS, "OVSVAPP_MONITORING")
+LOG_FILE_PATH = cfg.CONF.OVSVAPP_MONITORING.monitor_log_path
+JSON_FILE_PATH = cfg.CONF.OVSVAPP_MONITORING.status_json_path
 
 
 def start_monitor():
@@ -58,7 +78,6 @@ def main():
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    common_config.setup_logging()
     FORMAT = '%(asctime)-15s %(message)s'
     logging.basicConfig(format=FORMAT,
                         filename=LOG_FILE_PATH,
