@@ -160,6 +160,9 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         port = context.current
         self._check_and_fire_provider_update(port)
 
+    def update_port_postcommit(self, context):
+        pass
+
     def delete_port_postcommit(self, context):
         """Delete port non-database commit event."""
         port = context.current
