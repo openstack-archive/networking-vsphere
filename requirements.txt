@@ -9,5 +9,5 @@ oslo.vmware>=1.16.0 # Apache-2.0
 # This project does depend on neutron, nova as a library, but the
 # openstack tooling does not play nicely with projects that
 # are not publicly available in pypi.
-# -e git+https://git.openstack.org/openstack/neutron#egg=neutron
-# -e git+https://git.openstack.org/openstack/nova#egg=nova
+# -e git+https://git.openstack.org/openstack/neutron@stable/liberty#egg=neutron
+# -e git+https://git.openstack.org/openstack/nova@stable/liberty#egg=nova

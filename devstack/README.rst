@@ -8,7 +8,7 @@
 
      > cat local.conf
      [[local|localrc]]
-     enable_plugin networking-vsphere http://git.openstack.org/openstack/networking-vsphere
+     enable_plugin networking-vsphere http://git.openstack.org/openstack/networking-vsphere stable/liberty
 
 
 3. Add the following required flag in local.conf to enable the OVSvApp ML2 MechanismDriver::
