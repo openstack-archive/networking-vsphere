@@ -70,13 +70,13 @@ vxlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VXLAN,
 
 class FakeContext(object):
 
-    def __init__(self, current, bound_segment=None):
+    def __init__(self, current, segment=None):
         self.current = current
-        self.bound_segment = bound_segment
+        self.top_bound_segment = segment
 
     @property
     def network_segments(self):
-        return [self.bound_segment]
+        return [self.top_bound_segment]
 
 
 class FakePlugin(object):
