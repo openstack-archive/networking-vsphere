@@ -1,0 +1,9 @@
+Verified+2: Jenkins
+Code-Review+2: Kyle Mestery <mestery@mestery.com>
+Workflow+1: Kyle Mestery <mestery@mestery.com>
+Code-Review+2: Kevin Benton <kevinbenton@buttewifi.com>
+Submitted-by: Jenkins
+Submitted-at: Mon, 23 Nov 2015 15:44:37 +0000
+Reviewed-on: https://review.openstack.org/248756
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/liberty
