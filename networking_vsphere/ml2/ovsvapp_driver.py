@@ -150,7 +150,7 @@ class OVSvAppAgentDriver(object):
         """Delete port non-database commit event."""
         port = context.current
         if port and port['device_owner'].startswith('compute'):
-            segment = context.bound_segment
+            segment = context.top_bound_segment
             if segment and segment[api.NETWORK_TYPE] == p_const.TYPE_VXLAN:
                 LOG.debug("OVSvApp Mech driver - delete_port_postcommit for "
                           "port: %s.", port['id'])
