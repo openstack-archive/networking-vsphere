@@ -29,8 +29,9 @@ from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api as api
+from neutron.plugins.ml2.drivers import mech_agent
 
-from networking_vsphere.common import constants
+from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.db import ovsvapp_db
 from networking_vsphere.ml2 import ovsvapp_rpc
 from networking_vsphere.monitor import ovsvapp_monitor
@@ -38,14 +39,20 @@ from networking_vsphere.monitor import ovsvapp_monitor
 LOG = log.getLogger(__name__)
 
 
-class OVSvAppAgentDriver(object):
-    """OVSvApp Python Driver for Neutron.
+class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
+    """Attach to networks using OVSvApp Agent.
 
-    This code is the backend implementation for the OVSvApp ML2
-    MechanismDriver for OpenStack Neutron.
+    The OVSvAppAgentMechanismDriver integrates the ml2 plugin with the
+    OVSvApp Agent. Port binding with this driver requires the
+    OVSvApp Agent to be running on the port's host, and that agent
+    to have connectivity to at least one segment of the port's
+    network.
     """
-
-    def initialize(self):
+    def __init__(self):
+        super(OVSvAppAgentMechanismDriver, self).__init__(
+            ovsvapp_const.AGENT_TYPE_OVSVAPP,
+            portbindings.VIF_TYPE_OTHER,
+            {portbindings.CAP_PORT_FILTER: True})
         self.context = neutron_context.get_admin_context()
         self._start_rpc_listeners()
         self._plugin = None
@@ -53,6 +60,13 @@ class OVSvAppAgentDriver(object):
         LOG.info(_("Successfully initialized OVSvApp Mechanism driver."))
         if cfg.CONF.OVSVAPP.enable_ovsvapp_monitor:
             self._start_ovsvapp_monitor()
+
+    def get_allowed_network_types(self, agent):
+        return (agent['configurations'].get('tunnel_types', []) +
+                [p_const.TYPE_VLAN])
+
+    def get_mappings(self, agent):
+        return agent['configurations'].get('bridge_mappings', {})
 
     @property
     def plugin(self):
@@ -74,7 +88,7 @@ class OVSvAppAgentDriver(object):
                           self.notifier, self.ovsvapp_sg_server_rpc),
                           ovsvapp_rpc.OVSvAppSecurityGroupServerRpcCallback(
                           self.ovsvapp_sg_server_rpc)]
-        self.topic = constants.OVSVAPP
+        self.topic = ovsvapp_const.OVSVAPP
         self.conn = n_rpc.create_connection(new=True)
         self.conn.create_consumer(self.topic, self.endpoints, fanout=False)
         return self.conn.consume_in_threads()
@@ -87,7 +101,7 @@ class OVSvAppAgentDriver(object):
         chosen_agent = None
         agents = self.plugin.get_agents(
             context,
-            filters={'agent_type': [constants.AGENT_TYPE_OVSVAPP]})
+            filters={'agent_type': [ovsvapp_const.AGENT_TYPE_OVSVAPP]})
         chosen_agent = agents[0]
         recent_time = chosen_agent['heartbeat_timestamp']
         agents = agents[1:]
@@ -165,7 +179,7 @@ class OVSvAppAgentDriver(object):
                 net_info = None
                 agents = self.plugin.get_agents(
                     self.context,
-                    filters={'agent_type': [constants.AGENT_TYPE_OVSVAPP],
+                    filters={'agent_type': [ovsvapp_const.AGENT_TYPE_OVSVAPP],
                              'host': [host]})
                 if agents:
                     agent = agents[0]
