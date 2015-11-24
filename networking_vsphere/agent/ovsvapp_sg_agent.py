@@ -75,6 +75,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                      len(devices))
             ovsvapplock.acquire()
             self.devices_to_refilter |= set(devices)
+            self.firewall.remove_ports_from_provider_cache(devices)
             ovsvapplock.release()
 
     def add_devices_to_filter(self, devices):
@@ -97,7 +98,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         ports = ports_info.get('ports')
         for port in ports.values():
             updated_rule = []
-            for rule in port.get('security_group_rules'):
+            for rule in port.get('sg_normal_rules'):
                 remote_group_id = rule.get('remote_group_id')
                 direction = rule.get('direction')
                 direction_ip_prefix = (
@@ -119,6 +120,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                     ip_rule[direction_ip_prefix] = str(
                         netaddr.IPNetwork(ip).cidr)
                     updated_rule.append(ip_rule)
+            port['sg_provider_rules'] = port['security_group_rules']
             port['security_group_rules'] = updated_rule
         return ports
 
@@ -213,11 +215,11 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             other_devices = (other_devices & devices_to_refilter)
             self.firewall.clean_port_filters(other_devices)
             if own_devices:
-                LOG.info(_("Refreshing firewall for %d devices."),
+                LOG.info(_("Refreshing firewall for %d own devices."),
                          len(own_devices))
                 self.refresh_firewall(own_devices)
             if other_devices:
-                LOG.info(_("Refreshing firewall for %d devices."),
+                LOG.info(_("Refreshing firewall for %d other devices."),
                          len(other_devices))
                 self.prepare_firewall(other_devices)
         LOG.info(_("Finished refresh for devices: %s."),

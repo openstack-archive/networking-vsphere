@@ -31,7 +31,8 @@ fake_port = {'security_group_source_groups': 'abc',
              'id': "123",
              'security_groups': "abc",
              'segmentation_id': "100",
-             "security_group_rules": [
+             'sg_normal_rules': [],
+             'security_group_rules': [
                  {"direction": "ingress",
                   "protocol": "tcp",
                   "port_range_min": 2001,
@@ -75,6 +76,24 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         self.agent.global_refresh_firewall = False
         self.agent._use_enhanced_rpc = None
         self.LOG = sg_agent.LOG
+
+    def test_sg_provider_updated(self):
+        ports_dict = {'123': {'id': '123',
+                              'network_id': 'net_1',
+                              'device': '123'},
+                      '124': {'id': '124',
+                              'network_id': 'net_2',
+                              'device': '124'},
+                      '125': {'id': '125',
+                              'network_id': 'net_1',
+                              'device': '125'}}
+        self.agent.firewall.filtered_ports = ports_dict
+        self.agent.devices_to_refilter = set()
+        self.agent.firewall.provider_port_cache = set(['123', '124', '125'])
+        self.agent.sg_provider_updated('net_1')
+        self.assertEqual(set(['124']), self.agent.firewall.provider_port_cache)
+        self.assertEqual(ports_dict, self.agent.firewall.filtered_ports)
+        self.assertEqual(set(['123', '125']), self.agent.devices_to_refilter)
 
     def test_add_devices_to_filter(self):
         with mock.patch.object(self.agent.firewall,
