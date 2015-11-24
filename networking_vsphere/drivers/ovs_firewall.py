@@ -57,6 +57,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
     def __init__(self):
         self.filtered_ports = {}
+        self.provider_port_cache = set()
         if sg_conf.security_bridge_mapping is None:
             LOG.warn(_("Security bridge mapping not configured."))
             return
@@ -96,6 +97,12 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             if key in port:
                 new_port[key] = port[key]
         return new_port
+
+    def remove_ports_from_provider_cache(self, ports):
+        if ports:
+            LOG.debug("OVSF Clearing %s ports from provider "
+                      "cache.", len(ports))
+            self.provider_port_cache = self.provider_port_cache - set(ports)
 
     def _add_ovs_flow(self, sg_br, pri, table_id, action, in_port=None,
                       protocol=None, dl_dest=None, tcp_flag=None,
@@ -392,12 +399,14 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 flow["tp_src"] = src_port
             self._add_flows_to_sec_br(sec_br, port, flow, direction)
 
-    def _add_flows(self, sec_br, port, rules=None):
+    def _add_flows(self, sec_br, port, cookie, for_provider=False):
         egress_action = 'normal'
         ingress_action = 'output:%s' % self.phy_ofport
 
-        if not rules:
+        if not for_provider:
             rules = port["security_group_rules"]
+        else:
+            rules = port["sg_provider_rules"]
 
         vlan = self._get_port_vlan(port['id'])
         if not vlan:
@@ -414,8 +423,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             src_ip_prefix = rule.get('source_ip_prefix')
             dest_ip_prefix = rule.get('dest_ip_prefix')
             flow = dict(priority=ovsvapp_const.SG_RULES_PRI)
-            # Using port id as cookie.
-            flow["cookie"] = self.get_cookie(port['id'])
+            flow["cookie"] = cookie
             flow["dl_vlan"] = vlan
             # Fill the src and dest IPs match params.
             src_ip_prefixlen = self._get_net_prefix_len(src_ip_prefix)
@@ -471,21 +479,32 @@ class OVSFirewallDriver(firewall.FirewallDriver):
     def prepare_port_filter(self, port):
         """Method to add OVS rules for a newly created VM port."""
         LOG.debug("OVSF Preparing port %s filter.", port['id'])
+        port_cookie = self.get_cookie(port['id'])
+        port_provider_cookie = self.get_cookie('pr' + port['id'])
         try:
             with self.sg_br.deferred(full_ordered=True, order=(
                 'del', 'mod', 'add')) as deferred_br:
                 self._setup_aap_flows(deferred_br, port)
-                self._add_flows(deferred_br, port)
+                if port['id'] not in self.provider_port_cache:
+                    # Using provider string as cookie for normal rules.
+                    self._add_flows(deferred_br, port,
+                                    port_provider_cookie, True)
+                    self.provider_port_cache.add(port['id'])
+                # Using port id as cookie for normal rules.
+                self._add_flows(deferred_br, port, port_cookie)
             self.filtered_ports[port['id']] = self._get_compact_port(port)
         except Exception:
             LOG.exception(_("Unable to add flows for %s."), port['id'])
 
-    def _remove_flows(self, sec_br, port_id):
+    def _remove_flows(self, sec_br, port_id, del_provider_rules=False):
         """Remove all flows for a port."""
         LOG.debug("OVSF Removing flows start for port: %s.", port_id)
         try:
             sec_br.delete_flows(cookie="%s/-1" %
                                 self.get_cookie(port_id))
+            if del_provider_rules:
+                sec_br.delete_flows(cookie="%s/-1" %
+                                    self.get_cookie('pr' + port_id))
             port = self.filtered_ports.get(port_id)
             vlan = self._get_port_vlan(port_id)
             if 'mac_address' not in port or not vlan:
@@ -501,12 +520,13 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             sec_br.delete_flows(table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                 dl_src=port['mac_address'],
                                 vlan_tci="0x%04x/0x0fff" % vlan)
-            sec_br.delete_flows(table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
-                                dl_dst=port['mac_address'],
-                                vlan_tci="0x%04x/0x0fff" % vlan)
-            sec_br.delete_flows(table=ovsvapp_const.SG_EGRESS_TABLE_ID,
-                                dl_src=port['mac_address'],
-                                vlan_tci="0x%04x/0x0fff" % vlan)
+            if del_provider_rules:
+                sec_br.delete_flows(table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                                    dl_dst=port['mac_address'],
+                                    vlan_tci="0x%04x/0x0fff" % vlan)
+                sec_br.delete_flows(table=ovsvapp_const.SG_EGRESS_TABLE_ID,
+                                    dl_src=port['mac_address'],
+                                    vlan_tci="0x%04x/0x0fff" % vlan)
         except Exception:
             LOG.exception(_("Unable to remove flows %s."), port['id'])
 
@@ -522,8 +542,11 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                         LOG.debug("Attempted to remove port filter "
                                   "which is not in filtered %s.", port_id)
                         continue
-                    self._remove_flows(deferred_sec_br, port_id)
-                    if remove_port:
+                    if not remove_port:
+                        self._remove_flows(deferred_sec_br, port_id)
+                    else:
+                        self._remove_flows(deferred_sec_br, port_id, True)
+                        self.provider_port_cache.remove(port_id)
                         self.filtered_ports.pop(port_id, None)
                 except Exception:
                     LOG.exception(_("Unable to delete flows for %s."), port_id)
@@ -535,12 +558,20 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             LOG.warn(_("Attempted to update port filter which is not "
                      "filtered %s."), port['id'])
             return
+        port_cookie = self.get_cookie(port['id'])
+        port_provider_cookie = self.get_cookie('pr' + port['id'])
         try:
             with self.sg_br.deferred(full_ordered=True, order=(
                 'del', 'mod', 'add')) as deferred_br:
-                self._remove_flows(deferred_br, port['id'])
+                if port['id'] not in self.provider_port_cache:
+                    self._remove_flows(deferred_br, port['id'], True)
+                    self._add_flows(deferred_br, port,
+                                    port_provider_cookie, True)
+                    self.provider_port_cache.add(port['id'])
+                else:
+                    self._remove_flows(deferred_br, port['id'])
                 self._setup_aap_flows(deferred_br, port)
-                self._add_flows(deferred_br, port)
+                self._add_flows(deferred_br, port, port_cookie)
             self.filtered_ports[port['id']] = self._get_compact_port(port)
         except Exception:
             LOG.exception(_("Unable to update flows for %s."), port['id'])
@@ -562,10 +593,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         LOG.debug("OVSF Removing flows for stale port: %s.", port_id)
         with self.sg_br.deferred() as deferred_sec_br:
             try:
-                port = {}
-                port['id'] = port_id
                 deferred_sec_br.delete_flows(cookie="%s/-1" %
-                                             self.get_cookie(port))
+                                             self.get_cookie(port_id))
+                deferred_sec_br.delete_flows(cookie="%s/-1" %
+                                             self.get_cookie('pr' + port_id))
                 deferred_sec_br.delete_flows(
                     table=ovsvapp_const.SG_LEARN_TABLE_ID,
                     dl_src=mac_address,
