@@ -786,7 +786,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             if count is not 0:
                 if str(serv['host_name']) == str(server['host_name']):
                     if count == 2:
-                        raise Exception('VM hosted on same host.')
+                        LOG.info(_("VM hosted on same host, Hence skipping"))
                 else:
                     return str(serv['vm_name']), str(server['vm_name'])
             server = serv
