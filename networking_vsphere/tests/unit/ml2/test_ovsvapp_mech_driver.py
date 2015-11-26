@@ -42,7 +42,7 @@ net_info_with_host = {'vcenter_id': 'fake_vcenter',
                       'segmentation_id': 1234,
                       'lvid': 1}
 
-fake_agent = {'configurations': {'vcenter': 'fake_vcenter',
+fake_agent = {'configurations': {'vcenter_id': 'fake_vcenter',
                                  'cluster_id': 'fake_cluster'},
               'host': 'fake_host'}
 

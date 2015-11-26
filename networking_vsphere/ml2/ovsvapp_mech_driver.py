@@ -183,7 +183,7 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
                              'host': [host]})
                 if agents:
                     agent = agents[0]
-                    vcenter = agent['configurations']['vcenter']
+                    vcenter = agent['configurations']['vcenter_id']
                     cluster = agent['configurations']['cluster_id']
                     net_info = {'vcenter_id': vcenter,
                                 'cluster_id': cluster,
