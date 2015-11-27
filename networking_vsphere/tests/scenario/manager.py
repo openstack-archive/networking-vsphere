@@ -945,3 +945,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 for output_list in output[1:]:
                         self.assertIn('icmp_type=' + str(icmp_type),
                                       output_list)
+
+    def _fetch_port_or_allocated_count_from_db(self, segmentid,
+                                               port_or_allocated_value):
+        cont_ip = cfg.CONF.VCENTER.controller_ip
+        neutron_db = "select port_or_allocated_value " \
+                     "from ovsvapp_cluster_vni_allocations " \
+                     "where network_id=\"" + segmentid + "\";"
+        cmd = ['mysql', '-sN', '-h', cont_ip, 'neutron',
+               '-e', neutron_db]
+        proc = subprocess.Popen(cmd,
+                                stdout=subprocess.PIPE)
+        port_or_allocated_count = proc.communicate()[0]
+        return port_or_allocated_count
