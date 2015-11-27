@@ -1,0 +1,11 @@
+Verified+2: Jenkins
+Code-Review+2: Kyle Mestery <mestery@mestery.com>
+Workflow+1: Kyle Mestery <mestery@mestery.com>
+Code-Review+1: Vivekanandan Narasimhan <vivekanandan.narasimhan@hp.com>
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Code-Review+1: Romil Gupta <romilgupta19@gmail.com>
+Submitted-by: Jenkins
+Submitted-at: Fri, 27 Nov 2015 16:55:03 +0000
+Reviewed-on: https://review.openstack.org/250313
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/liberty
