@@ -17,9 +17,15 @@ import netaddr
 from networking_vsphere.tests.scenario import manager
 
 from oslo_config import cfg
+from oslo_log import log
+
+from neutron._i18n import _LI
+
 from tempest_lib.common.utils import data_utils
 
 CONF = cfg.CONF
+
+LOG = log.getLogger(__name__)
 
 
 class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
@@ -262,3 +268,73 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         updated_port = body['port']
         self.assertTrue(updated_port['admin_state_up'])
         self._check_public_network_connectivity(floatingiptoreach)
+
+    def test_network_port_and_allocated_count_in_cluster_vni_table(self):
+        """Validate_Creation_of_VM_attach_to_user_created_multiple_ports.
+
+        1. Create a network with subnet attached to it.
+        2. Create a custom security group.
+        3. Boot VM with custom security rule.
+        4. Validate the vlan-ids of PG are properly binded with segment-ids.
+        5. Validate network_port_count & allocated count in
+           ovsvapp cluster vni allocations table.
+        6. Delete the VM and verify the PG get deleted.
+        7. Validate network_port_count & allocated count after VM delete.
+        """
+        net = self.admin_client.show_network(self.network['id'])
+        if net['network']['provider:network_type'] == "vlan":
+            LOG.info(_LI("Skipping the test for Vlan"))
+        else:
+            name = data_utils.rand_name('server-smoke')
+            group_create_body = self._create_custom_security_group()
+            serverid1 = self._create_server_with_sec_group(
+                name, self.network['id'],
+                group_create_body['security_group']['id'])
+            self.assertTrue(self.verify_portgroup(self.network['id'],
+                                                  serverid1))
+            allocated_count = self._fetch_port_or_allocated_count_from_db(
+                self.network['id'], "allocated")
+            self.assertEqual("1", allocated_count)
+            net_port_count = self._fetch_port_or_allocated_count_from_db(
+                self.network['id'], "net_port_count")
+            self.assertEqual("1", net_port_count)
+            serverid2 = self._create_server_with_sec_group(
+                name, self.network['id'],
+                group_create_body['security_group']['id'])
+            self.assertTrue(self.verify_portgroup(self.network['id'],
+                                                  serverid2))
+            allocated_count_after_second_server = \
+                self._fetch_port_or_allocated_count_from_db(self.network['id'],
+                                                            "allocated")
+            self.assertEqual(allocated_count,
+                             allocated_count_after_second_server)
+            net_port_count_after_second_server = \
+                self._fetch_port_or_allocated_count_from_db(self.network['id'],
+                                                            "net_port_count")
+            self.assertNotEqual(net_port_count,
+                                net_port_count_after_second_server)
+            self._delete_server(serverid1)
+            self.assertTrue(self.verify_portgroup(self.network['id'],
+                                                  serverid2))
+            allocated_count_after_server_delete = \
+                self._fetch_port_or_allocated_count_from_db(self.network['id'],
+                                                            "allocated")
+            self.assertEqual(allocated_count_after_second_server,
+                             allocated_count_after_server_delete)
+            net_port_count_after_server_delete = \
+                self._fetch_port_or_allocated_count_from_db(self.network['id'],
+                                                            "net_port_count")
+            self.assertNotEqual(net_port_count_after_second_server,
+                                net_port_count_after_server_delete)
+            self._delete_server(serverid2)
+            del_status = self.verify_portgroup_after_vm_delete(
+                self.network['id'])
+            self.assertFalse(del_status)
+            allocated_count_after_last_server_delete = \
+                self._fetch_port_or_allocated_count_from_db(self.network['id'],
+                                                            "allocated")
+            self.assertEqual("0", allocated_count_after_last_server_delete)
+            net_port_count_after_last_server_delete = \
+                self._fetch_port_or_allocated_count_from_db(self.network['id'],
+                                                            "net_port_count")
+            self.assertEqual("0", net_port_count_after_last_server_delete)
