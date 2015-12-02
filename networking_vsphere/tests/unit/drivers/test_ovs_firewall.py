@@ -466,7 +466,7 @@ class TestOVSFirewallDriver(base.TestCase):
             self.ovs_firewall.clean_port_filters(["123"], True)
             mock_rem_flow.assert_called_with(self.mock_br, "123", True)
             self.assertTrue(mock_exception_log.called)
-            self.assertFalse(self.ovs_firewall.filtered_ports)
+            self.assertTrue(self.ovs_firewall.filtered_ports)
 
     def test_normal_update_port_filters(self):
         self.ovs_firewall.filtered_ports["123"] = fake_res_port
