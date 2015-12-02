@@ -545,9 +545,9 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     if not remove_port:
                         self._remove_flows(deferred_sec_br, port_id)
                     else:
-                        self.filtered_ports.pop(port_id, None)
-                        self.provider_port_cache.remove(port_id)
                         self._remove_flows(deferred_sec_br, port_id, True)
+                        self.provider_port_cache.remove(port_id)
+                        self.filtered_ports.pop(port_id, None)
                 except Exception:
                     LOG.exception(_("Unable to delete flows for %s."), port_id)
 
