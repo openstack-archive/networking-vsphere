@@ -323,3 +323,43 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             self._fetch_port_or_allocated_count_from_db(self.network['id'],
                                                         "network_port_count")
         self.assertEqual("0", network_port_count_after_last_server_delete)
+
+    def test_flows_when_vm_gets_the_ip(self):
+        """Validate flows_when_vm_gets_the_ip.
+
+        This test verifies flows for ip and ipv6 when vm is booted.
+        while deleting the VM flows should be removed.
+        """
+        # Create security group for the server
+        group_create_body_update, _ = self._create_security_group()
+
+        # Create server with security group
+        name = data_utils.rand_name('server-with-security-group')
+        server_id = self._create_server_with_sec_group(
+            name, self.network['id'],
+            group_create_body_update['security_group']['id'])
+        self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
+        server_ip = self.get_server_ip(server_id, self.network['name'])
+        device_port = self.admin_client.list_ports(device_id=server_id)
+        binding_host = device_port['ports'][0]['binding:host_id']
+        mac_addr = device_port['ports'][0]['mac_address']
+        network = self.admin_client.show_network(self.network['id'])
+        segment_id = network['network']['provider:segmentation_id']
+        host_dic = self._get_host_name(server_id)
+        host_name = host_dic['host_name']
+        vapp_ipadd = self._get_vapp_ip(str(host_name), binding_host)
+        self._verify_flows_when_vm_get_ip(vapp_ipadd, 'ip', segment_id,
+                                          mac_addr, server_ip,
+                                          self.network['id'])
+        self._verify_flows_when_vm_get_ip(vapp_ipadd, 'ipv6', segment_id,
+                                          mac_addr, server_ip,
+                                          self.network['id'])
+        self._delete_server(server_id)
+        del_status = self.verify_portgroup_after_vm_delete(self.network['id'])
+        self.assertFalse(del_status)
+        self._verify_flows_after_vm_delete(vapp_ipadd, 'ip', segment_id,
+                                           mac_addr, server_ip,
+                                           self.network['id'])
+        self._verify_flows_after_vm_delete(vapp_ipadd, 'ipv6', segment_id,
+                                           mac_addr, server_ip,
+                                           self.network['id'])
