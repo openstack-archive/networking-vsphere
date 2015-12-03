@@ -39,7 +39,7 @@ from tempest import manager
 from tempest import test
 
 from networking_vsphere.tests.tempest import config as tempest_config
-from neutron._i18n import _LI, _LW
+from neutron._i18n import _LE, _LI, _LW
 from neutron.tests.api import base
 from neutron.tests.api import base_security_groups
 
@@ -950,3 +950,60 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                 stdout=subprocess.PIPE)
         port_or_allocated_count = proc.communicate()[0]
         return port_or_allocated_count.strip('\r\n')
+
+    def _login_to_machine_to_get_the_flows(self, vapp_ipadd, protocol, vlan,
+                                           mac, nw_src_ip, net_id):
+        vapp_username = cfg.CONF.VCENTER.vapp_username
+        HOST = vapp_username + "@" + vapp_ipadd
+        build_interval = CONF.boto.build_interval
+        time.sleep(build_interval)
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        br_inf = cfg.CONF.VCENTER.brigde_inferace_trunk
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=1' + ',' +
+                       str(protocol) + ',dl_src=' + str(mac) + ',dl_vlan=' +
+                       str(vlan))
+                if "ip" == str(protocol):
+                    cmd += "',nw_src='" + str(nw_src_ip)
+        else:
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=1' + ',' +
+                       str(protocol) + ',dl_src=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id))
+                if "ip" == str(protocol):
+                    cmd += "',nw_src='" + str(nw_src_ip)
+        ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                               shell=False,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+        output = ssh.stdout.readlines()
+        return output
+
+    def _verify_flows_when_vm_get_ip(self, vapp_ipadd, protocol, vlan,
+                                     mac, nw_src_ip, net_id):
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        segment_id = self._fetch_segment_id_from_db(str(net_id))
+        output = self._login_to_machine_to_get_the_flows(vapp_ipadd,
+                                                         protocol, vlan, mac,
+                                                         nw_src_ip, net_id)
+        if output[1:] == []:
+            error = ssh.stderr.readlines()
+            raise exceptions.TimeoutException(error)
+        else:
+            for output_list in output[1:]:
+                if "vlan" == tenant_network_type:
+                    self.assertIn('dl_vlan=' + str(vlan), output_list)
+                else:
+                    self.assertIn('dl_vlan=' + str(segment_id),
+                                  output_list)
+
+    def _verify_flows_after_vm_delete(self, vapp_ipadd, protocol, vlan,
+                                      mac, nw_src_ip, net_id):
+        output = self._login_to_machine_to_get_the_flows(vapp_ipadd,
+                                                         protocol, vlan, mac,
+                                                         nw_src_ip, net_id)
+        if output[1:] == []:
+            LOG.info(_LI("VM Flows got deleted after vm delete as expected"))
+        else:
+            LOG.exception(_LE("Flows are present after VM delete: %s."),
+                          output[1:])
