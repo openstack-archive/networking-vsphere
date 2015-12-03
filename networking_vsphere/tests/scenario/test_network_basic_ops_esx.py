@@ -16,6 +16,8 @@ import netaddr
 
 from networking_vsphere.tests.scenario import manager
 
+from neutron.tests.tempest import exceptions
+
 from oslo_config import cfg
 
 from neutron.tests.tempest import test
@@ -327,3 +329,70 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             self._fetch_port_or_allocated_count_from_db(self.network['id'],
                                                         "network_port_count")
         self.assertEqual("0", network_port_count_after_last_server_delete)
+
+    def test_flows_when_vm_gets_the_ip(self):
+        """Validate flows_when_vm_gets_the_ip.
+
+        This test verifies flows for ip and ipv6 when vm is booted.
+        while deleting the VM flows should be removed.
+        """
+        # Create security group for the server
+        group_create_body_update, _ = self._create_security_group()
+
+        # Create server with security group
+        name = data_utils.rand_name('server-with-security-group')
+        server_id = self._create_server_with_sec_group(
+            name, self.network['id'],
+            group_create_body_update['security_group']['id'])
+        self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
+        server_ip = self.get_server_ip(server_id, self.network['name'])
+        device_port = self.admin_client.list_ports(device_id=server_id)
+        binding_host = device_port['ports'][0]['binding:host_id']
+        mac_addr = device_port['ports'][0]['mac_address']
+        network = self.admin_client.show_network(self.network['id'])
+        segment_id = network['network']['provider:segmentation_id']
+        host_dic = self._get_host_name(server_id)
+        host_name = host_dic['host_name']
+        vapp_ipadd = self._get_vapp_ip(str(host_name), binding_host)
+        self._verify_flows_when_vm_get_ip(vapp_ipadd, 'ip', segment_id,
+                                          mac_addr, server_ip,
+                                          self.network['id'])
+        self._verify_flows_when_vm_get_ip(vapp_ipadd, 'ipv6', segment_id,
+                                          mac_addr, server_ip,
+                                          self.network['id'])
+        body = self.admin_client.list_agents(agent_type='OVSvApp Agent')
+        agents = body['agents']
+        vapp_ipadd_of_host = ""
+        for agent in agents:
+                if binding_host != agent['host']:
+                        agent_alive_status = agent['alive']
+                        if agent_alive_status is True:
+                                vapp_agent_name = agent['host']
+                                vapp_ipadd_of_host = \
+                                    self._get_vapp_ip_from_agent_list(
+                                        str(vapp_agent_name))
+        if vapp_ipadd_of_host:
+            self._verify_flows_when_vm_get_ip(vapp_ipadd_of_host, 'ip',
+                                              segment_id, mac_addr, server_ip,
+                                              self.network['id'])
+            self._verify_flows_when_vm_get_ip(vapp_ipadd_of_host, 'ipv6',
+                                              segment_id, mac_addr, server_ip,
+                                              self.network['id'])
+        else:
+            error_msg = "Host not found"
+            raise exceptions.BadRequest(error_msg)
+        self._delete_server(server_id)
+        del_status = self.verify_portgroup_after_vm_delete(self.network['id'])
+        self.assertFalse(del_status)
+        self._verify_flows_after_vm_delete(vapp_ipadd, 'ip', segment_id,
+                                           mac_addr, server_ip,
+                                           self.network['id'])
+        self._verify_flows_after_vm_delete(vapp_ipadd, 'ipv6', segment_id,
+                                           mac_addr, server_ip,
+                                           self.network['id'])
+        self._verify_flows_after_vm_delete(vapp_ipadd_of_host, 'ip',
+                                           segment_id, mac_addr, server_ip,
+                                           self.network['id'])
+        self._verify_flows_after_vm_delete(vapp_ipadd_of_host, 'ipv6',
+                                           segment_id, mac_addr, server_ip,
+                                           self.network['id'])
