@@ -79,6 +79,15 @@ class OVSvAppSecurityGroupServerRpcMixin(
         sg_rpc_base.SecurityGroupServerRpcMixin):
     """Mixin class to add agent-based security group implementation."""
 
+    def _select_remote_group_ids(self, ports):
+        remote_group_ids = []
+        for port in ports.values():
+            for rule in port.get('sg_normal_rules'):
+                remote_group_id = rule.get('remote_group_id')
+                if remote_group_id:
+                    remote_group_ids.append(remote_group_id)
+        return remote_group_ids
+
     def _get_remote_group_id_to_ip_prefix(self, context, ports):
         remote_group_ids = self._select_remote_group_ids(ports)
         ips = self._select_ips_for_remote_group(context, remote_group_ids)
@@ -104,6 +113,9 @@ class OVSvAppSecurityGroupServerRpcMixin(
                         continue
                     rule_dict[key] = rule_in_db[key]
             port['security_group_rules'].append(rule_dict)
+        for port in ports.values():
+            port['sg_normal_rules'] = port['security_group_rules']
+            port['security_group_rules'] = []
         self._apply_provider_rule(context, ports)
         return self._get_remote_group_id_to_ip_prefix(context, ports)
 
