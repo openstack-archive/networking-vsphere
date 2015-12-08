@@ -28,6 +28,8 @@ VCENTER_OPTS = [
     cfg.StrOpt('tenant_network_type',
                default="vlan",
                help="tenant network type is vlan or vxlan"),
+    cfg.StrOpt('host_username',
+               help="The host username under test"),
     cfg.StrOpt('controller_ip',
                help="The controller ip under test"),
     cfg.StrOpt('cluster_in_use',
@@ -35,7 +37,12 @@ VCENTER_OPTS = [
     cfg.StrOpt('vapp_username',
                help="Username to login to OVSvApp "),
     cfg.StrOpt('vapp_password',
-               help="Password to login to OVSvApp")
+               help="Password to login to OVSvApp"),
+    cfg.StrOpt('agent_down_time',
+               help="agent down time"),
+    cfg.StrOpt('devstack',
+               help="devstack")
+
 ]
 
 
