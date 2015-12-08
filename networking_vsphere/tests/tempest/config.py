@@ -37,7 +37,11 @@ VCENTER_OPTS = [
                help="Username to login to OVSvApp "),
     cfg.StrOpt('vapp_password',
                help="Password to login to OVSvApp",
-               secret=True)
+               secret=True),
+    cfg.StrOpt('brigde_inferace_trunk',
+               help="Brigde inferace of trunk dvs"),
+    cfg.StrOpt('neutron_database_name',
+               help="Neutron database name as in mysql table")
 ]
 
 
