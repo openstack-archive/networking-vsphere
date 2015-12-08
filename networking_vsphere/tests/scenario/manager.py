@@ -118,9 +118,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _create_connection(self):
         connection = None
-        vcenter_ip = cfg.CONF.VCENTER.vcenter_ip
-        vcenter_username = cfg.CONF.VCENTER.vcenter_username
-        vcenter_password = cfg.CONF.VCENTER.vcenter_password
+        vcenter_ip = CONF.VCENTER.vcenter_ip
+        vcenter_username = CONF.VCENTER.vcenter_username
+        vcenter_password = CONF.VCENTER.vcenter_password
         try:
                 msg = "Trying to connect %s vCenter" % vcenter_ip
                 LOG.info(msg)
@@ -136,7 +136,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         return content
 
     def _get_portgroups(self):
-        trunk_dvswitch_name = cfg.CONF.VCENTER.trunk_dvswitch_name
+        trunk_dvswitch_name = CONF.VCENTER.trunk_dvswitch_name
         content = self._create_connection()
         dvswitch_obj = self.get_obj(content,
                                     [vim.DistributedVirtualSwitch],
@@ -585,10 +585,11 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                     CONF.validation.ping_timeout, 1)
 
     def _fetch_segment_id_from_db(self, segmentid):
-        cont_ip = cfg.CONF.VCENTER.controller_ip
+        cont_ip = CONF.VCENTER.controller_ip
+        neutron_db_name = CONF.VCENTER.neutron_database_name
         neutron_db = "select lvid from ovsvapp_cluster_vni_allocations " \
                      "where network_id=\"" + segmentid + "\";"
-        cmd = ['mysql', '-sN', '-h', cont_ip, 'neutron',
+        cmd = ['mysql', '-sN', '-h', cont_ip, neutron_db_name,
                '-e', neutron_db]
         proc = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE)
@@ -652,7 +653,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         return False
 
     def verify_portgroup(self, net_id, server_id):
-        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        tenant_network_type = CONF.VCENTER.tenant_network_type
         if "vlan" == tenant_network_type:
                 net = self.admin_client.show_network(net_id)
                 segment_id = net['network']['provider:segmentation_id']
@@ -660,9 +661,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 segment_id = self._fetch_segment_id_from_db(net_id)
         # cluster_name = self._fetch_cluster_in_use_from_server(server_id)
         # Made changes for openstack liberty release
-        cluster_name = cfg.CONF.VCENTER.cluster_in_use
+        cluster_name = CONF.VCENTER.cluster_in_use
         vm_name = self._get_vm_name(server_id)
-        trunk_dvswitch_name = cfg.CONF.VCENTER.trunk_dvswitch_name
+        trunk_dvswitch_name = CONF.VCENTER.trunk_dvswitch_name
         trunk_dvswitch_name = trunk_dvswitch_name.split(',')
         for trunk_dvswitch in trunk_dvswitch_name:
             if "vxlan" == tenant_network_type:
@@ -680,7 +681,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def verify_portgroup_after_vm_delete(self, net_id):
         content = self._create_connection()
-        trunk_dvswitch_name = cfg.CONF.VCENTER.trunk_dvswitch_name
+        trunk_dvswitch_name = CONF.VCENTER.trunk_dvswitch_name
         trunk_dvswitch_name = trunk_dvswitch_name.split(',')
         for trunk_dvswitch in trunk_dvswitch_name:
                 dvswitch_obj = self.get_obj(content,
@@ -835,18 +836,19 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac,
                               port, net_id):
-        vapp_username = cfg.CONF.VCENTER.vapp_username
+        vapp_username = CONF.VCENTER.vapp_username
         HOST = vapp_username + "@" + vapp_ipadd
         build_interval = CONF.compute.build_interval
         time.sleep(build_interval)
-        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        tenant_network_type = CONF.VCENTER.tenant_network_type
+        br_inf = CONF.VCENTER.bridge_interface_trunk
         if "vlan" == tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(vlan) + ',tp_dst=' + str(port))
         else:
                 segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(segment_id) + ',tp_dst=' + str(port))
         ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
@@ -863,19 +865,20 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _dump_flows_on_br_sec_for_icmp_rule(self, vapp_ipadd, protocol, vlan,
                                             mac, icmp_type, icmp_code, net_id):
-        vapp_username = cfg.CONF.VCENTER.vapp_username
+        vapp_username = CONF.VCENTER.vapp_username
         HOST = vapp_username + "@" + vapp_ipadd
         build_interval = CONF.compute.build_interval
         time.sleep(build_interval)
-        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        tenant_network_type = CONF.VCENTER.tenant_network_type
+        br_inf = CONF.VCENTER.bridge_interface_trunk
         if "vlan" == tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(vlan) + ',icmp_type=' + str(icmp_type) +
                        ',icmp_code=' + str(icmp_code))
         else:
                 segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(segment_id) + ',icmp_type=' + str(icmp_type) +
                        ',icmp_code=' + str(icmp_code))
@@ -911,18 +914,19 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _dump_flows_on_br_sec_for_icmp_type(self, vapp_ipadd, protocol, vlan,
                                             mac, icmp_type, net_id):
-        vapp_username = cfg.CONF.VCENTER.vapp_username
+        vapp_username = CONF.VCENTER.vapp_username
         HOST = vapp_username + "@" + vapp_ipadd
         build_interval = CONF.compute.build_interval
         time.sleep(build_interval)
-        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        tenant_network_type = CONF.VCENTER.tenant_network_type
+        br_inf = CONF.VCENTER.bridge_interface_trunk
         if "vlan" == tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(vlan) + ',icmp_type=' + str(icmp_type))
         else:
                 segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(segment_id) + ',icmp_type=' + str(icmp_type))
         ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
