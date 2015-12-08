@@ -592,9 +592,10 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _fetch_segment_id_from_db(self, segmentid):
         cont_ip = cfg.CONF.VCENTER.controller_ip
+        neutron_db_name = cfg.CONF.VCENTER.neutron_database_name
         neutron_db = "select lvid from ovsvapp_cluster_vni_allocations " \
                      "where network_id=\"" + segmentid + "\";"
-        cmd = ['mysql', '-sN', '-h', cont_ip, 'neutron',
+        cmd = ['mysql', '-sN', '-h', cont_ip, neutron_db_name,
                '-e', neutron_db]
         proc = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE)
@@ -848,13 +849,14 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         build_interval = CONF.boto.build_interval
         time.sleep(build_interval)
         tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        br_inf = cfg.CONF.VCENTER.brigde_inferace_trunk
         if "vlan" == tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(vlan) + ',tp_dst=' + str(port))
         else:
                 segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(segment_id) + ',tp_dst=' + str(port))
         ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
@@ -876,14 +878,15 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         build_interval = CONF.boto.build_interval
         time.sleep(build_interval)
         tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        br_inf = cfg.CONF.VCENTER.brigde_inferace_trunk
         if "vlan" == tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(vlan) + ',icmp_type=' + str(icmp_type) +
                        ',icmp_code=' + str(icmp_code))
         else:
                 segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(segment_id) + ',icmp_type=' + str(icmp_type) +
                        ',icmp_code=' + str(icmp_code))
@@ -924,13 +927,14 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         build_interval = CONF.boto.build_interval
         time.sleep(build_interval)
         tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        br_inf = cfg.CONF.VCENTER.brigde_inferace_trunk
         if "vlan" == tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(vlan) + ',icmp_type=' + str(icmp_type))
         else:
                 segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                cmd = ('sudo ovs-ofctl dump-flows' + br_inf + 'table=0' + ',' +
                        str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
                        str(segment_id) + ',icmp_type=' + str(icmp_type))
         ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
