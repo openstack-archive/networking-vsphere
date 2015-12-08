@@ -140,6 +140,27 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         content = connection.RetrieveContent()
         return content
 
+    def _get_vm_power_on(self, vm_ip):
+        content = self._create_connection()
+        vm_name = self.get_obj(content, [vim.VirtualMachine],
+                               vm_ip)
+        power = vm_name.PowerOn()
+        return power
+
+    def _get_host_uuid(self, host):
+        content = self._create_connection()
+        uuid = self.get_obj(content, [vim.HostSystem],
+                            host)
+        host_uuid = uuid.hardware.systemInfo.uuid
+        return host_uuid
+
+    def _get_vm_power_status(self, host):
+        content = self._create_connection()
+        vm_name = self.get_obj(content, [vim.VirtualMachine],
+                               host)
+        power_state = vm_name.runtime.powerState
+        return power_state
+
     def _get_portgroups(self):
         trunk_dvswitch_name = cfg.CONF.VCENTER.trunk_dvswitch_name
         content = self._create_connection()
@@ -598,7 +619,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         proc = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE)
         segment_id = proc.communicate()[0]
-        return segment_id.strip('\r\n')
+        return segment_id
 
     def _get_vm_name(self, server_id):
         content = self._create_connection()
@@ -855,6 +876,69 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         for checks in check_list:
                 self.assertIn(checks, output)
 
+    def _create_remote_session(self, ip_addr, u_name, psswd):
+        session = pxssh.pxssh()
+        try:
+            session.login(ip_addr, u_name, password=psswd, login_timeout=80)
+            return session
+
+        except Exception:
+            LOG.warn(_LW('Failed to connect to IP: %(dest)s '
+                         'via a ssh connection.') %
+                     {'dest': ip_addr})
+            raise
+
+    def _dump_flows_on_br_sec_old(self, vapp_ipadd, protocol, vlan, mac,
+                                  port, net_id):
+        vapp_username = cfg.CONF.VCENTER.vapp_username
+        vapp_password = cfg.CONF.VCENTER.vapp_password
+        session = self._create_remote_session(vapp_ipadd, vapp_username,
+                                              vapp_password)
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',tp_dst=' + str(port))
+        else:
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',tp_dst=' + str(port))
+        session.sendline(cmd)
+        session.prompt()
+        output = session.before
+        session.logout()
+        check = 'tp_dst=' + str(port)
+        self.assertIn(check, output)
+
+    def _dump_flows_on_br_sec_for_icmp_rule_old(self, vapp_ipadd, protocol,
+                                                vlan, mac, icmp_type,
+                                                icmp_code, net_id):
+        vapp_username = cfg.CONF.VCENTER.vapp_username
+        vapp_password = cfg.CONF.VCENTER.vapp_password
+        session = self._create_remote_session(vapp_ipadd, vapp_username,
+                                              vapp_password)
+        tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
+        if "vlan" == tenant_network_type:
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(vlan) + ',icmp_type=' + str(icmp_type) +
+                       ',icmp_code=' + str(icmp_code))
+        else:
+                segment_id = self._fetch_segment_id_from_db(str(net_id))
+                cmd = ('sudo ovs-ofctl dump-flows br-sec table=0' + ',' +
+                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+                       str(segment_id) + ',icmp_type=' + str(icmp_type) +
+                       ',icmp_code=' + str(icmp_code))
+        session.sendline(cmd)
+        session.prompt()
+        output = session.before
+        session.logout()
+        check_list = ['icmp_type=' + str(icmp_type),
+                      'icmp_code=' + str(icmp_code)]
+        for checks in check_list:
+                self.assertIn(checks, output)
+
     def get_server_ip(self, server_id, net_name):
         region = CONF.compute.region
         auth_provider = manager.get_auth_provider(
@@ -924,7 +1008,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
-        if output[1:] == []:
+        if output == []:
                 error = ssh.stderr.readlines()
                 raise exceptions.TimeoutException(error)
         else:
@@ -954,7 +1038,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
-        if output[1:] == []:
+        if output == []:
                 error = ssh.stderr.readlines()
                 raise exceptions.TimeoutException(error)
         else:
@@ -1000,7 +1084,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
-        if output[1:] == []:
+        if output == []:
                 error = ssh.stderr.readlines()
                 raise exceptions.TimeoutException(error)
         else:
