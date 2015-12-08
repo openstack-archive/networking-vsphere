@@ -24,7 +24,8 @@ VCENTER_OPTS = [
     cfg.StrOpt('vcenter_username',
                help="Username to login to vCenter "),
     cfg.StrOpt('vcenter_password',
-               help="Password to login to vCenter "),
+               help="Password to login to vCenter ",
+               secret=True),
     cfg.StrOpt('tenant_network_type',
                default="vlan",
                help="tenant network type is vlan or vxlan"),
@@ -35,7 +36,12 @@ VCENTER_OPTS = [
     cfg.StrOpt('vapp_username',
                help="Username to login to OVSvApp "),
     cfg.StrOpt('vapp_password',
-               help="Password to login to OVSvApp")
+               help="Password to login to OVSvApp",
+               secret=True),
+    cfg.StrOpt('brigde_inferace_trunk',
+               help="Brigde inferace of trunk dvs")
+    cfg.StrOpt('neutron_database_name',
+               help="Neutron database name as in mysql table")
 ]
 
 
