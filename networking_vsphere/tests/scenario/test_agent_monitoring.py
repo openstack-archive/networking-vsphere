@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import paramiko
-
 import subprocess
 import time
 
@@ -31,6 +29,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
 
     def _create_custom_security_group(self):
         group_create_body, _ = self._create_security_group()
+
         # Create rules for each protocol
         protocols = ['tcp', 'udp', 'icmp']
         for protocol in protocols:
@@ -42,7 +41,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             )
         return group_create_body
 
-    def test_agent_monitoring(self):
+    def test_mitigation_process_when_OVS_running(self):
         net_id = self.network['id']
         name = data_utils.rand_name('server-smoke')
         group_create_body = self._create_custom_security_group()
@@ -60,10 +59,10 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         agent_list = self.admin_client.list_agents(agent_type='OVSvApp Agent',
                                                    alive="True",
                                                    host=host_name)
-        ovsvapp_ip = agent_list['agents'][0]['configurations']['monitoring_ip']
+        ovavapp_ip = agent_list['agents'][0]['configurations']['monitoring_ip']
         vapp_username = cfg.CONF.VCENTER.vapp_username
-        HOST = vapp_username + "@" + ovsvapp_ip
-        cmd = ('ps -ef | grep neutron-ovsvapp-agent')
+        HOST = vapp_username + "@" + ovavapp_ip
+        cmd = ('ps -ef | grep neutron-ovsvapp-agent | grep neutron.conf')
         ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
                                shell=False,
                                stdout=subprocess.PIPE,
@@ -71,17 +70,13 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         output = ssh.stdout.readlines()
         ps = output[0].split()
         pid = ps[1]
+
         cmd1 = ('kill -9' + ' ' + str(pid))
         subprocess.Popen(["ssh", "%s" % HOST, cmd1],
                          shell=False,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
 
-        cmd2 = ('sudo service openvswitch-switch stop')
-        subprocess.Popen(["ssh", "%s" % HOST, cmd2],
-                         shell=False,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
         agent_down_time = cfg.CONF.VCENTER.agent_down_time
         time.sleep(int(agent_down_time))
         agent_list = self.admin_client.list_agents(agent_type='OVSvApp Agent',
@@ -90,71 +85,25 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         if length != 0:
             ovsvapp_name = agent_list['agents'][0]['host']
             ovs_status = self._get_vm_power_status(ovsvapp_name)
-            self.assertEqual(ovs_status, 'poweredOff')
+            self.assertEqual(ovs_status, 'poweredOn')
         else:
             raise Exception("Ovsvapp agent is not down")
         agent_list = self.admin_client.list_agents(agent_type='OVSvApp Agent',
                                                    alive="False")
-        host_name = agent_list['agents'][0]['configurations']['esx_host_name']
+        host_ip = agent_list['agents'][0]['configurations']['esx_host_name']
         host_username = cfg.CONF.VCENTER.host_username
-        HOST1 = host_username + "@" + host_name
-        cmd = "vim-cmd hostsvc/hostsummary | grep inMaintenanceMode"
-        prog = subprocess.Popen(["ssh", "%s" % HOST1, cmd],
-                                stdout=subprocess.PIPE)
-        host_mode = prog.stdout.readlines()
-        if 'true' in host_mode[0]:
-            pass
-        else:
-            raise Exception("Host not entered in to maintainance mode")
-        self._check_public_network_connectivity(floatingiptoreach)
-        self._status_of_host()
-
-        devstack = cfg.CONF.VCENTER.devstack
-        if devstack == 'yes':
-
-            client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.load_system_host_keys()
-            client.connect(ovsvapp_ip, username=vapp_username)
-            cwd = 'cd /home/stack/devstack; ./unstack.sh'
-            stdin, stdout, stderr = client.exec_command(cwd)
-            stderr.readlines()
-            stdout.readlines()
-
-            client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.load_system_host_keys()
-            client.connect(ovsvapp_ip, username=vapp_username)
-            cwd1 = 'cd /home/stack/devstack; ./stack.sh'
-            stdin, stdout, stderr = client.exec_command(cwd1)
-            stderr.readlines()
-            stdout.readlines()
-
-    def _status_of_host(self):
-        agent_list = self.admin_client.list_agents(agent_type='OVSvApp Agent',
-                                                   alive="False")
-        host_name = agent_list['agents'][0]['configurations']['esx_host_name']
-        host_username = cfg.CONF.VCENTER.host_username
-        HOST = host_username + "@" + host_name
-        cmd = ('vim-cmd /hostsvc/maintenance_mode_exit')
-        subprocess.Popen(["ssh", "%s" % HOST, cmd],
-                         shell=False,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-        cmd = "vim-cmd hostsvc/hostsummary | grep inMaintenanceMode"
-        prog = subprocess.Popen(["ssh", "%s" % HOST, cmd],
+        HOST1 = host_username + "@" + host_ip
+        command = "vim-cmd hostsvc/hostsummary | grep inMaintenanceMode"
+        prog = subprocess.Popen(["ssh", "%s" % HOST1, command],
                                 stdout=subprocess.PIPE)
         host_mode = prog.stdout.readlines()
         if 'false' in host_mode[0]:
-            self._status_of_ovsvapp_vm()
+            pass
         else:
-            self._status_of_host()
-
-    def _status_of_ovsvapp_vm(self):
-        agent_list = self.admin_client.list_agents(agent_type='OVSvApp Agent',
-                                                   alive="False")
-        ovsvapp_ip = agent_list['agents'][0]['host']
-        self._get_vm_power_on(ovsvapp_ip)
-        status = self._get_vm_power_status(ovsvapp_ip)
-        if status == 'poweredOff':
-            self._status_of_ovsvapp_vm()
+            raise Exception("Host entered in to maintainance mode")
+        self._check_public_network_connectivity(floatingiptoreach)
+        cmd = 'python  /usr/local/bin/neutron-ovsvapp-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ovsvapp_agent.ini > /dev/null 2>&1 &'
+        ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                               shell=False,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
