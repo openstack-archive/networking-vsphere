@@ -56,10 +56,10 @@ class OVSvAppSecurityGroupServerRpcCallback(object):
     def plugin(self):
         return manager.NeutronManager.get_plugin()
 
-    def _get_devices_info(self, context, devices):
+    def _get_devices_info(self, devices):
         return dict(
             (port['id'], port)
-            for port in self.plugin.get_ports_from_devices(context, devices)
+            for port in self.plugin.get_ports_from_devices(devices)
             if port and not port['device_owner'].startswith('network:')
         )
 
@@ -70,7 +70,7 @@ class OVSvAppSecurityGroupServerRpcCallback(object):
         :returns: security group info correspond to the devices with sg_rules.
         """
         devices_info = kwargs.get('devices')
-        ports = self._get_devices_info(rpc_context, devices_info)
+        ports = self._get_devices_info(devices_info)
         return self.sg_rpc.security_group_info_for_esx_ports(
             rpc_context, ports)
 
@@ -141,10 +141,10 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
     def plugin(self):
         return manager.NeutronManager.get_plugin()
 
-    def _get_devices_info(self, context, devices):
+    def _get_devices_info(self, devices):
         return dict(
             (port['id'], port)
-            for port in self.plugin.get_ports_from_devices(context, devices)
+            for port in self.plugin.get_ports_from_devices(devices)
             if port and not port['device_owner'].startswith('network:')
         )
 
@@ -235,8 +235,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                     # Get the SG rules for the security enabled ports.
                     sg_payload = {}
                     if sg_port_ids:
-                        ports = self._get_devices_info(
-                            rpc_context, sg_port_ids)
+                        ports = self._get_devices_info(sg_port_ids)
                         sg_rules = (
                             self.sg_rpc.security_group_info_for_esx_ports(
                                 rpc_context, ports))
