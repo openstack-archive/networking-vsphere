@@ -18,8 +18,11 @@ import abc
 from neutron.api import extensions
 from neutron.api.v2 import attributes as attr
 from neutron.api.v2 import resource_helper
+from neutron.plugins.common import constants as p_const
 
 from networking_vsphere.common import constants
+
+p_const.EXT_TO_SERVICE_MAPPING['ovsvapp_mitigated_cluster'] = constants.OVSVAPP_PLUGIN
 
 RESOURCE_ATTRIBUTE_MAP = {
     'ovsvapp_mitigated_clusters': {

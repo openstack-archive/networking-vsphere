@@ -18,11 +18,15 @@ import abc
 from neutron.api import extensions
 from neutron.api.v2 import attributes
 from neutron.api.v2 import resource_helper
+from neutron.plugins.common import constants as p_const
 
 from networking_vsphere.common import constants
 import networking_vsphere.extensions
 
 extensions.append_api_extensions_path(networking_vsphere.extensions.__path__)
+p_const.COMMON_PREFIXES[constants.OVSVAPP_PLUGIN] = ""
+p_const.EXT_TO_SERVICE_MAPPING['ovsvapp_cluster'] = constants.OVSVAPP_PLUGIN
+p_const.ALLOWED_SERVICES.append(constants.OVSVAPP_PLUGIN)
 
 
 def convert_none_to_empty_list(value):
