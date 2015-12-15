@@ -19,6 +19,7 @@ import netaddr
 from oslo_config import cfg
 from oslo_log import log
 
+from neutron._i18n import _LE, _LW
 from neutron.agent.common import ovs_lib
 from neutron.agent import firewall
 from neutron.common import constants
@@ -59,7 +60,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self.filtered_ports = {}
         self.provider_port_cache = set()
         if sg_conf.security_bridge_mapping is None:
-            LOG.warn(_("Security bridge mapping not configured."))
+            LOG.warn(_LW("Security bridge mapping not configured."))
             return
         secbr_list = (sg_conf.security_bridge_mapping).split(':')
         secbr_name = secbr_list[0]
@@ -297,7 +298,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                                ovsvapp_const.SG_LEARN_TABLE_ID,
                                tcp_flag='+rst')
         except Exception:
-            LOG.exception(_("Unable to add base flows."))
+            LOG.exception(_LE("Unable to add base flows."))
 
     def add_ports_to_filter(self, ports):
         for port in ports:
@@ -315,7 +316,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         """Method to help setup rules for allowed address pairs."""
         vlan = self._get_port_vlan(port['id'])
         if not vlan:
-            LOG.error(_("Missing VLAN information for port: %s."), port['id'])
+            LOG.error(_LE("Missing VLAN information for "
+                          "port: %s."), port['id'])
             return
         if isinstance(port.get('allowed_address_pairs'), list):
             for addr_pair in port['allowed_address_pairs']:
@@ -410,7 +412,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
         vlan = self._get_port_vlan(port['id'])
         if not vlan:
-            LOG.error(_('Missing VLAN for port: %s.'), port['id'])
+            LOG.error(_LE('Missing VLAN for port: %s.'), port['id'])
             return
         for rule in rules:
             direction = rule.get('direction')
@@ -494,7 +496,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 self._add_flows(deferred_br, port, port_cookie)
             self.filtered_ports[port['id']] = self._get_compact_port(port)
         except Exception:
-            LOG.exception(_("Unable to add flows for %s."), port['id'])
+            LOG.exception(_LE("Unable to add flows for %s."), port['id'])
 
     def _remove_flows(self, sec_br, port_id, del_provider_rules=False):
         """Remove all flows for a port."""
@@ -528,7 +530,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                                     dl_src=port['mac_address'],
                                     vlan_tci="0x%04x/0x0fff" % vlan)
         except Exception:
-            LOG.exception(_("Unable to remove flows %s."), port['id'])
+            LOG.exception(_LE("Unable to remove flows %s."), port['id'])
 
     def clean_port_filters(self, ports, remove_port=False):
         """Method to remove OVS rules for an existing VM port."""
@@ -549,14 +551,15 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                         self.provider_port_cache.remove(port_id)
                         self.filtered_ports.pop(port_id, None)
                 except Exception:
-                    LOG.exception(_("Unable to delete flows for %s."), port_id)
+                    LOG.exception(_LE("Unable to delete flows for"
+                                      " %s."), port_id)
 
     def update_port_filter(self, port):
         """Method to update OVS rules for an existing VM port."""
         LOG.debug("OVSF Updating port: %s filter.", port['id'])
         if port['id'] not in self.filtered_ports:
-            LOG.warn(_("Attempted to update port filter which is not "
-                     "filtered %s."), port['id'])
+            LOG.warn(_LW("Attempted to update port filter which is not "
+                         "filtered %s."), port['id'])
             return
         port_cookie = self.get_cookie(port['id'])
         port_provider_cookie = self.get_cookie('pr' + port['id'])
@@ -574,7 +577,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 self._add_flows(deferred_br, port, port_cookie)
             self.filtered_ports[port['id']] = self._get_compact_port(port)
         except Exception:
-            LOG.exception(_("Unable to update flows for %s."), port['id'])
+            LOG.exception(_LE("Unable to update flows for %s."), port['id'])
 
     def filter_defer_apply_on(self):
         if not self._defer_apply:
@@ -618,5 +621,5 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     dl_src=mac_address,
                     dl_vlan=vlan)
             except Exception:
-                LOG.exception(_("OVSF unable to remove flows for port: "
-                                "%s."), port_id)
+                LOG.exception(_LE("OVSF unable to remove flows for port: "
+                                  "%s."), port_id)
