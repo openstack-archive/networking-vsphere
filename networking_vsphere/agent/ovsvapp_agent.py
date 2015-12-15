@@ -527,6 +527,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def _remove_stale_ports_flows(self, stale_ports):
         for port_id in stale_ports:
+            if port_id not in self.vnic_info:
+                continue
             vnic = self.vnic_info[port_id]
             # Get the vlan id from port group key.
             pg_id = vnic['pg_id']
@@ -551,9 +553,11 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def _block_stale_ports(self, stale_ports):
         # Create Common Model Port Object.
-        for port in stale_ports:
-            vnic = self.vnic_info[port]
-            port_model = model.Port(uuid=port,
+        for port_id in stale_ports:
+            if port_id not in self.vnic_info:
+                continue
+            vnic = self.vnic_info[port_id]
+            port_model = model.Port(uuid=port_id,
                                     mac_address=vnic['mac_addr'],
                                     vm_id=vnic['vm_id'],
                                     port_status=ovsvapp_const.PORT_STATUS_DOWN)
@@ -590,11 +594,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self._remove_stale_ports_flows(stale_ports)
                 # Set the port state to "Blocked".
                 self._block_stale_ports(stale_ports)
-                # Remove entries from vnic_info.
+                # Remove entries from vnic_info and firewall.
                 with ovsvapplock:
                     for port_id in stale_ports:
                         if port_id in self.vnic_info:
                             self.vnic_info.pop(port_id)
+                        self.sg_agent.remove_devices_filter(port_id)
             if self.monitor_log:
                 self.monitor_log.info(_LI("ovs: ok"))
         except Exception as e:
