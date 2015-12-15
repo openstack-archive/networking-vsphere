@@ -25,6 +25,7 @@ import time
 
 from networking_vsphere.common import constants as ovsvapp_const
 
+from neutron._i18n import _LI
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.common import rpc as n_rpc
 
@@ -43,7 +44,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self.ovsvapp_sg_rpc = ovsvapp_sg_rpc
         self.init_firewall(defer_apply)
         self.t_pool = eventlet.GreenPool(ovsvapp_const.THREAD_POOL_SIZE)
-        LOG.info(_("OVSvAppSecurityGroupAgent initialized."))
+        LOG.info(_LI("OVSvAppSecurityGroupAgent initialized."))
 
     def init_firewall(self, defer_refresh_firewall=False):
         firewall_driver = cfg.CONF.SECURITYGROUP.ovsvapp_firewall_driver
@@ -62,7 +63,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self._use_enhanced_rpc = None
 
     def security_groups_provider_updated(self, devices_to_update):
-        LOG.info(_("Ignoring default security_groups_provider_updated RPC."))
+        LOG.info(_LI("Ignoring default security_groups_provider_updated RPC."))
 
     def sg_provider_updated(self, net_id):
         devices = []
@@ -70,8 +71,8 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             if net_id == device.get('network_id'):
                 devices.append(device['device'])
         if devices:
-            LOG.info(_("Adding %s devices to the list of devices "
-                       "for which firewall needs to be refreshed"),
+            LOG.info(_LI("Adding %s devices to the list of devices "
+                         "for which firewall needs to be refreshed"),
                      len(devices))
             ovsvapplock.acquire()
             self.devices_to_refilter |= set(devices)
@@ -166,7 +167,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         :param device_ids: set of port_ids for which firewall rules
         need to be created.
         """
-        LOG.info(_("Prepare firewall rules for %s ports."), len(device_ids))
+        LOG.info(_LI("Prepare firewall rules for %s ports."), len(device_ids))
         self._process_port_set(device_ids)
 
     def refresh_firewall(self, device_ids=None):
@@ -181,9 +182,9 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         if not device_ids:
             device_ids = self.firewall.ports.keys()
             if not device_ids:
-                LOG.info(_("No ports here to refresh firewall."))
+                LOG.info(_LI("No ports here to refresh firewall."))
                 return
-        LOG.info(_("Refresh firewall rules for %s ports."), len(device_ids))
+        LOG.info(_LI("Refresh firewall rules for %s ports."), len(device_ids))
         self._process_port_set(set(device_ids), True)
 
     def refresh_port_filters(self, own_devices, other_devices):
@@ -204,10 +205,10 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         global_refresh_firewall = self.global_refresh_firewall
         self.devices_to_refilter = set()
         self.global_refresh_firewall = False
-        LOG.info(_("Going to refresh for devices: %s."),
+        LOG.info(_LI("Going to refresh for devices: %s."),
                  len(devices_to_refilter))
         if global_refresh_firewall:
-            LOG.info(_("Refreshing firewall for all filtered devices."))
+            LOG.info(_LI("Refreshing firewall for all filtered devices."))
             self.firewall.clean_port_filters(other_devices)
             self.refresh_firewall()
         else:
@@ -215,14 +216,14 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             other_devices = (other_devices & devices_to_refilter)
             self.firewall.clean_port_filters(other_devices)
             if own_devices:
-                LOG.info(_("Refreshing firewall for %d own devices."),
+                LOG.info(_LI("Refreshing firewall for %d own devices."),
                          len(own_devices))
                 self.refresh_firewall(own_devices)
             if other_devices:
-                LOG.info(_("Refreshing firewall for %d other devices."),
+                LOG.info(_LI("Refreshing firewall for %d other devices."),
                          len(other_devices))
                 self.prepare_firewall(other_devices)
-        LOG.info(_("Finished refresh for devices: %s."),
+        LOG.info(_LI("Finished refresh for devices: %s."),
                  len(devices_to_refilter))
 
 

@@ -30,6 +30,9 @@ from networking_vsphere.utils import network_util
 from networking_vsphere.utils import resource_util
 from networking_vsphere.utils import vim_util
 
+from neutron._i18n import _LE, _LI, _LW
+
+
 LOG = log.getLogger(__name__)
 
 
@@ -83,7 +86,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                         vim_util, "wait_for_updates_ex", version,
                         collector=property_collector)
                 except error_util.SocketTimeoutException:
-                    LOG.exception(_("Socket Timeout Exception."))
+                    LOG.exception(_LE("Socket Timeout Exception."))
                     # Ignore timeout.
                     continue
                 if update_set:
@@ -97,9 +100,9 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                             continue
                         for objectUpdate in objectSet:
                             if objectUpdate.kind == "leave":
-                                LOG.warn(_("VM %(vm)s got deleted while "
-                                           "waiting for it to connect to "
-                                           "port group %(pg)s."),
+                                LOG.warn(_LW("VM %(vm)s got deleted while "
+                                             "waiting for it to connect to "
+                                             "port group %(pg)s."),
                                          {'vm': vm_mor.value,
                                           'pg': pgmor.value})
                                 return (pg_key, port_key, swuuid)
@@ -121,15 +124,15 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                                                 hasattr(port, "portKey")):
                                             port_key = port.portKey
                                             swuuid = port.switchUuid
-                                            LOG.info(_("VM %(vm)s connected "
-                                                       "to port group: "
-                                                       "%(pg)s."),
+                                            LOG.info(_LI("VM %(vm)s connected "
+                                                         "to port group: "
+                                                         "%(pg)s."),
                                                      {'vm': vm_mor.value,
                                                       'pg': pgmor.value})
                                             return (pg_key, port_key, swuuid)
         except Exception as e:
-            LOG.exception(_("Exception while waiting for VM %(vm)s "
-                            "to connect to port group %(pg)s: %(err)s."),
+            LOG.exception(_LE("Exception while waiting for VM %(vm)s "
+                              "to connect to port group %(pg)s: %(err)s."),
                           {'vm': vm_mor.value, 'pg': pgmor.value, 'err': e})
             raise e
         finally:
@@ -141,8 +144,8 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
     def create_network(self, network, virtual_switch):
-        LOG.info(_("Creating portgroup %(nm)s with vlan id %(vid)s "
-                   "on virtual switch %(sw)s."),
+        LOG.info(_LI("Creating portgroup %(nm)s with vlan id %(vid)s "
+                     "on virtual switch %(sw)s."),
                  {'nm': network.name, 'vid': network.config.vlan.vlanIds[0],
                  'sw': virtual_switch.name})
         network_util.create_port_group(self.session,
@@ -153,7 +156,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
     def get_vlanid_for_port_group(self, dvs_name, pg_name):
-        LOG.info(_("Fetching details of port group %(pg)s on DVS %(dvs)s."),
+        LOG.info(_LI("Fetching details of port group %(pg)s on DVS %(dvs)s."),
                  {'pg': pg_name, 'dvs': dvs_name})
         pg_vlan_id = network_util.get_portgroup_details(self.session,
                                                         dvs_name, pg_name)
@@ -162,7 +165,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
     def get_vlanid_for_portgroup_key(self, pg_id):
-        LOG.info(_("Fetching VLAN id for port group with key %s."), pg_id)
+        LOG.info(_LI("Fetching VLAN id for port group with key %s."), pg_id)
         pg_vlan_id = network_util.get_portgroup_vlan(self.session,
                                                      pg_id)
         return pg_vlan_id
@@ -170,14 +173,14 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
     def get_vm_ref_uuid(self, vm_uuid):
-        LOG.info(_("Fetching reference for %s."), vm_uuid)
+        LOG.info(_LI("Fetching reference for %s."), vm_uuid)
         vm_ref = resource_util.get_vm_reference(self.session, vm_uuid)
         return vm_ref
 
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
     def wait_for_portgroup(self, vm_ref, pg_name):
-        LOG.info(_("Wait for port group %s."), pg_name)
+        LOG.info(_LI("Wait for port group %s."), pg_name)
         pg_exists = network_util.wait_on_dvs_portgroup(self.session,
                                                        vm_ref, pg_name)
         return pg_exists
@@ -198,8 +201,8 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
         mac_address = port.mac_address
         vm_mor = resource_util.get_vm_mor_for_uuid(self.session, device_id)
         if not vm_mor:
-            LOG.warn(_("VM %(vm)s with mac address %(mac)s for port %(uuid)s "
-                       "not found on this node."),
+            LOG.warn(_LW("VM %(vm)s with mac address %(mac)s for "
+                         "port %(uuid)s not found on this node."),
                      {'vm': device_id, 'mac': mac_address, 'uuid': port.uuid})
             return False
         if port.port_status == constants.PORT_STATUS_UP:

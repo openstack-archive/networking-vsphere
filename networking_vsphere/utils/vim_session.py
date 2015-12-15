@@ -15,6 +15,8 @@
 
 import time
 
+from neutron._i18n import _LE
+
 from oslo_log import log
 from oslo_vmware import api
 from oslo_vmware import vim
@@ -88,12 +90,12 @@ class ConnectionHandler(object):
             try:
                 return cls.get_connection(create=True)
             except Exception as e:
-                LOG.error(_("Connection to vCenter %(host_ip)s failed -"
-                            "%(exception)s"), {"host_ip": cls.host_ip,
-                                               "exception": e})
-                LOG.error(_("Will retry after 60 secs"))
+                LOG.error(_LE("Connection to vCenter %(host_ip)s failed -"
+                              "%(exception)s"), {"host_ip": cls.host_ip,
+                                                 "exception": e})
+                LOG.error(_LE("Will retry after 60 secs"))
                 time.sleep(60)
-                LOG.error(_("Retrying VMWare Connection after 60 secs"))
+                LOG.error(_LE("Retrying VMWare Connection after 60 secs"))
                 continue
 
 

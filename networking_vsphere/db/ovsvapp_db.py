@@ -16,6 +16,7 @@
 from oslo_log import log
 import sqlalchemy.orm.exc as sa_exc
 
+from neutron._i18n import _, _LE, _LI, _LW
 from neutron.common import exceptions as exc
 from neutron.db import api as db_api
 from neutron.db import common_db_mixin
@@ -47,9 +48,9 @@ def _generate_vcenter_cluster_allocations(session, vcenter, cluster):
         for bulk in chuncked_allocs:
             session.execute(models.ClusterVNIAllocations.
                             __table__.insert(), bulk)
-    LOG.info(_("Finished initializing local vlans for cluster %(cluster)s "
-               "of vCenter %(vcenter)s."), {'cluster': cluster,
-                                            'vcenter': vcenter})
+    LOG.info(_LI("Finished initializing local vlans for cluster %(cluster)s "
+                 "of vCenter %(vcenter)s."), {'cluster': cluster,
+                                              'vcenter': vcenter})
 
 
 def _initialize_lvids_for_cluster(port_info):
@@ -70,8 +71,9 @@ def _initialize_lvids_for_cluster(port_info):
                     session, vcenter, cluster)
             return True
         except Exception:
-            LOG.exception(_("Exception while initializing VNI allocations for "
-                            "clusters %(cluster)s of vCenter %(vcenter)s."),
+            LOG.exception(_LE("Exception while initializing VNI "
+                              "allocations for clusters %(cluster)s of "
+                              "vCenter %(vcenter)s."),
                           {'cluster': cluster,
                            'vcenter': vcenter})
             return False
@@ -107,18 +109,18 @@ def _try_to_obtain_local_vlan(session, port_info, assign):
                 allocation.update({'network_id': res['network_id'],
                                    'allocated': True,
                                    'network_port_count': 1})
-                LOG.info(_("Assigned local vlan %(lvid)s for the network "
-                           "%(network)s on the cluster %(cluster)s."),
+                LOG.info(_LI("Assigned local vlan %(lvid)s for the network "
+                             "%(network)s on the cluster %(cluster)s."),
                          {'network': port_info['network_id'],
                           'cluster': port_info['cluster_id'],
                           'lvid': lvid})
             else:
-                LOG.error(_("All available VLANs are used up in the cluster "
-                            "%(cluster)s of vCenter %(vcenter)s."),
+                LOG.error(_LE("All available VLANs are used up in the cluster "
+                              "%(cluster)s of vCenter %(vcenter)s."),
                           {'cluster': res['cluster_id'],
                            'vcenter': res['vcenter_id']})
         except Exception as e:
-            LOG.exception(_("Unable to obtain local vlan id %s."), e)
+            LOG.exception(_LE("Unable to obtain local vlan id %s."), e)
     return lvid
 
 
@@ -143,14 +145,14 @@ def get_local_vlan(port_info, assign=True):
                 lvid = _try_to_obtain_local_vlan(session, port_info, assign)
                 return lvid
             else:
-                LOG.info(_("Local VLAN rows not provisioned for the "
-                           "cluster %(cluster)s of vCenter %(vcenter)s. "
-                           "Going to provision."),
+                LOG.info(_LI("Local VLAN rows not provisioned for the "
+                             "cluster %(cluster)s of vCenter %(vcenter)s. "
+                             "Going to provision."),
                          {'cluster': res['cluster_id'],
                           'vcenter': res['vcenter_id']})
         except Exception:
-            LOG.exception(_("Error retrieving a local vlan for network "
-                            "%(network)s for %(port)s."),
+            LOG.exception(_LE("Error retrieving a local vlan for network "
+                              "%(network)s for %(port)s."),
                           {'network': port_info['network_id'],
                            'port': port_info['port_id']})
             return
@@ -159,8 +161,8 @@ def get_local_vlan(port_info, assign=True):
         with session.begin(subtransactions=True):
             lvid = _try_to_obtain_local_vlan(session, port_info, assign)
     else:
-        LOG.error(_("Local VLAN rows not provisioned for the "
-                    "cluster %(cluster)s of vCenter %(vcenter)s."),
+        LOG.error(_LE("Local VLAN rows not provisioned for the "
+                      "cluster %(cluster)s of vCenter %(vcenter)s."),
                   {'cluster': res['cluster_id'],
                    'vcenter': res['vcenter_id']})
     return lvid
@@ -187,7 +189,7 @@ def check_to_reclaim_local_vlan(port_info):
                           "%s.", res)
             if count == 0:
                 lvid = allocation.lvid
-                LOG.info(_("lvid can be released for network: %s."), res)
+                LOG.info(_LI("lvid can be released for network: %s."), res)
         except sa_exc.NoResultFound:
             # Nothing to do, may be another controller cleared the record
             # We will just log and return back status as False.
@@ -214,16 +216,16 @@ def release_local_vlan(net_info):
                 allocation.update({'network_id': None,
                                    'allocated': False,
                                    'network_port_count': 0})
-                LOG.info(_("Released lvid for network: %s."), res)
+                LOG.info(_LI("Released lvid for network: %s."), res)
             else:
-                LOG.info(_("Unable to release local vlan for network_id %s "
-                           "because ports are available on network."),
+                LOG.info(_LI("Unable to release local vlan for network_id %s "
+                             "because ports are available on network."),
                          res['network_id'])
         except sa_exc.NoResultFound:
             # Nothing to do, may be another controller cleared the record
             # We will just log and return.
-            LOG.error(_("Network %(network)s is already de-allocated for "
-                        "cluster %(cluster)s."),
+            LOG.error(_LE("Network %(network)s is already de-allocated for "
+                          "cluster %(cluster)s."),
                       {'network': net_info['network_id'],
                        'cluster': net_info['cluster_id']})
 
@@ -243,8 +245,8 @@ def get_stale_local_vlans_for_network(network_id):
                     vcenter_clusters.append((alloc.vcenter_id,
                                              alloc.cluster_id,
                                              alloc.lvid))
-                LOG.info(_("Found stale allocations for network "
-                           "%s."), network_id)
+                LOG.info(_LI("Found stale allocations for network "
+                             "%s."), network_id)
         except Exception:
             # Nothing to do, port-deletions have properly cleaned up
             # the records. We will just log and return back empty list.
@@ -265,16 +267,17 @@ def update_and_get_cluster_lock(vcenter_id, cluster_id):
             if not cluster_row.threshold_reached:
                 if not cluster_row.being_mitigated:
                     cluster_row.update({'being_mitigated': True})
-                    LOG.info(_("Blocked the cluster %s for maintenance."),
+                    LOG.info(_LI("Blocked the cluster %s for maintenance."),
                              cluster_id)
                     return SUCCESS
                 else:
-                    LOG.info(_("Cluster %s is under maintenance. "
-                               "Will retry later"), cluster_id)
+                    LOG.info(_LI("Cluster %s is under maintenance. "
+                                 "Will retry later"), cluster_id)
                     return RETRY
             else:
-                LOG.warn(_("Cluster %(id)s in vCenter %(vc)s needs attention."
-                           "Not able to put hosts to maintenance!"),
+                LOG.warn(_LW("Cluster %(id)s in vCenter %(vc)s needs "
+                             "attention. "
+                             "Not able to put hosts to maintenance!"),
                          {'id': cluster_id,
                           'vc': vcenter_id})
                 return GIVE_UP
@@ -285,7 +288,7 @@ def update_and_get_cluster_lock(vcenter_id, cluster_id):
                            'being_mitigated': True}
             session.execute(models.OVSvAppClusters.__table__.insert(),
                             cluster_row)
-            LOG.info(_("Blocked the cluster %s for maintenance."),
+            LOG.info(_LI("Blocked the cluster %s for maintenance."),
                      cluster_id)
             return SUCCESS
 
@@ -302,7 +305,7 @@ def release_cluster_lock(vcenter_id, cluster_id):
             cluster_row.update({'being_mitigated': False,
                                 'threshold_reached': False})
         except sa_exc.NoResultFound:
-            LOG.error(_("Cannot update the row for cluster %s."), cluster_id)
+            LOG.error(_LE("Cannot update the row for cluster %s."), cluster_id)
 
 
 def reset_cluster_threshold(vcenter_id, cluster_id):
@@ -319,7 +322,7 @@ def reset_cluster_threshold(vcenter_id, cluster_id):
                                     'threshold_reached': False})
         except sa_exc.NoResultFound:
             # First agent in this cluster
-            LOG.error(_("Cluster row not found for %s."), cluster_id)
+            LOG.error(_LE("Cluster row not found for %s."), cluster_id)
             cluster_row = {'vcenter_id': vcenter_id,
                            'cluster_id': cluster_id}
             session.execute(models.OVSvAppClusters.__table__.insert(),
@@ -335,12 +338,12 @@ def set_cluster_threshold(vcenter_id, cluster_id):
                 models.OVSvAppClusters.vcenter_id == vcenter_id,
                 models.OVSvAppClusters.cluster_id == cluster_id
             ).with_lockmode('update').one())
-            LOG.info(_("Cluster row found for %s."), cluster_row)
+            LOG.info(_LI("Cluster row found for %s."), cluster_row)
             if not cluster_row.threshold_reached:
                 cluster_row.update({'being_mitigated': False,
                                     'threshold_reached': True})
         except sa_exc.NoResultFound:
-            LOG.error(_("Cluster row not found for %s."), cluster_id)
+            LOG.error(_LE("Cluster row not found for %s."), cluster_id)
 
 
 def _admin_check(context, action):
@@ -354,8 +357,8 @@ class OVSvAppClusterDbMixin(ovsvapp_cluster.OVSvAppClusterPluginBase):
 
     def get_ovsvapp_cluster(self, context, vcenter_id, fields=None):
         _admin_check(context, 'GET')
-        LOG.info(_("Retrieving vCenter cluster information for vcenter_id:"
-                   " %s."), vcenter_id)
+        LOG.info(_LI("Retrieving vCenter cluster information for vcenter_id:"
+                     " %s."), vcenter_id)
         db_table = models.ClusterVNIAllocations
         query = context.session.query(db_table)
         filter_query = query.filter(db_table.vcenter_id == vcenter_id)
@@ -372,7 +375,7 @@ class OVSvAppClusterDbMixin(ovsvapp_cluster.OVSvAppClusterPluginBase):
 
     def get_ovsvapp_clusters(self, context, filters=None, fields=None):
         _admin_check(context, 'GET')
-        LOG.info(_("Retrieving vCenter cluster information."))
+        LOG.info(_LI("Retrieving vCenter cluster information."))
         if filters:
             if 'vcenter_id' in filters.keys():
                 vcenter_id = filters['vcenter_id'][0]
@@ -398,7 +401,7 @@ class OVSvAppClusterDbMixin(ovsvapp_cluster.OVSvAppClusterPluginBase):
         _admin_check(context, 'CREATE')
         vcenter = ovsvapp_cluster['ovsvapp_cluster']
         vcenter_clusters = vcenter['clusters']
-        LOG.info(_("Creating a vCenter cluster entry with vcenter id %s."),
+        LOG.info(_LI("Creating a vCenter cluster entry with vcenter id %s."),
                  vcenter['vcenter_id'])
         for cluster_name in vcenter_clusters:
             vcenter_info = dict()
@@ -412,9 +415,10 @@ class OVSvAppClusterDbMixin(ovsvapp_cluster.OVSvAppClusterPluginBase):
         _admin_check(context, 'UPDATE')
         vcenter_id = id
         clusters_list = ovsvapp_cluster['ovsvapp_cluster']['clusters']
-        LOG.info(_("Deleting the vCenter clusters %(cluster_id)s with"
-                 "vCenter id %(vcenter_id)s.") % {'cluster_id': clusters_list,
-                 'vcenter_id': id})
+        LOG.info(_LI("Deleting the vCenter clusters %(cluster_id)s with"
+                     "vCenter id %(vcenter_id)s."),
+                 {'cluster_id': clusters_list,
+                  'vcenter_id': id})
         with context.session.begin(subtransactions=True):
             query = context.session.query(models.ClusterVNIAllocations)
             for cluster_id in clusters_list:
@@ -434,8 +438,8 @@ class OVSvAppMitigatedClusterDbMixin(vapp_mc.OVSvAppMitigatedClusterPluginBase,
         mitigated_info = vcenter_id.split(':')
         vcenter_id = mitigated_info[0]
         cluster_id = mitigated_info[1].replace('|', '/')
-        LOG.info(_("Retrieving mitigated information for vcenter_id"
-                   " %s."), vcenter_id)
+        LOG.info(_LI("Retrieving mitigated information for vcenter_id"
+                     " %s."), vcenter_id)
         mitigated_cluster = dict()
         try:
             query = context.session.query(models.OVSvAppClusters)
@@ -465,7 +469,8 @@ class OVSvAppMitigatedClusterDbMixin(vapp_mc.OVSvAppMitigatedClusterPluginBase,
             update_flags['being_mitigated'] = res_dict['being_mitigated']
         if 'threshold_reached' in res_dict:
             update_flags['threshold_reached'] = res_dict['threshold_reached']
-        LOG.error(_("Updating the mitigation properties with vCenter id %s."),
+        LOG.error(_LE("Updating the mitigation properties with "
+                      "vCenter id %s."),
                   vcenter_id)
         with context.session.begin(subtransactions=True):
             try:
@@ -489,7 +494,7 @@ class OVSvAppMitigatedClusterDbMixin(vapp_mc.OVSvAppMitigatedClusterPluginBase,
         if filters:
             for filter_entry in filters:
                 db_filters[filter_entry] = filters[filter_entry]
-        LOG.info(_("Retrieving mitigated information of all clusters."))
+        LOG.info(_LI("Retrieving mitigated information of all clusters."))
         mitigated_clusters = list()
         try:
             all_entries = self._get_collection_query(context,
@@ -514,7 +519,7 @@ class OVSvAppMitigatedClusterDbMixin(vapp_mc.OVSvAppMitigatedClusterPluginBase,
             raise exc.InvalidInput(error_message='Invalid format..')
         vcenter_id = mitigated_info[0]
         cluster_id = mitigated_info[1].replace('|', '/')
-        LOG.info(_("Deleting mitigation entry with vCenter_id %s."),
+        LOG.info(_LI("Deleting mitigation entry with vCenter_id %s."),
                  vcenter_id)
         with context.session.begin(subtransactions=True):
             try:

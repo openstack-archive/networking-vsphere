@@ -24,6 +24,7 @@ import random
 import requests
 
 from neutron import context as neutron_context
+from neutron._i18n import _, _LE, _LI, _LW
 from neutron.db import agents_db
 from neutron.db import common_db_mixin
 from neutron import manager
@@ -79,7 +80,7 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
             LOG.debug("Successfully initialized agent monitor "
                       "thread with loop interval: %s.", monitor_interval)
         except Exception:
-            LOG.exception(_("Cannot initialize agent monitor thread.."))
+            LOG.exception(_LE("Cannot initialize agent monitor thread.."))
 
     def _update_agent_admin_state(self, context, id, agt):
         agent_data = agt['agent']
@@ -130,8 +131,8 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
         To set the other host into maintenance or shutdown mode.
         """
         try:
-            LOG.info(_("Processing the OVSvApp agent to set the other host "
-                       "into maintenance or shutdown mode %s."), agent)
+            LOG.info(_LI("Processing the OVSvApp agent to set the other host "
+                         "into maintenance or shutdown mode %s."), agent)
             device_data = {}
             agent_config = agent['configurations']
             source_host = agent_config.get('esx_host_name')
@@ -143,22 +144,23 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                 device_data['esx_host_name'] = source_host
                 device_data['ovsvapp_agent'] = '-'.join(
                     ['ovsvapp', source_host.replace('.', '-')])
-                LOG.info(_("Invoking device_update RPC with target host %s."),
+                LOG.info(_LI("Invoking device_update RPC with"
+                             "target host %s."),
                          chosen_agent['host'])
                 self.notifier.device_update(self.context,
                                             device_data, cluster_id)
             else:
                 ovsvapp_db.set_cluster_threshold(agent_config['vcenter_id'],
                                                  agent_config['cluster_id'])
-                LOG.info(_("No eligible OVSvApp agents found for "
-                           "processing. Reverting DB status for the agent."))
+                LOG.info(_LI("No eligible OVSvApp agents found for "
+                             "processing. Reverting DB status for the agent."))
                 self.update_agent_state(agent['id'], True)
         except Exception:
             agent_config = agent['configurations']
             ovsvapp_db.set_cluster_threshold(agent_config['vcenter_id'],
                                              agent_config['cluster_id'])
-            LOG.exception(_("Unable to inform the OVSvApp agent for "
-                            "Host - maintenance or shutdown operation."))
+            LOG.exception(_LE("Unable to inform the OVSvApp agent for "
+                              "Host - maintenance or shutdown operation."))
 
     def _check_datapath_health(self, monitoring_ip):
         if monitoring_ip:
@@ -170,12 +172,12 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                               "%(res)s", {'res': response,
                                           'ip': monitoring_ip})
                     status = response.json()
-                    LOG.info(_("ovs status is %(st)s from agent@ %(ip)s")
+                    LOG.info(_LI("ovs status is %(st)s from agent@ %(ip)s")
                              % {'st': status, 'ip': monitoring_ip})
                     return (status.get('ovs') == "OK")
             except Exception:
-                LOG.exception(_("Failed to get OVS status. Will continue "
-                                "with mitigation."))
+                LOG.exception(_LE("Failed to get OVS status. Will continue "
+                                  "with mitigation."))
                 return False
 
     def check_ovsvapp_data_path(self, agent):
@@ -184,14 +186,14 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
         monitoring_ip = agent_config.get('monitoring_ip')
         datapath_health = self._check_datapath_health(monitoring_ip)
         if datapath_health:
-            LOG.info(_("Data path looks to be OK on %s. "
-                       "Skipping mitigation."), agent['host'])
-            LOG.warn(_("Issues encountered in receiving "
-                       "heartbeats from OVSvApp Agent on "
-                       "host %s."), agent['host'])
+            LOG.info(_LI("Data path looks to be OK on %s. "
+                         "Skipping mitigation."), agent['host'])
+            LOG.warn(_LW("Issues encountered in receiving "
+                         "heartbeats from OVSvApp Agent on "
+                         "host %s."), agent['host'])
         else:
-            LOG.warn(_("Data path seems to be broken already on %s."
-                       "Will continue with mitigation."), agent['host'])
+            LOG.warn(_LW("Data path seems to be broken already on %s."
+                         "Will continue with mitigation."), agent['host'])
         return datapath_health
 
     def _check_plugin_ext_support(self, extension):
@@ -203,7 +205,7 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
             if self.plugin:
                 return extension in self.plugin.supported_extension_aliases
         except Exception:
-            LOG.exception(_("%s extension is not supported."), extension)
+            LOG.exception(_LE("%s extension is not supported."), extension)
         return False
 
     def get_plugin_and_initialize(self):
@@ -215,7 +217,7 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                 return False
             self.agent_ext_support = self._check_plugin_ext_support('agent')
         except Exception:
-            LOG.warn(_("Failed initialization of agent monitor.."))
+            LOG.warn(_LW("Failed initialization of agent monitor.."))
             return False
         return True
 
@@ -229,17 +231,17 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
         if not self.plugin:
             status = self.get_plugin_and_initialize()
             if not status:
-                LOG.warn(_("Plugin not defined...returning!"))
+                LOG.warn(_LW("Plugin not defined...returning!"))
                 return
         if not self.agent_ext_support:
-            LOG.warn(_("Agent extension is not loaded by plugin."))
+            LOG.warn(_LW("Agent extension is not loaded by plugin."))
             return
         try:
             self.agents = self.plugin.get_agents(
                 self.context,
                 filters={'agent_type': [ovsvapp_const.AGENT_TYPE_OVSVAPP]})
         except Exception:
-            LOG.exception(_("Unable to get agent list."))
+            LOG.exception(_LE("Unable to get agent list."))
             return
         for agent in self.agents:
             agent_time_stamp = agent['heartbeat_timestamp']
@@ -255,8 +257,8 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                         self.active_agents.append(agent_id)
                         self.update_agent_state(agent_id, True)
                     if agent_id in self.inactive_agents:
-                        LOG.info(_("Removing agent: %s from inactive "
-                                   "agent list."), agent_id)
+                        LOG.info(_LI("Removing agent: %s from inactive "
+                                     "agent list."), agent_id)
                         self.inactive_agents.remove(agent_id)
                         ovsvapp_db.reset_cluster_threshold(
                             agent_config['vcenter_id'],
@@ -268,8 +270,8 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                         # another Neutron server. Just update the cache and
                         # proceed further.
                         if agent_id not in self.inactive_agents:
-                            LOG.info(_("Moving agent: %s from active to "
-                                       "inactive."), agent_id)
+                            LOG.info(_LI("Moving agent: %s from active to "
+                                         "inactive."), agent_id)
                             self.inactive_agents.append(agent_id)
                         if agent_id in self.active_agents:
                             self.active_agents.remove(agent_id)
@@ -286,11 +288,11 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                             # Got the cluster lock for mitigating this agent.
                             self.threadpool.spawn_n(self.process_ovsvapp_agent,
                                                     agent)
-                            LOG.info(_("Spawned a thread for processing "
-                                       "OVSvApp Agent %s."), agent['id'])
+                            LOG.info(_LI("Spawned a thread for processing "
+                                         "OVSvApp Agent %s."), agent['id'])
                             if agent_id not in self.inactive_agents:
-                                LOG.info(_("Moving agent: %s from active to "
-                                           "inactive."), agent_id)
+                                LOG.info(_LI("Moving agent: %s from active to "
+                                             "inactive."), agent_id)
                                 self.inactive_agents.append(agent_id)
                             if agent_id in self.active_agents:
                                 self.active_agents.remove(agent_id)
@@ -304,4 +306,5 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                                       "the agent %s in the next run",
                                       agent['id'])
             except Exception:
-                LOG.exception(_("Exception occurred in monitor_agent_state."))
+                LOG.exception(_LE("Exception occurred in"
+                                  "monitor_agent_state."))

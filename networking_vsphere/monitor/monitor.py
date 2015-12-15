@@ -21,6 +21,7 @@ import subprocess
 import sys
 import time
 
+from neutron._i18n import _LE, _LI
 from neutron.common import config as common_config
 
 LOG = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ def start_monitor():
         current_dir = os.path.dirname(os.path.realpath(__file__))
         ovs_monitor_path = str(current_dir) + '/ovsvapp-agent-monitor.sh'
         os.chmod(ovs_monitor_path, 0o755)
-        LOG.info(_("Loading OVS_MONITOR: %s"), ovs_monitor_path)
+        LOG.info(_LI("Loading OVS_MONITOR: %s"), ovs_monitor_path)
         while True:
             subprocess.call(ovs_monitor_path)
             f = open(LOG_FILE_PATH)
@@ -50,7 +51,7 @@ def start_monitor():
             f.close()
             time.sleep(2)
     except Exception as e:
-        LOG.exception(_("Error in start_monitor method %(err)s."),
+        LOG.exception(_LE("Error in start_monitor method %(err)s."),
                       {'err': e})
 
 
@@ -64,14 +65,14 @@ def main():
                         filename=LOG_FILE_PATH,
                         level=logging.DEBUG)
     try:
-        LOG.info(_("Starting ovsvapp-agent-monitor."))
+        LOG.info(_LI("Starting ovsvapp-agent-monitor."))
         start_monitor()
     except Exception as e:
-        LOG.exception(_("Failed to start ovsvapp-agent-monitor "
-                        "%(err)s."), {'err': e})
+        LOG.exception(_LE("Failed to start ovsvapp-agent-monitor "
+                          "%(err)s."), {'err': e})
 
 
 def stop(signum, frame):
     '''Signal handler to stop the OVSvApp agent Monitoring.'''
-    LOG.info(_("Stopping ovsvapp-agent-monitor."))
+    LOG.info(_LI("Stopping ovsvapp-agent-monitor."))
     sys.exit(0)

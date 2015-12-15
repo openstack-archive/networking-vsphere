@@ -35,8 +35,7 @@ from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
 
-from neutron.i18n import _LI
-from neutron.i18n import _LW
+from neutron._i18n import _LI, _LW
 from neutron.tests.api import base
 from neutron.tests.api import base_security_groups
 from neutron.tests.api import clients
@@ -787,7 +786,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             if count is not 0:
                 if str(serv['host_name']) == str(server['host_name']):
                     if count == 2:
-                        LOG.info(_("VM hosted on same host, Hence skipping"))
+                        LOG.info(_LI("VM hosted on same host, Hence skipping"))
                 else:
                     return str(serv['vm_name']), str(server['vm_name'])
             server = serv

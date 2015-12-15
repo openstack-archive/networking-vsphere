@@ -23,6 +23,8 @@ from networking_vsphere.drivers import base_manager
 from networking_vsphere.drivers import dvs_driver
 from networking_vsphere.utils import vim_session
 
+from neutron._i18n import _LE, _LW
+
 LOG = log.getLogger(__name__)
 
 
@@ -62,12 +64,12 @@ class VcenterManager(base_manager.DriverManager):
                     cluster = cluster.strip()
                     vds = vds.strip()
                 if not cluster or not vds:
-                    LOG.error(_("Invalid value %s for opt "
-                                "cluster_dvs_mapping.") % mapping)
+                    LOG.error(_LE("Invalid value %s for opt "
+                                  "cluster_dvs_mapping.") % mapping)
                 else:
                     cluster_dvs_list.append((cluster, vds))
         except Exception:
-            LOG.exception(_("Invalid value %s for opt cluster_dvs_mapping.")
+            LOG.exception(_LE("Invalid value %s for opt cluster_dvs_mapping.")
                           % entry)
         return cluster_dvs_list
 
@@ -75,7 +77,7 @@ class VcenterManager(base_manager.DriverManager):
         try:
             self.driver.add_cluster(cluster, vds)
         except Exception:
-            LOG.exception(_("Adding cluster %(cluster)s:%(vds)s failed."),
+            LOG.exception(_LE("Adding cluster %(cluster)s:%(vds)s failed."),
                           {'cluster': cluster, 'vds': vds})
         else:
             self.cluster_switch_mapping[cluster] = vds
@@ -92,12 +94,13 @@ class VcenterManager(base_manager.DriverManager):
         self.ca_path = None
         if cfg.CONF.VMWARE.cert_check:
             if not cfg.CONF.VMWARE.cert_path:
-                LOG.error(_("SSL certificate path is not defined to establish "
-                            "secure vCenter connection. Aborting agent!"))
+                LOG.error(_LE("SSL certificate path is not defined to "
+                              "establish secure vCenter connection. "
+                              "Aborting agent!"))
                 raise SystemExit(1)
             elif not os.path.isfile(cfg.CONF.VMWARE.cert_path):
-                LOG.error(_("SSL certificate does not exist at the specified "
-                            "path %s. Aborting agent!"),
+                LOG.error(_LE("SSL certificate does not exist at "
+                              "the specified path %s. Aborting agent!"),
                           cfg.CONF.VMWARE.cert_path)
                 raise SystemExit(1)
             else:
@@ -120,11 +123,11 @@ class VcenterManager(base_manager.DriverManager):
             try:
                 self.connection_thread.wait()
             except greenlet.GreenletExit:
-                LOG.warn(_("Thread waiting on vCenter connection exited."))
+                LOG.warn(_LW("Thread waiting on vCenter connection exited."))
                 return
         else:
-            LOG.error(_("Must specify vcenter_ip, vcenter_username, "
-                        "vcenter_password and wsdl_location."))
+            LOG.error(_LE("Must specify vcenter_ip, vcenter_username, "
+                          "vcenter_password and wsdl_location."))
             return
         self.driver = dvs_driver.DvsNetworkDriver()
         self.driver.set_callback(self.netcallback)

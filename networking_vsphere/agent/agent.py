@@ -21,6 +21,8 @@ from networking_vsphere.common import utils
 from networking_vsphere.drivers import base_manager as manager
 from networking_vsphere.drivers import driver
 
+from neutron._i18n import _LI
+
 LOG = log.getLogger(__name__)
 
 
@@ -46,7 +48,7 @@ class Agent(driver.NetworkDriverCallback):
 
     def _initialize_managers(self):
         self.state = constants.AGENT_INITIALIZING
-        LOG.info(_("Loading network driver manager: %s."),
+        LOG.info(_LI("Loading network driver manager: %s."),
                  cfg.CONF.OVSVAPP.network_manager)
         self.net_mgr = utils.load_object(cfg.CONF.OVSVAPP.network_manager,
                                          manager.DriverManager,
@@ -65,13 +67,13 @@ class Agent(driver.NetworkDriverCallback):
         if is_up != self.node_up:
             self.node_up = is_up
             if is_up:
-                LOG.info(_("Making node up."))
+                LOG.info(_LI("Making node up."))
                 self._initialize_managers()
                 self._start_managers()
             else:
                 self.state = constants.AGENT_INITIALIZING
                 self._stop_managers()
         else:
-            LOG.info(_("Ignoring node update as agent "
-                       "is already %s."),
+            LOG.info(_LI("Ignoring node update as agent "
+                         "is already %s."),
                      "ACTIVE" if self.node_up else "DOWN")

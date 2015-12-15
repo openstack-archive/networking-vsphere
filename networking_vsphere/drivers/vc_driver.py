@@ -19,6 +19,8 @@ import time
 
 from oslo_log import log
 
+from neutron._i18n import _LE, _LI, _LW
+
 from networking_vsphere.common import constants
 from networking_vsphere.common import error
 from networking_vsphere.common import model
@@ -61,7 +63,7 @@ class VCNetworkDriver(driver.NetworkDriver):
         raise NotImplementedError()
 
     def delete_stale_portgroups(self, switch):
-        LOG.info(_("Deleting unused portgroups on %s."), switch)
+        LOG.info(_LI("Deleting unused portgroups on %s."), switch)
         port_group_names = self.get_unused_portgroups(switch)
         uuid_regex_vlan = ("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}"
                            "-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -79,17 +81,17 @@ class VCNetworkDriver(driver.NetworkDriver):
         cluster_mor = resource_util.get_cluster_mor_by_path(self.session,
                                                             cluster_path)
         if not cluster_mor:
-            LOG.error(_("Invalid cluster: %s."), cluster_path)
+            LOG.error(_LE("Invalid cluster: %s."), cluster_path)
             return False, None
         else:
             if not self.is_valid_switch(cluster_mor, switch):
-                LOG.error(_("Invalid Switch: %(switch)s for cluster: "
-                            "%(path)s."),
+                LOG.error(_LE("Invalid Switch: %(switch)s for cluster: "
+                              "%(path)s."),
                           {'switch': switch, 'path': cluster_path})
                 return False, None
             else:
-                LOG.info(_("Cluster: %(path)s and switch: %(sw)s are "
-                           "validated."),
+                LOG.info(_LI("Cluster: %(path)s and switch: %(sw)s are "
+                             "validated."),
                          {'path': cluster_path, 'sw': switch})
                 return True, cluster_mor
 
@@ -134,20 +136,20 @@ class VCNetworkDriver(driver.NetworkDriver):
         return cluster_mor, cluster_path, switch_name
 
     def add_cluster(self, cluster_path, switch_name):
-        LOG.info(_("Adding cluster_switch_mapping %(path)s:%(switch)s."),
+        LOG.info(_LI("Adding cluster_switch_mapping %(path)s:%(switch)s."),
                  {'path': cluster_path, 'switch': switch_name})
         if (cluster_path in cache.VCCache.get_cluster_switch_mapping() and
             cache.VCCache.get_switch_for_cluster_path(
                 cluster_path) == switch_name):
-            LOG.info(_("cluster_switch_mapping %(cp)s:%(sw)s already "
-                       "present."),
+            LOG.info(_LI("cluster_switch_mapping %(cp)s:%(sw)s already "
+                         "present."),
                      {'cp': cluster_path, 'sw': switch_name})
             return
         valid, cluster_mor = self.validate_cluster_switch_mapping(cluster_path,
                                                                   switch_name)
         if not valid:
             if cluster_path in cache.VCCache.get_cluster_switch_mapping():
-                LOG.info(_("Removing invalid cluster_switch_mapping: "
+                LOG.info(_LI("Removing invalid cluster_switch_mapping: "
                          "%(cp)s:%(sw)s."),
                          {'cp': cluster_path, 'sw': switch_name})
                 self.remove_cluster(cluster_path, switch_name)
@@ -155,7 +157,7 @@ class VCNetworkDriver(driver.NetworkDriver):
         if cluster_path in cache.VCCache.get_cluster_switch_mapping():
             cluster_id = self._find_cluster_id_for_path(cluster_path)
             if cluster_id == cluster_mor.value:
-                LOG.info(_("Updating switch name for cluster: "
+                LOG.info(_LI("Updating switch name for cluster: "
                          "%(cp)s to %(sw)s."),
                          {'cp': cluster_path, 'sw': switch_name})
                 cache.VCCache.add_switch_for_cluster_path(cluster_path,
@@ -164,8 +166,8 @@ class VCNetworkDriver(driver.NetworkDriver):
                 return
             else:
                 # Now this path points to a different cluster.
-                LOG.info(_("Removing cluster %(cid)s as now path %(cp)s "
-                           "points to a different cluster."),
+                LOG.info(_LI("Removing cluster %(cid)s as now path %(cp)s "
+                             "points to a different cluster."),
                          {'cid': cluster_id, 'cp': cluster_path})
                 old_clu_mor = self.clusters_by_id[cluster_id]
                 if cluster_id in self.cluster_id_to_filter:
@@ -174,7 +176,7 @@ class VCNetworkDriver(driver.NetworkDriver):
                 cache.VCCache.remove_cluster_id(cluster_id)
                 if cluster_id in self.clusters_by_id:
                     del self.clusters_by_id[cluster_id]
-        LOG.info(_("Registering cluster for mapping %(cp)s:%(sw)s."),
+        LOG.info(_LI("Registering cluster for mapping %(cp)s:%(sw)s."),
                  {'cp': cluster_path, 'sw': switch_name})
         property_filter_obj = self._register_cluster_for_updates(cluster_mor)
         # Cache the cluster.
@@ -189,16 +191,16 @@ class VCNetworkDriver(driver.NetworkDriver):
 
     def remove_cluster(self, cluster_path, switch_name):
         mapping = "%s:%s" % (cluster_path, switch_name)
-        LOG.info(_("Removing cluster_switch_mapping: %s."), mapping)
+        LOG.info(_LI("Removing cluster_switch_mapping: %s."), mapping)
         if cluster_path not in cache.VCCache.get_cluster_switch_mapping():
-            LOG.info(_("cluster_switch_mapping %s not present."), mapping)
+            LOG.info(_LI("cluster_switch_mapping %s not present."), mapping)
             return
         cluster_id = self._find_cluster_id_for_path(cluster_path)
         if not cluster_id:
-            LOG.info(_("Cluster for cluster_switch_mapping %s "
-                       "not present in cache."), mapping)
+            LOG.info(_LI("Cluster for cluster_switch_mapping %s "
+                         "not present in cache."), mapping)
         else:
-            LOG.info(_("Unregistering cluster for mapping: %s."), mapping)
+            LOG.info(_LI("Unregistering cluster for mapping: %s."), mapping)
             cluster_mor = self.clusters_by_id[cluster_id]
             if cluster_id in self.cluster_id_to_filter:
                 self._unregister_cluster_for_updates(cluster_mor)
@@ -229,7 +231,7 @@ class VCNetworkDriver(driver.NetworkDriver):
     @utils.require_state(state=[constants.DRIVER_READY], excp=False)
     def monitor_events(self):
         try:
-            LOG.info(_("Starting monitoring for vCenter updates"))
+            LOG.info(_LI("Starting monitoring for vCenter updates"))
             version = ""
             self.state = constants.DRIVER_RUNNING
             while self.state in (constants.DRIVER_RUNNING):
@@ -241,12 +243,12 @@ class VCNetworkDriver(driver.NetworkDriver):
                             "wait_for_updates_ex",
                             version)
                         if self.state != constants.DRIVER_RUNNING:
-                            LOG.error(_("Driver is not in running state."))
+                            LOG.error(_LE("Driver is not in running state."))
                             break
                     except error_util.SocketTimeoutException:
                         # Ignore timeout.
-                        LOG.warn(_("Ignoring socket timeouts while monitoring "
-                                   "for vCenter updates."))
+                        LOG.warn(_LW("Ignoring socket timeouts while "
+                                     "monitoring for vCenter updates."))
                         continue
                     if updateSet:
                         version = updateSet.version
@@ -270,14 +272,15 @@ class VCNetworkDriver(driver.NetworkDriver):
                             clu_id = cluster_mor.value
                             self.cluster_id_to_filter[clu_id] = pfo
                         continue
-                    LOG.exception(_("VimFaultException while processing "
-                                    "update set %s."), e)
+                    LOG.exception(_LE("VimFaultException while processing "
+                                      "update set %s."), e)
                 except Exception:
-                    LOG.exception(_("Exception while processing update set."))
+                    LOG.exception(_LE("Exception while processing update"
+                                      " set."))
                 time.sleep(0)
-            LOG.info(_("Stopped monitoring for vCenter updates."))
+            LOG.info(_LI("Stopped monitoring for vCenter updates."))
         except Exception:
-            LOG.exception(_("Monitoring for vCenter updates failed."))
+            LOG.exception(_LE("Monitoring for vCenter updates failed."))
 
     def _process_update_set(self, updateSet):
         """Processes the updateSet and returns VM events."""
@@ -415,8 +418,8 @@ class VCNetworkDriver(driver.NetworkDriver):
                         LOG.debug("Ignoring update for VM: %s.",
                                   changes.get('name'))
                 except Exception:
-                    LOG.exception(_("Exception while processing update set "
-                                    "for event %(event)s for vm %(vm)s."),
+                    LOG.exception(_LE("Exception while processing update set "
+                                      "for event %(event)s for vm %(vm)s."),
                                   {'event': event_type, 'vm': vm_uuid})
         LOG.debug("Finished processing UpdateSet version: %s.",
                   updateSet.version)
@@ -430,7 +433,7 @@ class VCNetworkDriver(driver.NetworkDriver):
             device_id)
         host_mors = self.is_valid_switch(cluster_mor, switch)
         if not host_mors:
-            LOG.error(_("Invalid Switch: %(sw)s for cluster: %(cp)s."),
+            LOG.error(_LE("Invalid Switch: %(sw)s for cluster: %(cp)s."),
                       {'sw': switch, 'cp': cluster_path})
             raise error.VcenterConfigurationError("Invalid Switch: %s for "
                                                   "cluster: %s." %

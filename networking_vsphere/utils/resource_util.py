@@ -17,6 +17,8 @@
 
 from oslo_log import log
 
+from neutron._i18n import _LE
+
 from networking_vsphere.utils import cache
 from networking_vsphere.utils import common_util
 from networking_vsphere.utils import vim_util
@@ -79,7 +81,7 @@ def set_vm_poweroff(session, vm_mor):
             session._get_vim(), "PowerOffVM_Task", vm_mor)
         session.wait_for_task(task_ref)
     except Exception as e:
-        LOG.exception(_("%s"), e)
+        LOG.exception(_LE("%s"), e)
         raise Exception(e)
 
 
@@ -92,7 +94,7 @@ def set_host_into_maintenance_mode(session, host_mor):
             timeout=0, evacuatePoweredOffVms=False)
         session.wait_for_task(task_ref)
     except Exception as e:
-        LOG.exception(_("%s"), e)
+        LOG.exception(_LE("%s"), e)
         raise Exception(e)
 
 
@@ -107,7 +109,7 @@ def set_host_into_shutdown_mode(session, host_mor):
                 force=True)
             session.wait_for_task(task_ref)
     except Exception as e:
-        LOG.exception(_("%s"), e)
+        LOG.exception(_LE("%s"), e)
         raise Exception(e)
 
 
@@ -196,7 +198,7 @@ def get_host_mors_for_cluster(session, cluster_mor):
             host_mors = host_ret.ManagedObjectReference
         return host_mors
     except Exception as e:
-        LOG.exception(_("Error retrieving cluster information"))
+        LOG.exception(_LE("Error retrieving cluster information"))
         raise Exception(e)
 
 

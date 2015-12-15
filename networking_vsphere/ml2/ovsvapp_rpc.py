@@ -23,6 +23,7 @@ from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import utils as ovsvapp_utils
 from networking_vsphere.db import ovsvapp_db
 
+from neutron._i18n import _LE, _LI, _LW
 from neutron.common import constants as common_const
 from neutron.common import exceptions as exc
 from neutron.common import rpc as n_rpc
@@ -160,8 +161,8 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
         device_id = device['id']
         vcenter_id = device['vcenter']
         cluster_id = device['cluster_id']
-        LOG.info(_("Device %(device_id)s details requested by agent "
-                   "%(agent_id)s running on host %(host)s."),
+        LOG.info(_LI("Device %(device_id)s details requested by agent "
+                     "%(agent_id)s running on host %(host)s."),
                  {'device_id': device_id, 'agent_id': agent_id, 'host': host})
         if not device_id:
             return False
@@ -194,9 +195,10 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                         else:
                             # Local VLANs are exhausted ! No point processing
                             # further.
-                            LOG.error(_("No VLAN available in the cluster "
-                                        "%(cluster)s for assignment to device "
-                                        "%(device)s in vCenter %(vcenter)s."),
+                            LOG.error(_LE("No VLAN available in the cluster "
+                                          "%(cluster)s for assignment to"
+                                          " device %(device)s in "
+                                          "vCenter %(vcenter)s."),
                                       {'device': device_id,
                                        'cluster': cluster_id,
                                        'vcenter': vcenter_id})
@@ -211,8 +213,8 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                                                             port_id=port['id'],
                                                             host=host)
                     if not updated_port:
-                        LOG.error(_("Port binding failed for "
-                                    "port %s."), port['id]'])
+                        LOG.error(_LE("Port binding failed for "
+                                      "port %s."), port['id]'])
                         # process the next port for the device
                         continue
                     if 'security_groups' in port:
@@ -226,8 +228,8 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                     device_ports.append(port)
                 if not device_ports:
                     try_count -= 1
-                    LOG.warn(_("Port details could not be retrieved for "
-                               "device %s ..retrying."), device_id)
+                    LOG.warn(_LW("Port details could not be retrieved for "
+                                 "device %s ..retrying."), device_id)
                     time.sleep(3)
                 else:
                     LOG.debug("Device details returned by server: "
@@ -246,9 +248,9 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                                                 cluster_id)
                     return True
         except Exception:
-            LOG.exception(_("Failed to retrieve port details for "
-                            "device: %s."), device_id)
-        LOG.error(_("Failed to retrieve ports for device: %s."), device_id)
+            LOG.exception(_LE("Failed to retrieve port details for "
+                              "device: %s."), device_id)
+        LOG.error(_LE("Failed to retrieve ports for device: %s."), device_id)
         return False
 
     def update_device_binding(self, rpc_context, **kwargs):
@@ -276,9 +278,9 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                 else:
                     break
             if retry_count == 0:
-                LOG.error(_("Failed to update binding for device %s, "
-                            "as the device has one of more ports "
-                            "in BUILD state."), device_id)
+                LOG.error(_LE("Failed to update binding for device %s, "
+                              "as the device has one of more ports "
+                              "in BUILD state."), device_id)
                 return
         else:
             ports = self.plugin.get_ports(rpc_context,
@@ -306,8 +308,8 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                         kwargs['device'] = port_id
                         self.update_device_up(rpc_context, **kwargs)
             except Exception:
-                LOG.exception(_("Failed to update binding for port "
-                                "%s."), port_id)
+                LOG.exception(_LE("Failed to update binding for port "
+                                  "%s."), port_id)
         return updated_ports
 
     def update_port_binding(self, rpc_context, **kwargs):
@@ -341,7 +343,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                                                        port)
                 updated_ports.add(updated_port['id'])
             except Exception:
-                LOG.exception(_("Failed to update binding for port %s "),
+                LOG.exception(_LE("Failed to update binding for port %s "),
                               port_id)
         return updated_ports
 
@@ -353,12 +355,12 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                        one())
             return port_db
         except sa_exc.NoResultFound:
-            LOG.warning(_("Port %(port_id)s requested by agent "
-                          "%(agent_id)s not found in database."),
-                        {'port_id': port_id, 'agent_id': agent_id})
+            LOG.warn(_LW("Port %(port_id)s requested by agent "
+                         "%(agent_id)s not found in database."),
+                     {'port_id': port_id, 'agent_id': agent_id})
             return None
         except exc.MultipleResultsFound:
-            LOG.error(_("Multiple ports have port_id starting with %s."),
+            LOG.error(_LE("Multiple ports have port_id starting with %s."),
                       port_id)
             return None
 
@@ -392,13 +394,13 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
             bound_port = port_context.current
 
             if not segment:
-                LOG.warning(_("Port %(port_id)s requested by agent "
-                              "%(agent_id)s on network %(network_id)s not "
-                              "bound, vif_type: %(vif_type)s."),
-                            {'port_id': port['id'],
-                             'agent_id': agent_id,
-                             'network_id': port['network_id'],
-                             'vif_type': port[portbindings.VIF_TYPE]})
+                LOG.warn(_LW("Port %(port_id)s requested by agent "
+                             "%(agent_id)s on network %(network_id)s not "
+                             "bound, vif_type: %(vif_type)s."),
+                         {'port_id': port['id'],
+                          'agent_id': agent_id,
+                          'network_id': port['network_id'],
+                          'vif_type': port[portbindings.VIF_TYPE]})
                 continue
             bound_port['lvid'] = None
             if segment[api.NETWORK_TYPE] == p_const.TYPE_VXLAN:
@@ -412,9 +414,9 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                 else:
                     # Local VLANs are exhausted !! No point processing
                     # further.
-                    LOG.error(_("Local VLAN not available in the cluster"
-                                " %(cluster)s for port"
-                                " %(port_id)s in vcenter %(vcenter)s."),
+                    LOG.error(_LE("Local VLAN not available in the cluster"
+                                  " %(cluster)s for port"
+                                  " %(port_id)s in vcenter %(vcenter)s."),
                               {'port_id': bound_port['id'],
                                'cluster': cluster_id,
                                'vcenter': vcenter_id})
@@ -444,7 +446,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
             try:
                 ovsvapp_db.release_local_vlan(net_info)
             except Exception:
-                LOG.exception(_("Failed to release the local vlan"))
+                LOG.exception(_LE("Failed to release the local vlan"))
         return
 
     def update_devices_up(self, rpc_context, **kwargs):
@@ -459,7 +461,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                 devices_up.append(device)
             except Exception:
                 failed_devices_up.append(device)
-                LOG.exception(_("Failed to update device %s up."), device)
+                LOG.exception(_LE("Failed to update device %s up."), device)
         return {'devices_up': devices_up,
                 'failed_devices_up': failed_devices_up}
 
@@ -476,7 +478,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                 devices_down.append(device)
             except Exception:
                 failed_devices_down.append(device)
-                LOG.exception(_("Failed to update device %s down."), device)
+                LOG.exception(_LE("Failed to update device %s down."), device)
         return {'devices_down': devices_down,
                 'failed_devices_down': failed_devices_down}
 
@@ -487,14 +489,14 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
         if cluster_id and vcenter_id:
             try:
                 if success:
-                    LOG.info(_("Releasing the cluster row for cluster %(id)s "
-                               "in vCenter %(vc)s."),
+                    LOG.info(_LI("Releasing the cluster row for "
+                                 "cluster %(id)s in vCenter %(vc)s."),
                              {'id': cluster_id, 'vc': vcenter_id})
                     ovsvapp_db.release_cluster_lock(vcenter_id, cluster_id)
                 else:
                     ovsvapp_db.set_cluster_threshold(vcenter_id, cluster_id)
             except Exception:
-                LOG.exception(_("Failed to release/set the cluster lock."))
+                LOG.exception(_LE("Failed to release/set the cluster lock."))
         return
 
 

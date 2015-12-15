@@ -21,6 +21,8 @@ from oslo_log import log
 
 from networking_vsphere.common import error
 
+from neutron._i18n import _LI
+
 LOG = log.getLogger(__name__)
 
 
@@ -79,9 +81,9 @@ def require_state(state=None, excp=True):
                          obj.state,
                          l_states))
                 else:
-                    LOG.info(_("%(name)s not allowed. "
-                               "%(obj)s is %(state)s state. "
-                               "Need to be in %(states)s state."),
+                    LOG.info(_LI("%(name)s not allowed. "
+                                 "%(obj)s is %(state)s state. "
+                                 "Need to be in %(states)s state."),
                              {'name': f.__name__,
                               'obj': obj.__class__.__name__,
                               'state': obj.state,

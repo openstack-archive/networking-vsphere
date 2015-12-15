@@ -18,6 +18,7 @@ import sys
 
 import eventlet
 eventlet.monkey_patch()
+from neutron._i18n import _, _LE, _LI
 from neutron.common import config as common_config
 from oslo_config import cfg
 from oslo_log import log
@@ -37,12 +38,12 @@ def run():
     try:
         global agent_obj
         ovsvapp_config.register_options()
-        LOG.info(_("Loading agent: %s."), cfg.CONF.OVSVAPP.agent_driver)
+        LOG.info(_LI("Loading agent: %s."), cfg.CONF.OVSVAPP.agent_driver)
         agent_obj = utils.load_object(cfg.CONF.OVSVAPP.agent_driver,
                                       agent.Agent)
         agent_obj.start()
     except Exception as e:
-        LOG.exception(_("Error in OVSvApp agent service."))
+        LOG.exception(_LE("Error in OVSvApp agent service."))
         if agent_obj:
             agent_obj.stop()
         sys.exit(_("ERROR: %s.") % e)
@@ -53,7 +54,7 @@ def signal_handler(signum, frame):
     for n in dir(signal):
         if n.startswith('SIG') and not n.startswith('SIG_'):
             signals_to_names[getattr(signal, n)] = n
-    LOG.info(_("Caught %s, exiting."), signals_to_names[signum])
+    LOG.info(_LI("Caught %s, exiting."), signals_to_names[signum])
     if agent_obj:
         try:
             agent_obj.stop()

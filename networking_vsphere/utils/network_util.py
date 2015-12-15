@@ -17,6 +17,8 @@ from eventlet import greenthread
 from oslo_config import cfg
 from oslo_log import log
 
+from neutron._i18n import _LE, _LI
+
 from networking_vsphere.common import constants
 from networking_vsphere.utils import common_util
 from networking_vsphere.utils import error_util
@@ -184,8 +186,8 @@ def create_port_group(session, dvs_name, pg_name, vlan_id):
                       {'pg': pg_name, 'vid': vlan_id})
             return
         else:
-            LOG.info(_("Portgroup %(pg)s already exists "
-                     "but with vlan id %(vid)s"),
+            LOG.info(_LI("Portgroup %(pg)s already exists "
+                         "but with vlan id %(vid)s"),
                      {'pg': pg_name,
                       'vid': port_group_config.defaultPortConfig.vlan.vlanId})
             raise error_util.RunTimeError("Inconsistent vlan id for portgroup"
@@ -205,12 +207,12 @@ def create_port_group(session, dvs_name, pg_name, vlan_id):
                 session._get_vim(), "AddDVPortgroup_Task", dvs_mor,
                 spec=add_prt_grp_spec)
             session.wait_for_task(task_ref)
-            LOG.info(_("Successfully created portgroup "
-                     "%(pg)s with vlan id %(vid)s"),
+            LOG.info(_LI("Successfully created portgroup "
+                         "%(pg)s with vlan id %(vid)s"),
                      {'pg': pg_name, 'vid': vlan_id})
         except Exception as e:
-            LOG.exception(_("Failed to create portgroup %(pg)s with "
-                          "vlan id %(vid)s on vCenter. Cause : %(err)s"),
+            LOG.exception(_LE("Failed to create portgroup %(pg)s with "
+                              "vlan id %(vid)s on vCenter. Cause : %(err)s"),
                           {'pg': pg_name, 'vid': vlan_id, 'err': e})
             raise error_util.RunTimeError("Failed to create portgroup %s "
                                           "with vlan id %s on vCenter.Cause"
@@ -225,18 +227,18 @@ def delete_port_group(session, dvs_name, pg_name):
             destroy_task = session._call_method(session._get_vim(),
                                                 "Destroy_Task", port_group_mor)
             session.wait_for_task(destroy_task)
-            LOG.info(_("Successfully deleted portgroup %(pg)s from "
-                     "dvs %(dvs)s"),
+            LOG.info(_LI("Successfully deleted portgroup %(pg)s from "
+                         "dvs %(dvs)s"),
                      {'pg': pg_name, 'dvs': dvs_name})
         except Exception as e:
-            LOG.exception(_("Failed to delete portgroup %(pg)s from "
-                          "dvs %(dvs)s .Cause : %(err)s"),
+            LOG.exception(_LE("Failed to delete portgroup %(pg)s from "
+                              "dvs %(dvs)s .Cause : %(err)s"),
                           {'pg': pg_name, 'dvs': dvs_name, 'err': e})
             raise error_util.RunTimeError("Failed to delete portgroup %s "
                                           "on dvs %s on vCenter.Cause"
                                           " : %s" % (pg_name, dvs_name, e))
     else:
-        LOG.info(_("portgroup %(pg)s not present on dvs %(dvs)s"),
+        LOG.info(_LI("portgroup %(pg)s not present on dvs %(dvs)s"),
                  {'pg': pg_name, 'dvs': dvs_name})
 
 
@@ -333,9 +335,10 @@ def is_valid_dvswitch(session, cluster_mor, dvs_name):
                     session, host)
                 if hostname == cfg.CONF.VMWARE.esx_hostname:
                     if host.value not in dvs_attached_host_ids:
-                        LOG.error(_("DVS not present on host %s") % host.value)
+                        LOG.error(_LE("DVS not present on"
+                                      "host %s") % host.value)
                         return False
             return hosts_in_cluster
     else:
-        LOG.error(_("DVS not present %s") % dvs_name)
+        LOG.error(_LE("DVS not present %s") % dvs_name)
         return False

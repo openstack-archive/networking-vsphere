@@ -21,6 +21,7 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import timeutils
 
+from neutron._i18n import _LE, _LI
 from neutron.common import constants as common_const
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
@@ -57,7 +58,7 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         self._start_rpc_listeners()
         self._plugin = None
         self._pool = None
-        LOG.info(_("Successfully initialized OVSvApp Mechanism driver."))
+        LOG.info(_LI("Successfully initialized OVSvApp Mechanism driver."))
         if cfg.CONF.OVSVAPP.enable_ovsvapp_monitor:
             self._start_ovsvapp_monitor()
 
@@ -128,21 +129,21 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             if agent and 'host' in agent:
                 host = agent['host']
             else:
-                LOG.error(_("Failed to find OVSvApp Agent with host "
-                            "%(host)s while releasing network allocations "
-                            "for %(cluster)s in vCenter %(vcenter)s."),
+                LOG.error(_LE("Failed to find OVSvApp Agent with host "
+                              "%(host)s while releasing network allocations "
+                              "for %(cluster)s in vCenter %(vcenter)s."),
                           {'host': host,
                            'vcenter': network_info['vcenter_id'],
                            'cluster': cluster_id})
                 return
         try:
-            LOG.info(_("Initiating device_delete RPC for network "
-                       "%(network)s to OVSvApp agent on host %(host)s."),
+            LOG.info(_LI("Initiating device_delete RPC for network "
+                         "%(network)s to OVSvApp agent on host %(host)s."),
                      {'host': host, 'network': network_info})
             self.notifier.device_delete(self.context, network_info, host,
                                         cluster_id)
         except Exception:
-            LOG.exception(_("Failed to notify agent to delete port group."))
+            LOG.exception(_LE("Failed to notify agent to delete port group."))
 
     def _check_and_fire_provider_update(self, port):
         if port['device_owner'] == common_const.DEVICE_OWNER_DHCP:
@@ -200,12 +201,12 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
                         LOG.debug("Spawning thread for releasing network "
                                   "VNI allocations for %s.", net_info)
                         self.threadpool.spawn_n(self._notify_agent, net_info)
-                        LOG.info(_("Spawned a thread for releasing network "
-                                   "vni allocations for network: %s."),
+                        LOG.info(_LI("Spawned a thread for releasing network "
+                                     "vni allocations for network: %s."),
                                  net_info)
                 except Exception:
-                    LOG.exception(_("Failed to check for reclaiming "
-                                    "local vlan."))
+                    LOG.exception(_LE("Failed to check for reclaiming "
+                                      "local vlan."))
         else:
             self._check_and_fire_provider_update(port)
 
@@ -234,8 +235,8 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
                     LOG.debug("Spawning thread for releasing network "
                               "VNI allocations for %s.", network_info)
                     self.threadpool.spawn_n(self._notify_agent, network_info)
-                    LOG.info(_("Spawned a thread for releasing network "
-                               "vni allocations for network: %s."),
+                    LOG.info(_LI("Spawned a thread for releasing network "
+                                 "vni allocations for network: %s."),
                              network_info)
         except Exception:
-            LOG.exception(_("Failed checking stale local vlan allocations."))
+            LOG.exception(_LE("Failed checking stale local vlan allocations."))
