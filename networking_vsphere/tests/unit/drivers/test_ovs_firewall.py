@@ -393,41 +393,32 @@ class TestOVSFirewallDriver(base.TestCase):
 
     def test_remove_only_tenant_flows(self):
         self.ovs_firewall.filtered_ports["123"] = fake_res_port
-        with mock.patch.object(self.ovs_firewall, '_get_port_vlan',
-                               return_value=100) as mock_get_vlan, \
-                mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
-                                  return_value=self.mock_br), \
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
                 mock.patch.object(self.mock_br, 'delete_flows'
                                   ) as mock_del_flows:
             self.ovs_firewall._remove_flows(self.mock_br, "123")
-            self.assertTrue(mock_get_vlan.called)
             self.assertEqual(4, mock_del_flows.call_count)
 
     def test_remove_all_flows(self):
         self.ovs_firewall.filtered_ports["123"] = fake_res_port
-        with mock.patch.object(self.ovs_firewall, '_get_port_vlan',
-                               return_value=100) as mock_get_vlan, \
-                mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
-                                  return_value=self.mock_br), \
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
                 mock.patch.object(self.mock_br, 'delete_flows'
                                   ) as mock_del_flows:
             self.ovs_firewall._remove_flows(self.mock_br, "123", True)
-            self.assertTrue(mock_get_vlan.called)
             self.assertEqual(7, mock_del_flows.call_count)
 
     def test_remove_flows_invalid_port(self):
         res_port = copy.deepcopy(fake_res_port)
         res_port.pop('mac_address')
         self.ovs_firewall.filtered_ports["123"] = res_port
-        with mock.patch.object(self.ovs_firewall, '_get_port_vlan',
-                               return_value=100) as mock_get_vlan, \
-                mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                   return_value=self.mock_br), \
                 mock.patch.object(self.mock_br, 'delete_flows'
                                   ) as mock_del_flows, \
                 mock.patch.object(self.LOG, 'debug') as mock_debug_log:
             self.ovs_firewall._remove_flows(self.mock_br, "123")
-            self.assertTrue(mock_get_vlan.called)
             self.assertEqual(1, mock_del_flows.call_count)
             self.assertEqual(2, mock_debug_log.call_count)
 

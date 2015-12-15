@@ -508,7 +508,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 sec_br.delete_flows(cookie="%s/-1" %
                                     self.get_cookie('pr' + port_id))
             port = self.filtered_ports.get(port_id)
-            vlan = self._get_port_vlan(port_id)
+            vlan = port['lvid']
             if 'mac_address' not in port or not vlan:
                 LOG.debug("Invalid mac address or vlan for port "
                           "%s. Returning from _remove_flows.", port_id)
