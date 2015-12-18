@@ -12,7 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from eventlet import greenthread
+import eventlet
 from oslo_config import cfg
 from oslo_log import log
 from oslo_vmware import vim_util
@@ -51,14 +51,25 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
         image_meta = objects.ImageMeta.from_dict(image_meta)
-        self.ovsvapp_vmops.spawn(context=context,
-                                 instance=instance,
-                                 image_meta=image_meta,
-                                 injected_files=injected_files,
-                                 admin_password=admin_password,
-                                 network_info=None,
-                                 block_device_info=block_device_info)
-
+        timeout = CONF.vif_plugging_timeout
+        events = self._get_neutron_events(network_info)
+        try:
+            with self.virtapi.wait_for_instance_event(instance,
+                                                      events,
+                                                      deadline=timeout,
+                                                      error_callback=None):
+                self.ovsvapp_vmops.spawn(context=context,
+                                         instance=instance,
+                                         image_meta=image_meta,
+                                         injected_files=injected_files,
+                                         admin_password=admin_password,
+                                         network_info=None,
+                                         block_device_info=block_device_info)
+        except eventlet.timeout.Timeout:
+            LOG.debug(('Timedout waiting for vif plugging callback for '
+                       'instance %(uuid)s'),
+                      {'uuid': instance.uuid}, instance=instance)
+            raise exception.VirtualInterfaceCreateException()
         vm_ref = vm_util.get_vm_ref(self._session, instance)
         if vm_ref is None:
             raise exception.InstanceNotFound(instance_id=instance['uuid'])
@@ -102,10 +113,10 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
             network_id_cluster_id = (network_id + "-" +
                                      self._get_mo_id_from_instance(instance))
             portgroup_name.append(network_id_cluster_id)
-            # wait for port group creation (if not present) by neutron agent.
-            network_ref = self._wait_and_get_portgroup_details(self._session,
-                                                               vm_ref,
-                                                               portgroup_name)
+            # get the port group details by neutron agent.
+            network_ref = self._get_portgroup_details(self._session,
+                                                      vm_ref,
+                                                      portgroup_name)
             if not network_ref:
                 msg = ("Portgroup %(vlan)s (or) Portgroup %(vxlan)s.",
                        {'vlan': network_id, 'vxlan': network_id_cluster_id})
@@ -149,54 +160,49 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         self._session._wait_for_task(reconfig_task)
         LOG.info(_LI("Reconfigured VM instance to attach NIC."))
 
-    def _wait_and_get_portgroup_details(self, session, vm_ref,
-                                        port_group_name):
+    def _get_portgroup_details(self, session, vm_ref, port_group_name):
         """Gets reference to the portgroup for the vm."""
-
-        max_counts = CONF.vmware.vmwareapi_nic_attach_retry_count
-        count = 0
         network_obj = {}
-        LOG.info(_LI("Waiting for the portgroup %s to be created."),
+        LOG.info(_LI("Getting the portgroup %s details."),
                  port_group_name)
-        while count < max_counts:
-            host = session._call_method(vim_util,
-                                        "get_object_property",
-                                        vm_ref, "runtime.host")
-            vm_networks_ret = session._call_method(
-                vim_util, "get_object_property",
-                host, "network")
-            if vm_networks_ret:
-                vm_networks = vm_networks_ret.ManagedObjectReference
-                for network in vm_networks:
-                    # Get network properties.
-                    if network._type == 'DistributedVirtualPortgroup':
-                        props = session._call_method(
-                            vim_util, "get_object_property",
-                            network, "config")
-                        if props.name in port_group_name:
-                            LOG.info(_LI("DistributedVirtualPortgroup "
-                                         "created."))
-                            network_obj['type'] = 'DistributedVirtualPortgroup'
-                            network_obj['dvpg'] = props.key
-                            dvs_props = session._call_method(
-                                vim_util,
-                                "get_object_property",
-                                props.distributedVirtualSwitch,
-                                "uuid")
-                            network_obj['dvsw'] = dvs_props
-                            network_obj['dvpg-name'] = props.name
-                            return network_obj
-                    elif network._type == 'Network':
-                        netname = session._call_method(
-                            vim_util, "get_object_property",
-                            network, "name")
-                        if netname in port_group_name:
-                            LOG.info(_LI("Standard Switch Portgroup created."))
-                            network_obj['type'] = 'Network'
-                            network_obj['name'] = port_group_name
-                            return network_obj
-                count = count + 1
-                LOG.info(_LI("Port group not created. Retrying again "
-                             "after 2 seconds."))
-                greenthread.sleep(2)
+        host = session._call_method(vim_util,
+                                    "get_object_property",
+                                    vm_ref, "runtime.host")
+        vm_networks_ret = session._call_method(
+            vim_util, "get_object_property",
+            host, "network")
+        if vm_networks_ret:
+            vm_networks = vm_networks_ret.ManagedObjectReference
+            for network in vm_networks:
+                # Get network properties.
+                if network._type == 'DistributedVirtualPortgroup':
+                    props = session._call_method(
+                        vim_util, "get_object_property",
+                        network, "config")
+                    if props.name in port_group_name:
+                        LOG.info(_LI("DistributedVirtualPortgroup "
+                                     "created."))
+                        network_obj['type'] = 'DistributedVirtualPortgroup'
+                        network_obj['dvpg'] = props.key
+                        dvs_props = session._call_method(
+                            vim_util,
+                            "get_object_property",
+                            props.distributedVirtualSwitch,
+                            "uuid")
+                        network_obj['dvsw'] = dvs_props
+                        network_obj['dvpg-name'] = props.name
+                        return network_obj
+                elif network._type == 'Network':
+                    netname = session._call_method(
+                        vim_util, "get_object_property",
+                        network, "name")
+                    if netname in port_group_name:
+                        LOG.info(_LI("Standard Switch Portgroup created."))
+                        network_obj['type'] = 'Network'
+                        network_obj['name'] = port_group_name
+                        return network_obj
         return None
+
+    def _get_neutron_events(self, network_info):
+        return [('network-vif-plugged', vif['id'])
+                for vif in network_info if vif.get('active', True) is False]
