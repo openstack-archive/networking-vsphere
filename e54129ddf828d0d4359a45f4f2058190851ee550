@@ -1,0 +1,10 @@
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Code-Review+1: Aman Kumar <aman.kumar3@hpe.com>
+Code-Review+2: garyk <gkotton@vmware.com>
+Workflow+1: garyk <gkotton@vmware.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 18 Dec 2015 15:19:45 +0000
+Reviewed-on: https://review.openstack.org/258449
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/liberty
