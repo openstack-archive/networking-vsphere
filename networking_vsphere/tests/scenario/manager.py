@@ -136,6 +136,27 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         content = connection.RetrieveContent()
         return content
 
+    def _get_vm_power_on(self, vm_ip):
+        content = self._create_connection()
+        vm_name = self.get_obj(content, [vim.VirtualMachine],
+                               vm_ip)
+        power = vm_name.PowerOn()
+        return power
+
+    def _get_host_uuid(self, host):
+        content = self._create_connection()
+        uuid = self.get_obj(content, [vim.HostSystem],
+                            host)
+        host_uuid = uuid.hardware.systemInfo.uuid
+        return host_uuid
+
+    def _get_vm_power_status(self, host):
+        content = self._create_connection()
+        vm_name = self.get_obj(content, [vim.VirtualMachine],
+                               host)
+        power_state = vm_name.runtime.powerState
+        return power_state
+
     def _get_portgroups(self):
         trunk_dvswitch_name = cfg.CONF.VCENTER.trunk_dvswitch_name
         content = self._create_connection()
