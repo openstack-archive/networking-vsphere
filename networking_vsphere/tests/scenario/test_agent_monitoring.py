@@ -162,3 +162,21 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         status = self._get_vm_power_status(ovsvapp_ip)
         if status == 'poweredOff':
             self._status_of_ovsvapp_vm()
+
+    def test_dcm_ip_field_ini_file_after_ovsvapp_deployment(self):
+        vapp_username = CONF.VCENTER.vapp_username
+        agent_list = self.admin_client.list_agents(agent_type='OVSvApp Agent',
+                                                   alive="True")
+        devstack_status = CONF.VCENTER.devstack
+        if devstack_status == 'yes':
+            path = '/etc/neutron/plugins/ml2/ovsvapp_agent.ini'
+        else:
+            path = '/opt/stack/service/neutron/etc/ovsvapp_agent.ini'
+        for i in range(2):
+            config = agent_list['agents'][i]['configurations']
+            ovsvapp_ip = config['monitoring_ip']
+            HOST = vapp_username + "@" + ovsvapp_ip
+            ssh = subprocess.Popen(['ssh', "%s" % HOST, 'cat', path],
+                                   stdout=subprocess.PIPE)
+            output = ssh.stdout.readlines()
+            output.index('monitoring_ip = ' + ovsvapp_ip + '\n')
