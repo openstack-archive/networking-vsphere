@@ -38,10 +38,19 @@ VCENTER_OPTS = [
     cfg.StrOpt('vapp_password',
                help="Password to login to OVSvApp",
                secret=True),
+<<<<<<< HEAD
     cfg.StrOpt('bridge_interface_trunk',
                help="Bridge interface of trunk dvs"),
     cfg.StrOpt('neutron_database_name',
                help="Neutron database name as in mysql table")
+=======
+    cfg.StrOpt('host_username',
+               help="The username of the host"),
+    cfg.StrOpt('agent_down_time',
+               help="Time taken to turn off the OVSvApp "),
+    cfg.StrOpt('devstack',
+               help="Devstack is used for test")
+>>>>>>> Basic test for agent monitoring on ESX host
 ]
 
 
