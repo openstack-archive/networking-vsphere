@@ -11,3 +11,12 @@ vCenter_username
 
 # Password to login to vCenter
 vCenter_password
+
+# username of the host
+host_username
+
+# Time take to turn off the ovsvapp vm
+agent_down_time
+
+# Devstack is used for test
+devstack
