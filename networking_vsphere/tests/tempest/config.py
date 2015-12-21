@@ -42,6 +42,12 @@ VCENTER_OPTS = [
                help="Bridge interface of trunk dvs"),
     cfg.StrOpt('neutron_database_name',
                help="Neutron database name as in mysql table")
+    cfg.StrOpt('host_username',
+               help="The username of the host"),
+    cfg.StrOpt('agent_down_time',
+               help="Time taken to turn off the OVSvApp "),
+    cfg.StrOpt('devstack',
+               help="Devstack is used for test")
 ]
 
 
