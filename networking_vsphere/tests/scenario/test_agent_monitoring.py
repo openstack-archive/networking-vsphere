@@ -42,7 +42,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             )
         return group_create_body
 
-    def test_agent_monitoring(self):
+    def test_mitigation_when_ovsvapp_vm_poweredoff(self):
         net_id = self.network['id']
         name = data_utils.rand_name('server-smoke')
         group_create_body = self._create_custom_security_group()
@@ -60,46 +60,37 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         agent_list = self.admin_client.list_agents(agent_type='OVSvApp Agent',
                                                    alive="True",
                                                    host=host_name)
+        host_ip = agent_list['agents'][0]['configurations']['esx_host_name']
+        agent_list = self.admin_client.list_agents(agent_type='OVSvApp Agent',
+                                                   alive="True",
+                                                   host=host_name)
         ovsvapp_ip = agent_list['agents'][0]['configurations']['monitoring_ip']
-        vapp_username = cfg.CONF.VCENTER.vapp_username
-        HOST = vapp_username + "@" + ovsvapp_ip
-        cmd = ('ps -ef | grep ovsvapp-agent | grep neutron.conf')
+        host_username = cfg.CONF.VCENTER.host_username
+        HOST = host_username + "@" + host_ip
+        cmd = ('vim-cmd vmsvc/getallvms')
         ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
                                shell=False,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
-        ps = output[0].split()
-        pid = ps[1]
-        cmd1 = ('kill -9' + ' ' + str(pid))
+        find = filter(lambda x: 'ovsvapp' in x, output)
+        aa = find[0].split()
+        no = aa[0]
+        cmd1 = ('vim-cmd vmsvc/power.off' + ' ' + str(no))
         subprocess.Popen(["ssh", "%s" % HOST, cmd1],
                          shell=False,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
 
-        cmd2 = ('sudo service openvswitch-switch stop')
-        subprocess.Popen(["ssh", "%s" % HOST, cmd2],
-                         shell=False,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-        agent_down_time = cfg.CONF.VCENTER.agent_down_time
-        time.sleep(int(agent_down_time))
+        time_to_sleep = cfg.CONF.VCENTER.agent_down_time
+        time.sleep(int(time_to_sleep))
         agent_list = self.admin_client.list_agents(agent_type='OVSvApp Agent',
                                                    alive="False")
-        length = len(agent_list['agents'])
-        if length != 0:
-            ovsvapp_name = agent_list['agents'][0]['host']
-            ovs_status = self._get_vm_power_status(ovsvapp_name)
-            self.assertEqual(ovs_status, 'poweredOff')
-        else:
-            raise Exception("Ovsvapp agent is not down")
-        agent_list = self.admin_client.list_agents(agent_type='OVSvApp Agent',
-                                                   alive="False")
-        host_name = agent_list['agents'][0]['configurations']['esx_host_name']
+        host_ip = agent_list['agents'][0]['configurations']['esx_host_name']
         host_username = cfg.CONF.VCENTER.host_username
-        HOST1 = host_username + "@" + host_name
-        cmd = "vim-cmd hostsvc/hostsummary | grep inMaintenanceMode"
-        prog = subprocess.Popen(["ssh", "%s" % HOST1, cmd],
+        HOST1 = host_username + "@" + host_ip
+        command = "vim-cmd hostsvc/hostsummary | grep inMaintenanceMode"
+        prog = subprocess.Popen(["ssh", "%s" % HOST1, command],
                                 stdout=subprocess.PIPE)
         host_mode = prog.stdout.readlines()
         if 'true' in host_mode[0]:
@@ -107,11 +98,12 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         else:
             raise Exception("Host not entered in to maintainance mode")
         self._check_public_network_connectivity(floatingiptoreach)
+
         self._status_of_host()
 
         devstack = cfg.CONF.VCENTER.devstack
         if devstack == 'yes':
-            time.sleep(10)
+            time.sleep(20)
             vapp_username = cfg.CONF.VCENTER.vapp_username
             HOST = vapp_username + "@" + ovsvapp_ip
             cmd = ('sudo service ssh restart')
@@ -120,6 +112,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
             output = ssh.stdout.readlines()
+            vapp_username = cfg.CONF.VCENTER.vapp_username
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             client.load_system_host_keys()
