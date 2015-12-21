@@ -35,7 +35,13 @@ VCENTER_OPTS = [
     cfg.StrOpt('vapp_username',
                help="Username to login to OVSvApp "),
     cfg.StrOpt('vapp_password',
-               help="Password to login to OVSvApp")
+               help="Password to login to OVSvApp"),
+    cfg.StrOpt('host_username',
+               help="The username of the host"),
+    cfg.StrOpt('agent_down_time',
+               help="Time taken to turn off the OVSvApp "),
+    cfg.StrOpt('devstack',
+               help="Devstack is used for test")
 ]
 
 
