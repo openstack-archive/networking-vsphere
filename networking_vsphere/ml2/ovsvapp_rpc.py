@@ -505,7 +505,7 @@ class OVSvAppAgentNotifyAPI(object):
     """Agent side of the OVSvApp rpc API."""
 
     def __init__(self, topic=topics.AGENT):
-        target = oslo_messaging.Target(topic=topic, version='1.0')
+        target = oslo_messaging.Target(topic=topic, version='1.1')
         self.client = n_rpc.get_client(target)
         self.topic = topic
 
@@ -531,12 +531,19 @@ class OVSvAppAgentNotifyAPI(object):
                    cluster_id=cluster_id)
 
     def device_delete(self, context, network_info, host, cluster_id):
-        cctxt = self.client.prepare(
-            topic=self._get_device_topic(topics.DELETE, cluster_id),
-            fanout=True)
-        cctxt.cast(context, 'device_delete',
-                   network_info=network_info, host=host,
-                   cluster_id=cluster_id)
+        try:
+            cctxt = self.client.prepare(
+                topic=self._get_device_topic(topics.DELETE, cluster_id),
+                fanout=True, version='1.1')
+            cctxt.cast(context, 'device_delete',
+                       network_info=network_info, host=host,
+                       cluster_id=cluster_id)
+        except oslo_messaging.UnsupportedVersion:
+            cctxt = self.client.prepare(
+                topic=self._get_device_topic(topics.DELETE, cluster_id))
+            return cctxt.call(context, 'device_delete',
+                              network_info=network_info, host=host,
+                              cluster_id=cluster_id)
 
     def enhanced_sg_provider_updated(self, context, network_id):
         sg_topic = ovsvapp_const.OVSVAPP + '_' + topics.SECURITY_GROUP
