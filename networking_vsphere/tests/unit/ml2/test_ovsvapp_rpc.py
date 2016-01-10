@@ -478,7 +478,8 @@ class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
                            topics.get_topic_name(topics.AGENT,
                                                  self.cluster_device_topic,
                                                  topics.DELETE),
-                           'device_delete', rpc_method='call',
+                           'device_delete', rpc_method='cast',
+                           fanout=True,
                            network_info='fake_network_info',
                            host=FAKE_HOST,
                            cluster_id=FAKE_CLUSTER_ID)

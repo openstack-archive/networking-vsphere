@@ -530,10 +530,11 @@ class OVSvAppAgentNotifyAPI(object):
 
     def device_delete(self, context, network_info, host, cluster_id):
         cctxt = self.client.prepare(
-            topic=self._get_device_topic(topics.DELETE, cluster_id))
-        return cctxt.call(context, 'device_delete',
-                          network_info=network_info, host=host,
-                          cluster_id=cluster_id)
+            topic=self._get_device_topic(topics.DELETE, cluster_id),
+            fanout=True)
+        cctxt.cast(context, 'device_delete',
+                   network_info=network_info, host=host,
+                   cluster_id=cluster_id)
 
     def enhanced_sg_provider_updated(self, context, network_id):
         sg_topic = ovsvapp_const.OVSVAPP + '_' + topics.SECURITY_GROUP

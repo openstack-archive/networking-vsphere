@@ -1630,14 +1630,9 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         """Delete the portgroup, flows and reclaim lvid for a VXLAN network."""
         host = kwargs.get('host')
         network_info = kwargs.get('network_info')
-        cluster_id = network_info['cluster_id']
         network_id = network_info['network_id']
         LOG.info(_("RPC device_delete received for network: %s."),
                  network_info)
-        if cluster_id != self.cluster_id:
-            LOG.error(_("Skipping device delete RPC, since "
-                        "port group doesn't belong to cluster."))
-            return
         if host == self.hostname:
             try:
                 self._delete_portgroup(network_id)
