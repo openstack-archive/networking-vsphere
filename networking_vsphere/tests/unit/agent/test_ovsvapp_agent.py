@@ -614,6 +614,7 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.vnic_info[FAKE_PORT_2] = fakeport_2
         self.agent.vnic_info[FAKE_PORT_3] = fakeport_3
         devices = [FAKE_PORT_1, FAKE_PORT_2, FAKE_PORT_3]
+        self.agent.sg_agent.remove_devices_filter = mock.Mock()
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
                                return_value=[fakeport_1, fakeport_2]
@@ -622,6 +623,9 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_add_devices_to_filter, \
                 mock.patch.object(self.agent.sg_agent, 'refresh_firewall'
                                   )as mock_refresh_firewall, \
+                mock.patch.object(self.agent.sg_agent,
+                                  'remove_devices_filter'
+                                  )as mock_remove_device_filter, \
                 mock.patch.object(self.agent, '_add_physical_bridge_flows'
                                   ) as mock_add_physical_bridge_flows, \
                 mock.patch.object(self.agent, '_remove_stale_ports_flows'), \
@@ -638,6 +642,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertNotIn(FAKE_PORT_1, self.agent.vnic_info)
             self.assertNotIn(FAKE_PORT_2, self.agent.vnic_info)
             self.assertNotIn(FAKE_PORT_3, self.agent.vnic_info)
+            mock_remove_device_filter.assert_called_with(FAKE_PORT_3)
 
     def test_update_firewall(self):
         fakeport_1 = self._get_fake_port(FAKE_PORT_1)
