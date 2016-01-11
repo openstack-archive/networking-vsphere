@@ -278,6 +278,8 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                         continue
                     if self.update_agent_state(agent_id, False):
                         # Got the ownership for mitigating this agent.
+                        if agent_id in self.active_agents:
+                            self.active_agents.remove(agent_id)
                         if self.check_ovsvapp_data_path(agent):
                             continue
                         cluster_status = (
@@ -294,8 +296,6 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                                 LOG.info(_LI("Moving agent: %s from active to "
                                              "inactive."), agent_id)
                                 self.inactive_agents.append(agent_id)
-                            if agent_id in self.active_agents:
-                                self.active_agents.remove(agent_id)
                         elif cluster_status == ovsvapp_db.RETRY:
                             self.update_agent_state(agent['id'], True)
                             LOG.debug("Will retry the agent %s in the next "
