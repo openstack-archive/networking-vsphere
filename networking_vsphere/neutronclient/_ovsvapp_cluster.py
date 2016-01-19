@@ -63,6 +63,48 @@ def comman_add_args(parser):
     return parser
 
 
+class OVSvAppClusterCreate(extension.ClientExtensionCreate, OVSvAppCluster):
+    """Creates a given new vcenter cluster."""
+    shell_command = 'ovsvapp-cluster-create'
+    list_columns = ['vcenter_id', 'clusters']
+
+    def add_known_arguments(self, parser):
+        comman_add_args(parser)
+
+    def args2body(self, parsed_args):
+        body = comman_args2body(parsed_args)
+        return body
+
+
+class OVSvAppClusterUpdate(extension.ClientExtensionUpdate, OVSvAppCluster):
+    """Delete a given vcenter cluster with given details."""
+    shell_command = 'ovsvapp-cluster-update'
+    allow_names = True
+
+    def get_parser(self, prog_name):
+        parser = super(neutronV20.UpdateCommand, self).get_parser(prog_name)
+        comman_add_args(parser)
+        return parser
+
+    def run(self, parsed_args):
+        self.log.debug('run(%s)', parsed_args)
+        neutron_client = self.get_client()
+        neutron_client.format = parsed_args.request_format
+        parsed_args.id = parsed_args.vcenter_id
+        body = self.args2body(parsed_args)
+        if not body[self.resource]:
+            raise exceptions.CommandError(
+                _("Must specify existing values to delete %s "
+                  "info") % self.resource)
+        obj_updator = getattr(neutron_client,
+                              "update_%s" % self.resource)
+        obj_updator(parsed_args.id, body)
+        return
+
+    def args2body(self, parsed_args):
+        return comman_args2body(parsed_args)
+
+
 class OVSvAppClusterList(extension.ClientExtensionList, OVSvAppCluster):
     """List vCenter Clusters under Admin Context."""
 

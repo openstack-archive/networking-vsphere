@@ -21,9 +21,9 @@ import mock
 
 from networking_vsphere.neutronclient import (
     _ovsvapp_cluster as ovsvapp_cluster)
+from networking_vsphere.tests.unit.neutronclient import test_cli20
 
 from neutronclient import shell
-from neutronclient.tests.unit import test_cli20
 
 
 class CLITestV20ExtensionOVSvAppClusterJSON(test_cli20.CLITestV20Base):
@@ -54,6 +54,34 @@ class CLITestV20ExtensionOVSvAppClusterJSON(test_cli20.CLITestV20Base):
                    'ovsvapp-cluster-show':
                    ovsvapp_cluster.OVSvAppClusterShow}
         self.assertDictContainsSubset(ext_cmd, shell.COMMANDS['2.0'])
+
+    def test_create_ovsvapp_clusters(self):
+        """Test Create OVSvApp clusters."""
+
+        resources = "ovsvapp_cluster"
+        vcenter_id = 'v1'
+        clusters = ['c1']
+        args = ['--vcenter_id', 'v1',
+                '--clusters', 'c1']
+        position_names = ['vcenter_id', 'clusters']
+        position_values = [vcenter_id, clusters]
+        cmd = ovsvapp_cluster.OVSvAppClusterCreate(
+            test_cli20.MyApp(sys.stdout), None)
+        self._test_create_resource(resources, cmd, vcenter_id, 'myid', args,
+                                   position_names, position_values)
+
+    def test_update_ovsvapp_clusters(self):
+        """Test Update OVSvApp clusters."""
+
+        resources = 'ovsvapp_cluster'
+        cmd = ovsvapp_cluster.OVSvAppClusterUpdate(
+            test_cli20.MyApp(sys.stdout), None)
+        args = ['myid', '--vcenter_id', 'v1',
+                '--clusters', 'c1']
+        values = {'vcenter_id': 'v1',
+                  'clusters': ['c1']}
+        self._test_update_resource(resources, cmd, 'myid', args,
+                                   values)
 
     def test_list_ovsvapp_clusters(self):
         """Test List OVSvApp clusters."""
