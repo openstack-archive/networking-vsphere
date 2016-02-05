@@ -19,7 +19,7 @@ import time
 from networking_vsphere.tests.scenario import manager
 
 from neutron.tests.tempest import exceptions
-from neutron.tests.tempest import manager as auth_manager
+from tempest import manager as auth_manager
 
 from oslo_config import cfg
 from oslo_serialization import jsonutils
@@ -34,8 +34,12 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
     @classmethod
     def resource_setup(cls):
         super(OVSVAPPTestadminJSON, cls).resource_setup()
+        cls.creds = cls.os.credentials
+        cls.user_id = cls.creds.user_id
+        cls.username = cls.creds.username
+        cls.password = cls.creds.password
         cls.auth_provider = auth_manager.get_auth_provider(
-            cls.isolated_creds.get_admin_creds())
+            cls.creds.credentials)
         cls.ext_net_id = CONF.network.public_network_id
         cls.network = cls.create_shared_network()
         cls.subnet = cls.create_subnet(cls.network, client=cls.admin_client)
@@ -111,7 +115,7 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
     def _wait_for_floating_ip_status(self, floating_ip_id, status):
         """Waits for a floating_ip to reach a given status."""
         build_timeout = CONF.compute.build_timeout
-        build_interval = CONF.boto.build_interval
+        build_interval = CONF.compute.build_interval
         floating_ip = self.admin_client.show_floatingip(floating_ip_id)
         shown_floating_ip = floating_ip['floatingip']
         floating_ip_status = shown_floating_ip['status']
