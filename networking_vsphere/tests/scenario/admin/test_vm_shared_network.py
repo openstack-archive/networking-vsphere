@@ -19,7 +19,7 @@ import time
 from networking_vsphere.tests.scenario import manager
 
 from neutron.tests.tempest import exceptions
-from neutron.tests.tempest import manager as auth_manager
+from tempest import manager as auth_manager
 
 from oslo_config import cfg
 from oslo_serialization import jsonutils

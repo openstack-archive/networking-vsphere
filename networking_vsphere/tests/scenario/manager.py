@@ -38,10 +38,9 @@ from oslo_utils import importutils
 from neutron._i18n import _LI, _LW
 from neutron.tests.api import base
 from neutron.tests.api import base_security_groups
-from neutron.tests.api import clients
-from neutron.tests.tempest import exceptions
-from neutron.tests.tempest import manager
-from neutron.tests.tempest import test
+from tempest import exceptions
+from tempest import manager
+from tempest import test
 
 from tempest_lib.common import rest_client
 from tempest_lib.common import ssh
@@ -66,10 +65,11 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     @classmethod
     def resource_setup(cls):
         super(ESXNetworksTestJSON, cls).resource_setup()
-        admin_manager = clients.AdminManager()
-        cls.identity_admin_client = admin_manager.identity_client
-        cls.auth_provider = manager.get_auth_provider(
-            cls.isolated_creds.get_primary_creds())
+        cls.creds = cls.os.credentials
+        cls.user_id = cls.creds.user_id
+        cls.username = cls.creds.username
+        cls.password = cls.creds.password
+        cls.auth_provider = manager.get_auth_provider(cls.creds.credentials)
         if not test.is_extension_enabled('router', 'network'):
             msg = "router extension not enabled."
             raise cls.skipException(msg)
