@@ -40,8 +40,8 @@ from neutron.tests.api import base
 from neutron.tests.api import base_security_groups
 from neutron.tests.api import clients
 from neutron.tests.tempest import exceptions
-from neutron.tests.tempest import manager
-from neutron.tests.tempest import test
+from tempest import manager
+from tempest import test
 
 from tempest_lib.common import rest_client
 from tempest_lib.common import ssh
