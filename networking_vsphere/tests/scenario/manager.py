@@ -21,33 +21,28 @@ sudo pip install pyvmomi
 
 """
 import atexit
-
 import netaddr
 import six
-
 import subprocess
 import time
-
-from networking_vsphere.tests.tempest import config as tempest_config
 
 from oslo_config import cfg
 from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
-
-from neutron._i18n import _LI, _LW
-from neutron.tests.api import base
-from neutron.tests.api import base_security_groups
-from neutron.tests.api import clients
-from neutron.tests.tempest import exceptions
-from neutron.tests.tempest import manager
-from neutron.tests.tempest import test
-
+from tempest import manager
+from tempest import test
 from tempest_lib.common import rest_client
 from tempest_lib.common import ssh
 from tempest_lib.common.utils import data_utils
 from tempest_lib.common.utils import misc as misc_utils
 from tempest_lib import exceptions as lib_exc
+
+from networking_vsphere.tests.tempest import config as tempest_config
+from neutron._i18n import _LI, _LW
+from neutron.tests.api import base
+from neutron.tests.api import base_security_groups
+from neutron.tests.tempest import exceptions
 
 pyVmomi = importutils.try_import("pyVmomi")
 if pyVmomi:
@@ -66,10 +61,11 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     @classmethod
     def resource_setup(cls):
         super(ESXNetworksTestJSON, cls).resource_setup()
-        admin_manager = clients.AdminManager()
-        cls.identity_admin_client = admin_manager.identity_client
-        cls.auth_provider = manager.get_auth_provider(
-            cls.isolated_creds.get_primary_creds())
+        cls.creds = cls.os.credentials
+        cls.user_id = cls.creds.user_id
+        cls.username = cls.creds.username
+        cls.password = cls.creds.password
+        cls.auth_provider = manager.get_auth_provider(cls.creds.credentials)
         if not test.is_extension_enabled('router', 'network'):
             msg = "router extension not enabled."
             raise cls.skipException(msg)
@@ -241,7 +237,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def wait_for_floating_ip_status(self, floating_ip_id, status):
         """Waits for a floating_ip to reach a given status."""
         build_timeout = CONF.compute.build_timeout
-        build_interval = CONF.boto.build_interval
+        build_interval = CONF.compute.build_interval
         floating_ip = self.client.show_floatingip(floating_ip_id)
         shown_floating_ip = floating_ip['floatingip']
         floating_ip_status = shown_floating_ip['status']
@@ -262,7 +258,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def wait_for_server_termination(self, server_id, ignore_error=False):
         """Waits for server to reach termination."""
-        build_interval = CONF.boto.build_interval
+        build_interval = CONF.compute.build_interval
         while True:
             try:
                 rs_client = self._connect_server()
@@ -280,7 +276,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def wait_for_server_status(self, server_id, status, ready_wait=True,
                                extra_timeout=0, raise_on_error=True):
         """Waits for a server to reach a given status."""
-        build_interval = CONF.boto.build_interval
+        build_interval = CONF.compute.build_interval
         build_timeout = CONF.compute.build_timeout
 
         def _get_task_state(body):
@@ -844,7 +840,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                               port, net_id):
         vapp_username = cfg.CONF.VCENTER.vapp_username
         HOST = vapp_username + "@" + vapp_ipadd
-        build_interval = CONF.boto.build_interval
+        build_interval = CONF.compute.build_interval
         time.sleep(build_interval)
         tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
         if "vlan" == tenant_network_type:
@@ -872,7 +868,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                             mac, icmp_type, icmp_code, net_id):
         vapp_username = cfg.CONF.VCENTER.vapp_username
         HOST = vapp_username + "@" + vapp_ipadd
-        build_interval = CONF.boto.build_interval
+        build_interval = CONF.compute.build_interval
         time.sleep(build_interval)
         tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
         if "vlan" == tenant_network_type:
@@ -920,7 +916,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                             mac, icmp_type, net_id):
         vapp_username = cfg.CONF.VCENTER.vapp_username
         HOST = vapp_username + "@" + vapp_ipadd
-        build_interval = CONF.boto.build_interval
+        build_interval = CONF.compute.build_interval
         time.sleep(build_interval)
         tenant_network_type = cfg.CONF.VCENTER.tenant_network_type
         if "vlan" == tenant_network_type:
