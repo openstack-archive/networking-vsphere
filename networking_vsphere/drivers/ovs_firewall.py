@@ -34,8 +34,8 @@ PROTOCOLS = {constants.PROTO_NAME_TCP: constants.PROTO_NAME_TCP,
              constants.PROTO_NUM_UDP: constants.PROTO_NAME_UDP,
              constants.PROTO_NAME_ICMP: constants.PROTO_NAME_ICMP,
              constants.PROTO_NUM_ICMP: constants.PROTO_NAME_ICMP,
-             constants.PROTO_NAME_ICMP_V6: constants.PROTO_NAME_ICMP_V6,
-             constants.PROTO_NUM_ICMP_V6: constants.PROTO_NAME_ICMP_V6}
+             constants.PROTO_NAME_IPV6_ICMP: constants.PROTO_NAME_IPV6_ICMP,
+             constants.PROTO_NUM_IPV6_ICMP: constants.PROTO_NAME_IPV6_ICMP}
 
 ETHERTYPE = {constants.IPv4: "ip",
              constants.IPv6: "ipv6"}
