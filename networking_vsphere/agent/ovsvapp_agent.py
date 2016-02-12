@@ -224,12 +224,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "agent!"), secbr_name)
             raise SystemExit(1)
         # br-sec patch port to br-int.
-        self.patch_int_ofport = self.sec_br.add_patch_port(
+        patch_sec_int_ofport = self.sec_br.add_patch_port(
             ovsvapp_const.SEC_TO_INT_PATCH, ovsvapp_const.INT_TO_SEC_PATCH)
         # br-int patch port to br-sec.
         self.patch_sec_ofport = self.int_br.add_patch_port(
             ovsvapp_const.INT_TO_SEC_PATCH, ovsvapp_const.SEC_TO_INT_PATCH)
-        if int(self.patch_int_ofport) < 0 or int(self.patch_sec_ofport) < 0:
+        if int(patch_sec_int_ofport) < 0 or int(self.patch_sec_ofport) < 0:
             LOG.error(_LE("Failed to create OVS patch port. Neutron port "
                           "security cannot be enabled on this agent. "
                           "Terminating the agent!"))
@@ -264,12 +264,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "agent!"), secbr_name)
             raise SystemExit(1)
         # br-sec patch port to br-int.
-        self.patch_int_ofport = self.sec_br.get_port_ofport(
+        patch_sec_int_ofport = self.sec_br.get_port_ofport(
             ovsvapp_const.SEC_TO_INT_PATCH)
         # br-int patch port to br-sec.
         self.patch_sec_ofport = self.int_br.get_port_ofport(
             ovsvapp_const.INT_TO_SEC_PATCH)
-        if int(self.patch_int_ofport) < 0 or int(self.patch_sec_ofport) < 0:
+        if int(patch_sec_int_ofport) < 0 or int(self.patch_sec_ofport) < 0:
             LOG.error(_LE("Failed to find OVS patch port. Cannot have "
                           "Security enabled on this agent. "
                           "Terminating the agent!"))
@@ -395,6 +395,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.vxlan_udp_port = CONF.OVSVAPP.vxlan_udp_port
             self.dont_fragment = CONF.OVSVAPP.dont_fragment
             self.local_ip = CONF.OVSVAPP.local_ip
+            self.patch_tun_ofport = ovs_const.OFPORT_INVALID
+            self.patch_int_ofport = ovs_const.OFPORT_INVALID
             if not self.local_ip:
                 LOG.error(_LE("Tunneling cannot be enabled without a valid "
                               "local_ip."))
