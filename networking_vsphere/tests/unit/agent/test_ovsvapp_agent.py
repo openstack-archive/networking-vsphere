@@ -299,6 +299,30 @@ class TestOVSvAppAgent(base.TestCase):
             mock_setup_tunnel_br.assert_called_with("br-tun")
             self.assertTrue(mock_setup_tunnel_br_flows.called)
 
+    def test_setup_ovs_bridges_vxlan_ofport(self):
+        cfg.CONF.set_override('tenant_network_type',
+                              "vxlan", 'OVSVAPP')
+        cfg.CONF.set_override('local_ip',
+                              "10.10.10.10", 'OVSVAPP')
+        cfg.CONF.set_override('tunnel_bridge',
+                              "br-tun", 'OVSVAPP')
+        self.agent.tun_br = mock.Mock()
+        self.agent.int_br = mock.Mock()
+
+        with mock.patch.object(self.agent.tun_br,
+                               "add_patch_port",
+                               return_value=5), \
+                mock.patch.object(self.agent.int_br,
+                                  "add_patch_port",
+                                  return_value=6), \
+                mock.patch.object(self.agent, 'setup_tunnel_br_flows'
+                                  ) as mock_setup_tunnel_br_flows:
+            self.agent.setup_ovs_bridges()
+            self.assertTrue(self.agent.tun_br.add_patch_port.called)
+            self.assertEqual(self.agent.patch_tun_ofport, 6)
+            self.assertEqual(self.agent.patch_int_ofport, 5)
+            self.assertTrue(mock_setup_tunnel_br_flows.called)
+
     def test_mitigate_ovs_restart_vlan(self):
         self.agent.refresh_firewall_required = False
         self.agent.devices_to_filter = set(['1111'])
