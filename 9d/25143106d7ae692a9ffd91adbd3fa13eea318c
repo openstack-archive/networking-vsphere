@@ -1,0 +1,9 @@
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Code-Review+2: Armando Migliaccio <armamig@gmail.com>
+Workflow+1: Armando Migliaccio <armamig@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sat, 13 Feb 2016 03:48:07 +0000
+Reviewed-on: https://review.openstack.org/279492
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/liberty
