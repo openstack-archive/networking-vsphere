@@ -68,7 +68,7 @@ class LocalVLANMapping(object):
 
 class PortInfo(object):
     def __init__(self, port_id, vlanid, mac_addr, sec_gps, fixed_ips,
-                 admin_state_up, network_id, vm_uuid):
+                 admin_state_up, network_id, vm_uuid, phys_net):
         self.port_id = port_id
         self.vlanid = vlanid
         self.mac_addr = mac_addr
@@ -77,6 +77,7 @@ class PortInfo(object):
         self.admin_state_up = admin_state_up
         self.network_id = network_id
         self.vm_uuid = vm_uuid
+        self.phys_net = phys_net
 
 
 class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
@@ -97,6 +98,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.cluster_id = self.cluster_dvs_info[0]  # Datacenter/host/cluster.
         self.ports_dict = {}
         self.network_port_count = {}
+        self.local_vlan_map = {}
         self.vnic_info = {}
         self.devices_to_filter = set()
         self.cluster_host_ports = set()
@@ -333,34 +335,25 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         LOG.info(_("Physical bridges successfully recovered."))
 
     def _init_ovs_flows(self, bridge_mappings):
-        """Delete the drop flow created by OVSvApp Agent code.
+        """Add the integration and physical bridge base flows."""
 
-        Add the new flow to allow all the packets between integration
-        bridge and physical bridge.
-        """
         self.phys_brs = {}
         self.int_br.delete_flows(in_port=self.patch_sec_ofport)
         for phys_net, bridge in six.iteritems(bridge_mappings):
             self.int_br.delete_flows(
                 in_port=self.int_ofports[phys_net])
-            # Egress FLOWs.
-            self.int_br.add_flow(priority=2,
-                                 in_port=self.patch_sec_ofport,
-                                 actions="output:%s"
-                                 % self.int_ofports[phys_net])
             br = ovs_lib.OVSBridge(bridge)
             eth_name = bridge.split('-').pop()
             eth_ofport = br.get_port_ofport(eth_name)
             br.delete_flows(in_port=self.phys_ofports[phys_net])
-            if eth_ofport > 0:
-                br.delete_flows(in_port=eth_ofport)
-                br.add_flow(priority=2,
-                            in_port=self.phys_ofports[phys_net],
-                            actions="normal")
-                # Ingress FLOWs.
-                br.add_flow(priority=2,
-                            in_port=eth_ofport,
-                            actions="normal")
+            br.delete_flows(in_port=eth_ofport)
+            br.add_flow(priority=2,
+                        in_port=self.phys_ofports[phys_net],
+                        actions="normal")
+            # Ingress FLOWs.
+            br.add_flow(priority=2,
+                        in_port=eth_ofport,
+                        actions="normal")
             self.int_br.add_flow(priority=2,
                                  in_port=self.int_ofports[phys_net],
                                  actions="output:%s" % self.patch_sec_ofport)
@@ -386,7 +379,6 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             # Once enabled, their values will be read from ini file.
             self.l2_pop = False
             self.arp_responder_enabled = False
-            self.local_vlan_map = {}
             self.tun_br_ofports = {p_const.TYPE_VXLAN: {}}
             self.polling_interval = CONF.OVSVAPP.polling_interval
             self.enable_tunneling = True
@@ -412,21 +404,43 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             else:
                 self.recover_tunnel_bridge()
 
+    def _add_integration_bridge_flows(self, port):
+        """Add integration bridge flows based on VLAN and physnet."""
+
+        if port['network_id'] not in self.local_vlan_map:
+            self._populate_lvm(port)
+            phys_net = port['physical_network']
+            self.int_br.add_flow(priority=4,
+                                 in_port=self.patch_sec_ofport,
+                                 dl_vlan=port['segmentation_id'],
+                                 actions="output:%s"
+                                 % self.int_ofports[phys_net])
+
+    def _delete_integration_bridge_flows(self, network_id):
+        lvm = self.local_vlan_map.pop(network_id, None)
+        if lvm:
+            self.int_br.delete_flows(dl_vlan=lvm.segmentation_id)
+        else:
+            LOG.debug("local_vlan_map does not have mapping for",
+                      "network_id %s", network_id)
+
     def _add_physical_bridge_flows(self, port):
-        for phys_net in self.phys_brs:
-            br = self.phys_brs[phys_net]['br']
-            eth_ofport = self.phys_brs[phys_net]['eth_ofport']
-            br.add_flow(priority=4,
-                        in_port=eth_ofport,
-                        dl_src=port['mac_address'],
-                        dl_vlan=port['segmentation_id'],
-                        actions="drop")
+        """Add the drop flows for host owned ports."""
+
+        phys_net = port['physical_network']
+        br = self.phys_brs[phys_net]['br']
+        eth_ofport = self.phys_brs[phys_net]['eth_ofport']
+        br.add_flow(priority=4,
+                    in_port=eth_ofport,
+                    dl_src=port['mac_address'],
+                    dl_vlan=port['segmentation_id'],
+                    actions="drop")
 
     def _delete_physical_bridge_flows(self, port):
-        for phys_net in self.phys_brs:
-            br = self.phys_brs[phys_net]['br']
-            br.delete_flows(dl_src=port.mac_addr,
-                            dl_vlan=port.vlanid)
+        phys_net = port.phys_net
+        br = self.phys_brs[phys_net]['br']
+        br.delete_flows(dl_src=port.mac_addr,
+                        dl_vlan=port.vlanid)
 
     def _ofport_set_to_str(self, ofport_set):
         return ",".join(map(str, ofport_set))
@@ -463,7 +477,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                                    port['fixed_ips'],
                                                    port['admin_state_up'],
                                                    port['network_id'],
-                                                   port['device_id'])
+                                                   port['device_id'],
+                                                   port['physical_network'])
             self.sg_agent.add_devices_to_filter([port])
             if self.tenant_network_type == p_const.TYPE_VXLAN:
                 if port['id'] in self.cluster_host_ports:
@@ -475,6 +490,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     self.network_port_count[port['network_id']] = 1
                 else:
                     self.network_port_count[port['network_id']] += 1
+                self._add_integration_bridge_flows(port)
                 if port['id'] in self.cluster_host_ports:
                     self._add_physical_bridge_flows(port)
             # Remove this port from vnic_info.
@@ -541,9 +557,16 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     port_id, mac_addr, vlan)
                 if self.tenant_network_type == p_const.TYPE_VLAN:
                     port = PortInfo(port_id, vlan, mac_addr, None, None,
-                                    None, None, None)
+                                    None, None, None, None)
                     # Delete flows on physical bridge.
-                    self._delete_physical_bridge_flows(port)
+                    # Ports_dict does not have the information about this port.
+                    # Looping through all physnets is better than collecting
+                    # this information from vCenter and mapping to physical
+                    # network. OpenvSwitch does not complain about deleting
+                    # non existent flows.
+                    for phys_net in self.phys_brs:
+                        port['physical_network'] = phys_net
+                        self._delete_physical_bridge_flows(port)
             else:
                 LOG.info(_("Could not obtain VLAN for port %(port_id)s "
                            "belonging to port group key %(pg_key)s for "
@@ -1068,6 +1091,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             port = {}
                             port['mac_address'] = updated_port.mac_addr
                             port['segmentation_id'] = updated_port.vlanid
+                            port['physical_network'] = updated_port.phys_net
                             self._add_physical_bridge_flows(port)
             else:
                 for vnic in vm.vnics:
@@ -1143,6 +1167,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     # last VM associated with the network is deleted.
                     if port_count == 0:
                         self.network_port_count.pop(network_id)
+                        self._delete_integration_bridge_flows(network_id)
                         if host == self.esx_hostname:
                             self._delete_portgroup(network_id)
             self.net_mgr.get_driver().post_delete_vm(vm)
@@ -1166,6 +1191,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 # last VM associated with the network is deleted.
                 if port_count == 0:
                     self.network_port_count.pop(del_port.network_id)
+                    self._delete_integration_bridge_flows(del_port.network_id)
                 LOG.debug("Port count per network details after VM "
                           "deletion: %s.", self.network_port_count)
                 # Clean up ports_dict for the deleted port.
@@ -1245,7 +1271,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                         port['fixed_ips'],
                         port['admin_state_up'],
                         port['network_id'],
-                        port['device_id'])
+                        port['device_id'],
+                        port['physical_network'])
 
     def _map_port_to_common_model(self, port_info, local_vlan_id=None):
         """Map the port and network objects to vCenter objects."""
@@ -1383,14 +1410,16 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                           {'net_id': net_id,
                                            'port_id': port['id']})
                             continue
-                self.ports_dict[port['id']] = PortInfo(port['id'],
-                                                       local_vlan_id,
-                                                       port['mac_address'],
-                                                       port['security_groups'],
-                                                       port['fixed_ips'],
-                                                       port['admin_state_up'],
-                                                       port['network_id'],
-                                                       port['device_id'])
+                self.ports_dict[port['id']] = PortInfo(
+                    port['id'],
+                    local_vlan_id,
+                    port['mac_address'],
+                    port['security_groups'],
+                    port['fixed_ips'],
+                    port['admin_state_up'],
+                    port['network_id'],
+                    port['device_id'],
+                    port['physical_network'])
                 # TODO(vivek): This line results in asynchronously updating the
                 # bindings, which is not useful. Commenting for now will be
                 # revisited in vxlan refactoring.
@@ -1485,6 +1514,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self._create_portgroup(port, host)
                 # Add physical bridge flows.
                 self._add_physical_bridge_flows(port)
+            self._add_integration_bridge_flows(port)
             if port_id in ports_sg_rules:
                 if port_id in missed_provider_rule_ports:
                     if not self._check_sg_provider_rule(
@@ -1584,7 +1614,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     new_port['fixed_ips'],
                     new_port['admin_state_up'],
                     new_port['network_id'],
-                    new_port['device_id'])
+                    new_port['device_id'],
+                    old_port_object.phys_net)
                 new_port_object = self.ports_dict[new_port['id']]
         finally:
             ovsvapplock.release()
