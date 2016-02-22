@@ -19,7 +19,6 @@ from oslo_vmware import vim_util
 
 from nova import exception
 from nova.i18n import _LI
-from nova import objects
 from nova.virt.vmwareapi import driver as vmware_driver
 from nova.virt.vmwareapi import images
 from nova.virt.vmwareapi import ovsvapp_vmops as vmops  # noqa
@@ -50,7 +49,6 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
-        image_meta = objects.ImageMeta.from_dict(image_meta)
         self.ovsvapp_vmops.spawn(context=context,
                                  instance=instance,
                                  image_meta=image_meta,
