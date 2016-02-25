@@ -1,0 +1,10 @@
+Code-Review+1: Clint Adams <clint@gcfm.net>
+Code-Review+1: YAMAMOTO Takashi <yamamoto@midokura.com>
+Code-Review+2: Raghuveer Shenoy <rshenoy@hp.com>
+Workflow+1: Raghuveer Shenoy <rshenoy@hp.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 25 Feb 2016 10:49:36 +0000
+Reviewed-on: https://review.openstack.org/268472
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
