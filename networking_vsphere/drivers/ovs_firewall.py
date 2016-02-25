@@ -79,7 +79,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
     def check_ovs_firewall_restart(self):
         canary_flow = self.sg_br.dump_flows_for_table(
-            ovsvapp_const.SG_EGRESS_TABLE_ID)
+            ovsvapp_const.SG_CANARY_TABLE_ID)
         return canary_flow
 
     @property
@@ -255,6 +255,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                                in_port=self.phy_ofport)
             self._add_ovs_flow(sec_br, ovsvapp_const.SG_DROPALL_PRI,
                                ovsvapp_const.SG_EGRESS_TABLE_ID, "drop")
+            self._add_ovs_flow(sec_br, ovsvapp_const.SG_DROPALL_PRI,
+                               ovsvapp_const.SG_CANARY_TABLE_ID, "drop")
             self._add_ovs_flow(sec_br, ovsvapp_const.SG_DROPALL_PRI,
                                ovsvapp_const.SG_LEARN_TABLE_ID, "drop")
             # Allow all ARP, parity with iptables.
