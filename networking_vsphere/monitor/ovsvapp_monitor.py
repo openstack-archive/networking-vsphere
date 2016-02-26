@@ -22,6 +22,7 @@ from oslo_utils import timeutils
 
 import random
 import requests
+import time
 
 from neutron import context as neutron_context
 from neutron._i18n import _, _LE, _LI, _LW
@@ -166,7 +167,12 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
         if monitoring_ip:
             url = 'http://%s:8080/status.json' % monitoring_ip
             try:
-                response = requests.get(url, timeout=5)
+                i = 0
+                response = None
+                while not response and i < 3:
+                    response = requests.get(url, timeout=10)
+                    time.sleep(30)
+                    i = i + 1
                 if response:
                     LOG.debug("HTTP response from OVSvApp agent@ %(ip)s is "
                               "%(res)s", {'res': response,

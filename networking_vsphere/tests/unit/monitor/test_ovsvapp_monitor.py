@@ -356,7 +356,7 @@ class TestAgentMonitor(base.BaseTestCase):
         with mock.patch('requests.get', return_value=response) as http_call:
             ret = self.ovsvapp_monitor._check_datapath_health(monitoring_ip)
             self.assertTrue(http_call.called)
-            http_call.assert_called_with(url, timeout=5)
+            http_call.assert_called_with(url, timeout=10)
             self.assertTrue(ret)
 
     def test_check_datapath_health_exception(self):
@@ -365,7 +365,7 @@ class TestAgentMonitor(base.BaseTestCase):
         with mock.patch('requests.get', side_effect=Exception) as http_call:
             ret = self.ovsvapp_monitor._check_datapath_health(monitoring_ip)
             self.assertTrue(http_call.called)
-            http_call.assert_called_with(url, timeout=5)
+            http_call.assert_called_with(url, timeout=10)
             self.assertFalse(ret)
 
     def test_check_datapath_health_without_monitoring_ip(self):
