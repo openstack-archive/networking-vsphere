@@ -166,7 +166,17 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
         if monitoring_ip:
             url = 'http://%s:8080/status.json' % monitoring_ip
             try:
-                response = requests.get(url, timeout=5)
+                i = 0
+                response = None
+                while not response and i < 3:
+                    try:
+                        i = i + 1
+                        response = requests.get(url, timeout=30)
+                    except Exception:
+                        LOG.exception(_LE("Failed to get OVS status. Will "
+                                          "continue with retry."))
+                        if (i == 3):
+                            raise Exception
                 if response:
                     LOG.debug("HTTP response from OVSvApp agent@ %(ip)s is "
                               "%(res)s", {'res': response,
