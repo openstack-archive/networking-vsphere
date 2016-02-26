@@ -43,8 +43,19 @@ def start_monitor():
                 pass
             status = line
             sf = open(JSON_FILE_PATH, 'w')
-            if 'broken' in status or 'pending' in status:
+            if 'broken' in status:
                 sf.write('{"ovs": "BAD"}')
+            elif 'pending' in status:
+                split_list = status.split(',')
+                pending_time = split_list[0]
+                split_pending_list = pending_time.split(':')
+                start_time = split_pending_list[1]
+                current_time = time.time()
+                diff = current_time - float(start_time.strip())
+                if diff > 120:
+                    sf.write('{"ovs": "BAD"}')
+                else:
+                    sf.write('{"ovs": "OK"}')
             else:
                 sf.write('{"ovs": "OK"}')
             sf.close()
