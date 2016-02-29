@@ -15,9 +15,12 @@
 #    under the License.
 
 AGENT_TYPE_OVSVAPP = "OVSvApp Agent"
+AGENT_TYPE_DVS = 'DVS agent'
 OVSVAPP = 'ovsvapp'
+DVS = 'dvs'
 OVSVAPP_PLUGIN = 'ovsvapp_service_plugin'
 DEVICE = 'device'
+VMWARE_HYPERVISOR_TYPE = 'VMware vCenter Server'
 
 # Port status constants.
 PORT_STATUS_UP = 'UP'
@@ -86,3 +89,30 @@ SG_RPC_BATCH_SIZE = 10
 
 DIRECTION_IP_PREFIX = {'ingress': 'source_ip_prefix',
                        'egress': 'dest_ip_prefix'}
+
+# protocol number according to RFC 1700
+PROTOCOL = {'icmp': 1,
+            'tcp': 6,
+            'udp': 17}
+
+# VMWare DVS specific
+DVS_PORTGROUP_NAME_MAXLEN = 80
+
+LOGIN_RETRIES = 3
+
+VM_NETWORK_DEVICE_TYPES = [
+    'VirtualE1000', 'VirtualE1000e', 'VirtualPCNet32',
+    'VirtualSriovEthernetCard', 'VirtualVmxnet']
+
+CONCURRENT_MODIFICATION_TEXT = 'Cannot complete operation due to concurrent '\
+                               'modification by another operation.'
+
+LOGIN_PROBLEM_TEXT = "Cannot complete login due to an incorrect "\
+                     "user name or password"
+
+DELETED_TEXT = "The object has already been deleted or has not been "\
+               "completely created"
+
+# EPHEMERAL ports
+MIN_EPHEMERAL_PORT = 32768
+MAX_EPHEMERAL_PORT = 65535
