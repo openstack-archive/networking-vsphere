@@ -1364,7 +1364,9 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules={u'b0080abf-4e1e-447f-59b25-afb75cb20a42':
+                                     {'security_group_source_groups':[]},
+                                      'sg_provider_rules':[]}})
             self.assertTrue(mock_logger_debug.called)
             mock_add_devices_fn.assert_called_with(ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_other_ports)
@@ -1395,7 +1397,9 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules={u'b0080abf-4e1e-447f-59b25-afb75cb20a42':
+                                     {'security_group_source_groups':[]},
+                                      'sg_provider_rules':[]}})
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
@@ -1428,7 +1432,9 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules={u'b0080abf-4e1e-447f-59b25-afb75cb20a42':
+                                              {'security_group_source_groups':[]},
+                                               'sg_provider_rules':[]}})
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
@@ -1462,7 +1468,9 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules={u'b0080abf-4e1e-447f-59b25-afb75cb20a42':
+                                     {'security_group_source_groups':[]},
+                                      'sg_provider_rules':[]}})
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
@@ -1501,7 +1509,9 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules={u'b0080abf-4e1e-447f-59b25-afb75cb20a42':
+                                     {'security_group_source_groups':[]},
+                                      'sg_provider_rules':[]}})
             self.assertTrue(mock_populate_tun_flows.called)
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
@@ -1541,7 +1551,9 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules={u'b0080abf-4e1e-447f-59b25-afb75cb20a42':
+                                     {'security_group_source_groups':[]},
+                                      'sg_provider_rules':[]}})
             self.assertTrue(mock_populate_tun_flows.called)
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
@@ -1578,7 +1590,11 @@ class TestOVSvAppAgent(base.TestCase):
                 error.OVSvAppNeutronAgentError,
                 self.agent.device_create,
                 FAKE_CONTEXT, device=DEVICE,
-                ports=ports, sg_rules=mock.MagicMock())
+                ports=ports,
+                sg_rules={u'b0080abf-4e1e-447f-59b25-afb75cb20a42':
+                         {'security_group_source_groups':[]},
+                          'sg_provider_rules':[]}})
+                sg_rules=mock.MagicMock())
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
