@@ -1329,7 +1329,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         flag = True
         keys = ['source_port_range_min', 'port_range_max',
                 'source_port_range_max', 'port_range_min']
-        sg_rules = port_rules['security_group_rules']
+        sg_rules = port_rules['sg_provider_rules']
         for rule in sg_rules:
             for key in keys:
                 if key not in rule:
