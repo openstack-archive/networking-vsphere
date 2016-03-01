@@ -55,6 +55,11 @@ FAKE_SG_RULE = {'security_group_source_groups': ['fake_rule_1',
                 'security_group_rules': [
                 {'ethertype': 'IPv4',
                  'direction': 'egress',
+                 'security_group_id': 'fake_id'
+                 }],
+                'sg_provider_rules': [
+                {'ethertype': 'IPv4',
+                 'direction': 'egress',
                  'source_port_range_min': 67,
                  'source_port_range_max': 67,
                  'port_range_min': 68,
@@ -72,6 +77,7 @@ FAKE_SG_RULES_MISSING = {FAKE_PORT_1: {'security_group_source_groups': [
                                        'fake_rule_1',
                                        'fake_rule_2',
                                        'fake_rule_3'],
+                                       'sg_provider_rules': [],
                                        'security_group_rules': [
                                        {'ethertype': 'IPv4',
                                         'direction': 'egress'
@@ -83,6 +89,7 @@ FAKE_SG_RULES_PARTIAL = {FAKE_PORT_1: {'security_group_source_groups': [
                                        'fake_rule_1',
                                        'fake_rule_2',
                                        'fake_rule_3'],
+                                       'sg_provider_rules': [],
                                        'security_group_rules': [
                                        {'ethertype': 'IPv4',
                                         'direction': 'egress',
