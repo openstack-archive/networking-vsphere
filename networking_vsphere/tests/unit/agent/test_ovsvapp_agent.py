@@ -51,7 +51,7 @@ FAKE_SG = {'fake_sg': 'fake_sg_rule'}
 FAKE_SG_RULES = {FAKE_PORT_1: {'security_group_source_groups': ['fake_rule_1',
                                                                 'fake_rule_2',
                                                                 'fake_rule_3'],
-                               'security_group_rules': [
+                               'sg_provider_rules': [
                                {'ethertype': 'IPv4',
                                 'direction': 'egress',
                                 'source_port_range_min': 67,
@@ -62,11 +62,26 @@ FAKE_SG_RULES = {FAKE_PORT_1: {'security_group_source_groups': ['fake_rule_1',
                                }
                  }
 
+FAKE_SG_RULES_2 = {FAKE_PORT_1: {'security_group_source_groups': ['fake_rule_1',
+                                                                'fake_rule_2',
+                                                                'fake_rule_3'],
+                               'sg_provider_rules': [
+                               {'ethertype': 'IPv4',
+                                'direction': 'egress',
+                                'source_port_range_min': 67,
+                                'source_port_range_max': 67,
+                                'port_range_min': 68,
+                                'port_range_max': 68
+                                }]
+                               },
+                  FAKE_DEVICE_ID: 'id'
+                 }
+
 FAKE_SG_RULES_MISSING = {FAKE_PORT_1: {'security_group_source_groups': [
                                        'fake_rule_1',
                                        'fake_rule_2',
                                        'fake_rule_3'],
-                                       'security_group_rules': [
+                                       'sg_provider_rules': [
                                        {'ethertype': 'IPv4',
                                         'direction': 'egress'
                                         }]
@@ -77,7 +92,7 @@ FAKE_SG_RULES_PARTIAL = {FAKE_PORT_1: {'security_group_source_groups': [
                                        'fake_rule_1',
                                        'fake_rule_2',
                                        'fake_rule_3'],
-                                       'security_group_rules': [
+                                       'sg_provider_rules': [
                                        {'ethertype': 'IPv4',
                                         'direction': 'egress',
                                         'port_range_min': 22,
@@ -1364,7 +1379,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules=FAKE_SG_RULES_2)
             self.assertTrue(mock_logger_debug.called)
             mock_add_devices_fn.assert_called_with(ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_other_ports)
@@ -1395,7 +1410,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules=FAKE_SG_RULES_2)
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
@@ -1428,7 +1443,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules=FAKE_SG_RULES_2)
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
@@ -1462,7 +1477,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules=FAKE_SG_RULES_2)
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
@@ -1501,7 +1516,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules=FAKE_SG_RULES_2)
             self.assertTrue(mock_populate_tun_flows.called)
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
@@ -1541,7 +1556,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
                                      ports=ports,
-                                     sg_rules=mock.MagicMock())
+                                     sg_rules=FAKE_SG_RULES_2)
             self.assertTrue(mock_populate_tun_flows.called)
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
