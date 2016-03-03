@@ -33,6 +33,7 @@ from neutron.common import topics
 from neutron.common import utils as n_utils
 from neutron import context
 from neutron.plugins.common import constants as p_const
+from neutron.plugins.common import utils as p_utils
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ovs_const  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_int  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_phys  # noqa
@@ -315,10 +316,10 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             br = ovs_lib.OVSBridge(bridge)
             # Interconnect physical and integration bridges using veth/patch
             # ports.
-            int_if_name = self.get_peer_name(ovs_const.PEER_INTEGRATION_PREFIX,
-                                             bridge)
-            phys_if_name = self.get_peer_name(ovs_const.PEER_PHYSICAL_PREFIX,
-                                              bridge)
+            int_if_name = p_utils.get_interface_name(
+                bridge, prefix=ovs_const.PEER_INTEGRATION_PREFIX)
+            phys_if_name = p_utils.get_interface_name(
+                bridge, prefix=ovs_const.PEER_PHYSICAL_PREFIX)
             int_ofport = self.int_br.get_port_ofport(int_if_name)
             phys_ofport = br.get_port_ofport(phys_if_name)
             if int(phys_ofport) < 0 or int(int_ofport) < 0:
