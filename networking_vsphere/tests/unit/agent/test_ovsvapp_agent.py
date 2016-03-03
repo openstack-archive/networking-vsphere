@@ -48,6 +48,8 @@ FAKE_PORT_4 = 'fake_port_4'
 MAC_ADDRESS = '01:02:03:04:05:06'
 FAKE_CONTEXT = 'fake_context'
 FAKE_SG = {'fake_sg': 'fake_sg_rule'}
+FAKE_PHYS_NET = 'physnet1'
+FAKE_PHYS_BR = 'br-eth1'
 
 FAKE_SG_RULE = {'security_group_source_groups': ['fake_rule_1',
                                                  'fake_rule_2',
@@ -251,6 +253,19 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertRaises(SystemExit,
                               self.agent.recover_security_br)
             self.assertTrue(mock_logger_warn.called)
+            self.assertFalse(mock_ovs_bridge.called)
+
+    def test_recover_physical_bridges(self):
+        cfg.CONF.set_override('bridge_mappings',
+                              None, 'OVSVAPP')
+        self.agent.br = mock.Mock()
+        with mock.patch.object(self.LOG, 'warn') as mock_logger_warn, \
+                mock.patch.object(self.agent.br, 'bridge_exists'
+                                  ) as mock_ovs_bridge:
+            self.assertRaises(SystemExit,
+                              self.agent.recover_physical_bridges,
+                              {'FAKE_PHYS_NET': 'FAKE_PHYS_BR'})
+            self.assertFalse(mock_logger_warn.called)
             self.assertFalse(mock_ovs_bridge.called)
 
     def test_update_port_bindings(self):
