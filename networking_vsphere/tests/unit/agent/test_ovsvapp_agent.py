@@ -29,7 +29,9 @@ from networking_vsphere.tests.unit.drivers import fake_manager
 from networking_vsphere.utils import resource_util
 
 from neutron.agent.common import ovs_lib
+from neutron.common import utils as n_utils
 from neutron.plugins.common import constants as p_const
+from neutron.plugins.common import utils as p_utils
 
 NETWORK_ID = 'fake_net_id'
 VNIC_ADDED = 'VNIC_ADDED'
@@ -252,6 +254,31 @@ class TestOVSvAppAgent(base.TestCase):
                               self.agent.recover_security_br)
             self.assertTrue(mock_logger_warn.called)
             self.assertFalse(mock_ovs_bridge.called)
+
+    def test_recover_physical_bridges(self):
+        cfg.CONF.set_override('bridge_mappings',
+                              ["physnet1:br-eth1"], 'OVSVAPP')
+        self.agent.bridge_mappings = n_utils.parse_mappings(
+            cfg.CONF.OVSVAPP.bridge_mappings)
+        with mock.patch.object(self.LOG, 'info') as mock_logger_info, \
+                mock.patch.object(self.LOG, 'error') as mock_logger_error, \
+                mock.patch.object(ovs_lib, "OVSBridge") as mock_ovs_br, \
+                mock.patch.object(ovs_lib.BaseOVS,
+                                  "get_bridges",
+                                  return_value=['br-eth1']
+                                  ), \
+                mock.patch.object(p_utils, 'get_interface_name'
+                                  ) as mock_int_name, \
+                mock.patch.object(self.agent.int_br,
+                                  "get_port_ofport",
+                                  return_value=6) as mock_get_ofport:
+            self.agent.recover_physical_bridges(self.agent.bridge_mappings)
+            self.assertTrue(mock_logger_info.called)
+            self.assertFalse(mock_logger_error.called)
+            self.assertTrue(mock_ovs_br.called)
+            self.assertTrue(mock_get_ofport.called)
+            self.assertTrue(mock_int_name.called)
+            self.assertEqual(self.agent.int_ofports['physnet1'], 6)
 
     def test_update_port_bindings(self):
         self.agent.ports_to_bind.add("fake_port")
