@@ -80,8 +80,8 @@ class OVSvAppClusterShow(extension.ClientExtensionShow, OVSvAppCluster):
     shell_command = 'ovsvapp-cluster-show'
     allow_names = True
 
-    def get_data(self, parsed_args):
-        self.log.debug('get_data(%s)', parsed_args)
+    def execute(self, parsed_args):
+        self.log.debug('execute(%s)', parsed_args)
         neutron_client = self.get_client()
         neutron_client.format = parsed_args.request_format
         vcenter_id = parsed_args.id
