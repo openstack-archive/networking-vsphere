@@ -20,7 +20,6 @@ from oslo_config import cfg
 
 from neutron.common import topics
 from neutron.extensions import portbindings
-from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2 import rpc as plugin_rpc
 from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
@@ -511,7 +510,6 @@ class OVSvAppPluginApiTest(test_rpc.RpcApiTestCase):
         self._test_rpc_api(rpcapi, None,
                            'update_device_binding', rpc_method='call',
                            device=FAKE_DEVICE_1,
-                           net_type=p_const.TYPE_VXLAN,
                            host=FAKE_HOST, agent_id=FAKE_AGENT_ID)
 
     def test_update_ports_binding(self):
