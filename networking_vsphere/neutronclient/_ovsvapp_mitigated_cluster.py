@@ -73,8 +73,8 @@ class OVSvAppMitigatedClusterShow(extension.ClientExtensionShow,
 
         return parser
 
-    def take_action(self, parsed_args):
-        self.log.debug('run(%s)', parsed_args)
+    def get_data(self, parsed_args):
+        self.log.debug('get_data(%s)', parsed_args)
         neutron_client = self.get_client()
         neutron_client.format = parsed_args.request_format
         parsed_args.id = (parsed_args.vcenter_id + ':'
