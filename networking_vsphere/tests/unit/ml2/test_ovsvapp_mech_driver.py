@@ -33,6 +33,7 @@ net_info = {'vcenter_id': 'fake_vcenter',
             'cluster_id': 'fake_cluster',
             'network_id': 'net_id',
             'segmentation_id': 1234,
+            'network_type': 'vxlan',
             'lvid': 1}
 
 net_info_with_host = {'vcenter_id': 'fake_vcenter',
@@ -40,6 +41,7 @@ net_info_with_host = {'vcenter_id': 'fake_vcenter',
                       'network_id': 'net_id',
                       'host': 'fake_host',
                       'segmentation_id': 1234,
+                      'network_type': 'vxlan',
                       'lvid': 1}
 
 fake_agent = {'configurations': {'vcenter_id': 'fake_vcenter',
@@ -66,7 +68,8 @@ router_port_ipv6 = {'id': 'fake_id',
                     'network_id': 'net_id',
                     'fixed_ips': [{'ip_address': 'FE80::0202:B3FF:FE1E:8329'}]}
 
-vlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VLAN}
+vlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VLAN,
+                api.SEGMENTATION_ID: 1234}
 
 vxlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VXLAN,
                  api.SEGMENTATION_ID: 1234}
@@ -233,9 +236,9 @@ class OVSvAppAgentMechanismBaseTestCase(base.AgentMechanismBaseTestCase):
                                   'enhanced_sg_provider_updated'
                                   ) as mock_sg_provider_updated_rpc:
             self.driver.delete_port_postcommit(port_context)
-            self.assertFalse(mock_get_agents.called)
-            self.assertFalse(mock_reclaim_local_vlan.called)
-            self.assertFalse(mock_spawn_thread.called)
+            self.assertTrue(mock_get_agents.called)
+            self.assertTrue(mock_reclaim_local_vlan.called)
+            self.assertTrue(mock_spawn_thread.called)
             self.assertFalse(mock_sg_provider_updated_rpc.called)
 
     @mock.patch('networking_vsphere.db.ovsvapp_db.'
