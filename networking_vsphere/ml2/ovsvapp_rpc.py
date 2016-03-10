@@ -184,27 +184,24 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                          'physical_network':
                          network['provider:physical_network']})
 
-                    if port['network_type'] == p_const.TYPE_VXLAN:
-                        port_info = {'port_id': port['id'],
-                                     'vcenter_id': vcenter_id,
-                                     'cluster_id': cluster_id,
-                                     'network_id': port['network_id']}
-                        lvid = ovsvapp_db.get_local_vlan(port_info)
-                        if lvid:
-                            port['lvid'] = lvid
-                        else:
-                            # Local VLANs are exhausted ! No point processing
-                            # further.
-                            LOG.error(_LE("No VLAN available in the cluster "
-                                          "%(cluster)s for assignment to"
-                                          " device %(device)s in "
-                                          "vCenter %(vcenter)s."),
-                                      {'device': device_id,
-                                       'cluster': cluster_id,
-                                       'vcenter': vcenter_id})
-                            return False
+                    port_info = {'port_id': port['id'],
+                                 'vcenter_id': vcenter_id,
+                                 'cluster_id': cluster_id,
+                                 'network_id': port['network_id']}
+                    lvid = ovsvapp_db.get_local_vlan(port_info)
+                    if lvid:
+                        port['lvid'] = lvid
                     else:
-                        port['lvid'] = port['segmentation_id']
+                        # Local VLANs are exhausted ! No point processing
+                        # further.
+                        LOG.error(_LE("No VLAN available in the cluster "
+                                      "%(cluster)s for assignment to"
+                                      " device %(device)s in "
+                                      "vCenter %(vcenter)s."),
+                                  {'device': device_id,
+                                   'cluster': cluster_id,
+                                   'vcenter': vcenter_id})
+                        return False
                     # Bind the port here. If binding succeeds, then
                     # add this port to process for security groups, otheriwse
                     # ignore it.
@@ -257,17 +254,21 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
         agent_id = kwargs.get('agent_id')
         device_id = kwargs.get('device')
         host = kwargs.get('host')
-        network_type = kwargs.get('net_type')
         updated_ports = set()
         ports = None
+        ports = self.plugin.get_ports(rpc_context,
+                                      filters={'device_id': [device_id]})
+        vxlan_port_present = False
+        for port in ports:
+            network = self.plugin.get_network(rpc_context, port['network_id'])
+            port['network_type'] = network['network_type']
+            if network['network_type'] == p_const.TYPE_VXLAN:
+                vxlan_port_present = True
         # Wait till all the ports of the device become ACTIVE
-        if network_type == p_const.TYPE_VXLAN:
+        if vxlan_port_present:
             retry_count = 3
             while retry_count > 0:
                 sleep = False
-                ports = self.plugin.get_ports(rpc_context,
-                                              filters={'device_id':
-                                                       [device_id]})
                 for port in ports:
                     if port['status'] != common_const.PORT_STATUS_ACTIVE:
                         sleep = True
@@ -275,6 +276,9 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                 if sleep:
                     time.sleep(retry_count * 3)
                     retry_count -= 1
+                    ports = self.plugin.get_ports(rpc_context,
+                                                  filters={'device_id':
+                                                           [device_id]})
                 else:
                     break
             if retry_count == 0:
@@ -282,9 +286,6 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                               "as the device has one of more ports "
                               "in BUILD state."), device_id)
                 return
-        else:
-            ports = self.plugin.get_ports(rpc_context,
-                                          filters={'device_id': [device_id]})
         for port in ports:
             port_id = port['id']
             LOG.debug("Port %(port_id)s update_port invoked by agent "
@@ -296,7 +297,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                 updated_port = self.plugin.update_port(rpc_context, port_id,
                                                        new_port)
                 updated_ports.add(updated_port['id'])
-                if network_type == p_const.TYPE_VXLAN:
+                if port['network_type'] == p_const.TYPE_VXLAN:
                     time.sleep(1)
                     new_status = (common_const.PORT_STATUS_BUILD
                                   if port['admin_state_up'] else
@@ -403,27 +404,24 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                              'vif_type': port[portbindings.VIF_TYPE]})
                 continue
             bound_port['lvid'] = None
-            if segment[api.NETWORK_TYPE] == p_const.TYPE_VXLAN:
-                port_info = {'port_id': bound_port['id'],
-                             'vcenter_id': vcenter_id,
-                             'cluster_id': cluster_id,
-                             'network_id': bound_port['network_id']}
-                lvid = ovsvapp_db.get_local_vlan(port_info, False)
-                if lvid:
-                    bound_port['lvid'] = lvid
-                else:
-                    # Local VLANs are exhausted !! No point processing
-                    # further.
-                    LOG.error(_LE("Local VLAN not available in the cluster"
-                                  " %(cluster)s for port"
-                                  " %(port_id)s in vcenter %(vcenter)s."),
-                              {'port_id': bound_port['id'],
-                               'cluster': cluster_id,
-                               'vcenter': vcenter_id})
-                    continue
-                    # Skip sending back this port as there is no lvid.
+            port_info = {'port_id': bound_port['id'],
+                         'vcenter_id': vcenter_id,
+                         'cluster_id': cluster_id,
+                         'network_id': bound_port['network_id']}
+            lvid = ovsvapp_db.get_local_vlan(port_info, False)
+            if lvid:
+                bound_port['lvid'] = lvid
             else:
-                bound_port['lvid'] = segment[api.SEGMENTATION_ID]
+                # Local VLANs are exhausted !! No point processing
+                # further.
+                LOG.error(_LE("Local VLAN not available in the cluster"
+                              " %(cluster)s for port"
+                              " %(port_id)s in vcenter %(vcenter)s."),
+                          {'port_id': bound_port['id'],
+                           'cluster': cluster_id,
+                           'vcenter': vcenter_id})
+                # Skip sending back this port as there is no lvid.
+                continue
 
             entry = {'network_id': bound_port['network_id'],
                      'port_id': bound_port['id'],
@@ -435,6 +433,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                      'physical_network': segment[api.PHYSICAL_NETWORK],
                      'fixed_ips': bound_port['fixed_ips'],
                      'device_id': bound_port['device_id'],
+                     'security_groups': bound_port['security_groups'],
                      'device_owner': bound_port['device_owner']}
             LOG.debug("Adding port detail: %s.", entry)
             out_ports.append(entry)

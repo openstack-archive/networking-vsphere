@@ -61,8 +61,8 @@ VMWARE_OPTS = [
 
 # OVSvApp Agent related config read from ovsvapp_agent.ini and neutron.conf.
 OVSVAPP_OPTS = [
-    cfg.StrOpt('tenant_network_type',
-               default=p_const.TYPE_VLAN,
+    cfg.StrOpt('tenant_network_types',
+               default=[p_const.TYPE_VLAN],
                help='Network type for tenant networks'),
     cfg.StrOpt('integration_bridge',
                default='br-int',
