@@ -166,7 +166,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         defer_apply = CONF.SECURITYGROUP.defer_apply
         self.monitor_log = self.initiate_monitor_log()
         if self.monitor_log:
-            self.monitor_log.warn(_LW("ovs: pending"))
+            self.monitor_log.warning(_LW("ovs: pending"))
         self.sg_agent = sgagent.OVSvAppSecurityGroupAgent(self.context,
                                                           self.ovsvapp_sg_rpc,
                                                           defer_apply)
@@ -206,7 +206,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         Create the required patch ports and remove all existing flows.
         """
         if not CONF.SECURITYGROUP.security_bridge_mapping:
-            LOG.warn(_LW("Security bridge mappings not configured."))
+            LOG.warning(_LW("Security bridge mappings not configured."))
             raise SystemExit(1)
         secbr_list = (CONF.SECURITYGROUP.security_bridge_mapping).split(':')
         secbr_name = secbr_list[0]
@@ -249,7 +249,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         the flows remain.
         """
         if not CONF.SECURITYGROUP.security_bridge_mapping:
-            LOG.warn(_LW("Security bridge mappings not configured."))
+            LOG.warning(_LW("Security bridge mappings not configured."))
             raise SystemExit(1)
         secbr_list = (CONF.SECURITYGROUP.security_bridge_mapping).split(':')
         secbr_name = secbr_list[0]
@@ -594,7 +594,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.info(_LI("RPC get_ports_details_list is called with "
                          "port_ids: %s."), devices)
             if self.monitor_log:
-                self.monitor_log.warn(_("ovs: pending"))
+                self.monitor_log.warning(_("ovs: pending"))
             ports = self.ovsvapp_rpc.get_ports_details_list(
                 self.context, devices, self.agent_id, self.vcenter_id,
                 self.cluster_id)
@@ -674,7 +674,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.info(_LI("Going to update firewall for ports: "
                          "%s."), device_list)
             if self.monitor_log:
-                self.monitor_log.warn(_("ovs: pending"))
+                self.monitor_log.warning(_("ovs: pending"))
             self.sg_agent.refresh_firewall(device_list)
             if self.monitor_log:
                 self.monitor_log.info(_("ovs: ok"))
@@ -691,7 +691,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         """
         try:
             if self.monitor_log:
-                self.monitor_log.warn(_LW("ovs: broken"))
+                self.monitor_log.warning(_LW("ovs: broken"))
             self.setup_integration_br()
             self.setup_security_br()
             if self.enable_tunneling:
@@ -745,7 +745,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         # entries or global_refresh_firewall flag is set to True.
         if self.sg_agent.firewall_refresh_needed():
             if self.monitor_log:
-                self.monitor_log.warn(_("ovs: pending"))
+                self.monitor_log.warning(_("ovs: pending"))
             LOG.info(_LI("Starting refresh_port_filters."))
             self.sg_agent.refresh_port_filters(
                 self.cluster_host_ports, self.cluster_other_ports)
@@ -955,8 +955,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self._report_state)
             heartbeat.start(interval=report_interval)
         else:
-            LOG.warn(_LW("Report interval is not initialized."
-                         "Unable to send heartbeats to Neutron Server."))
+            LOG.warning(_LW("Report interval is not initialized."
+                            "Unable to send heartbeats to Neutron Server."))
 
     def process_event(self, event):
         """Handles vCenter based events
@@ -1238,7 +1238,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.info(_LI("Deleting port %(port)s with mac address %(mac)s."),
                      {'port': vnic.port_uuid, 'mac': vnic.mac_address})
             if not vnic.port_uuid:
-                LOG.warn(_LW("Port id for VM %s not present."), vm.uuid)
+                LOG.warning(_LW("Port id for VM %s not present."), vm.uuid)
             else:
                 try:
                     ovsvapplock.acquire()
@@ -1254,8 +1254,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                         self.sg_agent.remove_devices_filter(vnic.port_uuid)
                         del_port = self.ports_dict[vnic.port_uuid]
                     else:
-                        LOG.warn(_LW("Port id %s is not available in "
-                                     "ports_dict."), vnic.port_uuid)
+                        LOG.warning(_LW("Port id %s is not available in "
+                                        "ports_dict."), vnic.port_uuid)
                 finally:
                     ovsvapplock.release()
                 if del_port:
@@ -1759,10 +1759,10 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                           "shutdown mode."))
                         retry_count -= 1
                     if retry_count == 0:
-                        LOG.warn(_LW("Could not set %s to maintenance mode "
-                                     "or shutdown mode even after retrying "
-                                     "thrice."),
-                                 src_esx_host)
+                        LOG.warning(_LW("Could not set %s to maintenance "
+                                        "mode or shutdown mode even after "
+                                        "retrying thrice."),
+                                    src_esx_host)
                         status = False
                     time.sleep(2)
                 self.ovsvapp_rpc.update_cluster_lock(

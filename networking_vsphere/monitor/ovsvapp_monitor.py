@@ -188,12 +188,12 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
         if datapath_health:
             LOG.info(_LI("Data path looks to be OK on %s. "
                          "Skipping mitigation."), agent['host'])
-            LOG.warn(_LW("Issues encountered in receiving "
-                         "heartbeats from OVSvApp Agent on "
-                         "host %s."), agent['host'])
+            LOG.warning(_LW("Issues encountered in receiving "
+                            "heartbeats from OVSvApp Agent on "
+                            "host %s."), agent['host'])
         else:
-            LOG.warn(_LW("Data path seems to be broken already on %s."
-                         "Will continue with mitigation."), agent['host'])
+            LOG.warning(_LW("Data path seems to be broken already on %s."
+                            "Will continue with mitigation."), agent['host'])
         return datapath_health
 
     def _check_plugin_ext_support(self, extension):
@@ -217,7 +217,7 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                 return False
             self.agent_ext_support = self._check_plugin_ext_support('agent')
         except Exception:
-            LOG.warn(_LW("Failed initialization of agent monitor.."))
+            LOG.warning(_LW("Failed initialization of agent monitor.."))
             return False
         return True
 
@@ -231,10 +231,10 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
         if not self.plugin:
             status = self.get_plugin_and_initialize()
             if not status:
-                LOG.warn(_LW("Plugin not defined...returning!"))
+                LOG.warning(_LW("Plugin not defined...returning!"))
                 return
         if not self.agent_ext_support:
-            LOG.warn(_LW("Agent extension is not loaded by plugin."))
+            LOG.warning(_LW("Agent extension is not loaded by plugin."))
             return
         try:
             self.agents = self.plugin.get_agents(

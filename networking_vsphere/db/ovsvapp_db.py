@@ -275,11 +275,11 @@ def update_and_get_cluster_lock(vcenter_id, cluster_id):
                                  "Will retry later"), cluster_id)
                     return RETRY
             else:
-                LOG.warn(_LW("Cluster %(id)s in vCenter %(vc)s needs "
-                             "attention. "
-                             "Not able to put hosts to maintenance!"),
-                         {'id': cluster_id,
-                          'vc': vcenter_id})
+                LOG.warning(_LW("Cluster %(id)s in vCenter %(vc)s needs "
+                                "attention. "
+                                "Not able to put hosts to maintenance!"),
+                            {'id': cluster_id,
+                             'vc': vcenter_id})
                 return GIVE_UP
         except sa_exc.NoResultFound:
             # First fault case in this cluster_id.
