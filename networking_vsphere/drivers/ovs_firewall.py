@@ -60,7 +60,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self.filtered_ports = {}
         self.provider_port_cache = set()
         if sg_conf.security_bridge_mapping is None:
-            LOG.warn(_LW("Security bridge mapping not configured."))
+            LOG.warning(_LW("Security bridge mapping not configured."))
             return
         secbr_list = (sg_conf.security_bridge_mapping).split(':')
         secbr_name = secbr_list[0]
@@ -560,8 +560,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         """Method to update OVS rules for an existing VM port."""
         LOG.debug("OVSF Updating port: %s filter.", port['id'])
         if port['id'] not in self.filtered_ports:
-            LOG.warn(_LW("Attempted to update port filter which is not "
-                         "filtered %s."), port['id'])
+            LOG.warning(_LW("Attempted to update port filter which is not "
+                            "filtered %s."), port['id'])
             return
         port_cookie = self.get_cookie(port['id'])
         port_provider_cookie = self.get_cookie('pr' + port['id'])

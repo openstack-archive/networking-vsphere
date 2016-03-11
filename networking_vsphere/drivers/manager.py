@@ -123,7 +123,8 @@ class VcenterManager(base_manager.DriverManager):
             try:
                 self.connection_thread.wait()
             except greenlet.GreenletExit:
-                LOG.warn(_LW("Thread waiting on vCenter connection exited."))
+                LOG.warning(_LW("Thread waiting on vCenter connection "
+                                "exited."))
                 return
         else:
             LOG.error(_LE("Must specify vcenter_ip, vcenter_username, "

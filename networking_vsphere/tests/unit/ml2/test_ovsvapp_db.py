@@ -192,7 +192,7 @@ class OVSvAppDBTestCase(testlib_api.SqlTestCase):
         self.assertEqual('1', ret)
         ovsvapp_db.set_cluster_threshold('fake_vcenter', 'fake_cluster')
         with mock.patch('networking_vsphere.db.ovsvapp_db.'
-                        'LOG.warn') as warn_log:
+                        'LOG.warning') as warn_log:
             ret_1 = ovsvapp_db.update_and_get_cluster_lock('fake_vcenter',
                                                            'fake_cluster')
         self.assertEqual('-1', ret_1)
