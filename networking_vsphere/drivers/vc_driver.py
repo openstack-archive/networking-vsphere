@@ -247,8 +247,8 @@ class VCNetworkDriver(driver.NetworkDriver):
                             break
                     except error_util.SocketTimeoutException:
                         # Ignore timeout.
-                        LOG.warn(_LW("Ignoring socket timeouts while "
-                                     "monitoring for vCenter updates."))
+                        LOG.warning(_LW("Ignoring socket timeouts while "
+                                        "monitoring for vCenter updates."))
                         continue
                     if updateSet:
                         version = updateSet.version

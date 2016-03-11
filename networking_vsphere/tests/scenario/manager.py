@@ -576,9 +576,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             try:
                 self.ping_host(source, dest)
             except lib_exc.SSHExecCommandFailed:
-                LOG.warn(_LW('Failed to ping IP: %(dest)s '
-                             'via a ssh connection from: %(source)s.') %
-                         {'dest': dest, 'source': source})
+                LOG.warning(_LW('Failed to ping IP: %(dest)s '
+                                'via a ssh connection from: %(source)s.') %
+                            {'dest': dest, 'source': source})
                 return not should_succeed
             return should_succeed
 

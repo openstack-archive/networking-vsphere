@@ -196,7 +196,7 @@ class TestAgentMonitor(base.BaseTestCase):
                                   'get_plugin',
                                   side_effect=Exception
                                   ) as get_plugin, \
-                mock.patch.object(self.LOG, 'warn') as logger_call:
+                mock.patch.object(self.LOG, 'warning') as logger_call:
             status = self.ovsvapp_monitor.get_plugin_and_initialize()
             self.assertTrue(get_context.called)
             self.assertTrue(get_plugin.called)
@@ -571,7 +571,7 @@ class TestAgentMonitor(base.BaseTestCase):
                                'get_plugin_and_initialize',
                                return_value=False
                                ) as get_plugin, \
-                mock.patch.object(self.LOG, 'warn') as warn_log, \
+                mock.patch.object(self.LOG, 'warning') as warn_log, \
                 mock.patch.object(self.plugin,
                                   'get_agents'
                                   ) as get_agent_list:
@@ -582,7 +582,7 @@ class TestAgentMonitor(base.BaseTestCase):
 
     def test_monitor_agent_state_agent_ext_not_supported(self):
         self.ovsvapp_monitor.agent_ext_support = False
-        with mock.patch.object(self.LOG, 'warn') as warn_log, \
+        with mock.patch.object(self.LOG, 'warning') as warn_log, \
                 mock.patch.object(self.plugin,
                                   'get_agents'
                                   ) as get_agent_list:

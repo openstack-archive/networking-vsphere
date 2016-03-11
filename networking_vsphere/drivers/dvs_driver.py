@@ -100,11 +100,11 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
                             continue
                         for objectUpdate in objectSet:
                             if objectUpdate.kind == "leave":
-                                LOG.warn(_LW("VM %(vm)s got deleted while "
-                                             "waiting for it to connect to "
-                                             "port group %(pg)s."),
-                                         {'vm': vm_mor.value,
-                                          'pg': pgmor.value})
+                                LOG.warning(_LW("VM %(vm)s got deleted while "
+                                                "waiting for it to connect "
+                                                "to port group %(pg)s."),
+                                            {'vm': vm_mor.value,
+                                             'pg': pgmor.value})
                                 return (pg_key, port_key, swuuid)
                             changes = common_util.convert_objectupdate_to_dict(
                                 objectUpdate)
@@ -201,9 +201,10 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
         mac_address = port.mac_address
         vm_mor = resource_util.get_vm_mor_for_uuid(self.session, device_id)
         if not vm_mor:
-            LOG.warn(_LW("VM %(vm)s with mac address %(mac)s for "
-                         "port %(uuid)s not found on this node."),
-                     {'vm': device_id, 'mac': mac_address, 'uuid': port.uuid})
+            LOG.warning(_LW("VM %(vm)s with mac address %(mac)s for "
+                            "port %(uuid)s not found on this node."),
+                        {'vm': device_id, 'mac': mac_address,
+                         'uuid': port.uuid})
             return False
         if port.port_status == constants.PORT_STATUS_UP:
             enabled = True

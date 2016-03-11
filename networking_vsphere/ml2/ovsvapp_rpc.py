@@ -228,8 +228,8 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                     device_ports.append(port)
                 if not device_ports:
                     try_count -= 1
-                    LOG.warn(_LW("Port details could not be retrieved for "
-                                 "device %s ..retrying."), device_id)
+                    LOG.warning(_LW("Port details could not be retrieved for "
+                                    "device %s ..retrying."), device_id)
                     time.sleep(3)
                 else:
                     LOG.debug("Device details returned by server: "
@@ -355,9 +355,9 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                        one())
             return port_db
         except sa_exc.NoResultFound:
-            LOG.warn(_LW("Port %(port_id)s requested by agent "
-                         "%(agent_id)s not found in database."),
-                     {'port_id': port_id, 'agent_id': agent_id})
+            LOG.warning(_LW("Port %(port_id)s requested by agent "
+                            "%(agent_id)s not found in database."),
+                        {'port_id': port_id, 'agent_id': agent_id})
             return None
         except exc.MultipleResultsFound:
             LOG.error(_LE("Multiple ports have port_id starting with %s."),
@@ -394,13 +394,13 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
             bound_port = port_context.current
 
             if not segment:
-                LOG.warn(_LW("Port %(port_id)s requested by agent "
-                             "%(agent_id)s on network %(network_id)s not "
-                             "bound, vif_type: %(vif_type)s."),
-                         {'port_id': port['id'],
-                          'agent_id': agent_id,
-                          'network_id': port['network_id'],
-                          'vif_type': port[portbindings.VIF_TYPE]})
+                LOG.warning(_LW("Port %(port_id)s requested by agent "
+                                "%(agent_id)s on network %(network_id)s not "
+                                "bound, vif_type: %(vif_type)s."),
+                            {'port_id': port['id'],
+                             'agent_id': agent_id,
+                             'network_id': port['network_id'],
+                             'vif_type': port[portbindings.VIF_TYPE]})
                 continue
             bound_port['lvid'] = None
             if segment[api.NETWORK_TYPE] == p_const.TYPE_VXLAN:

@@ -215,7 +215,7 @@ class TestOVSvAppAgent(base.TestCase):
         cfg.CONF.set_override('security_bridge_mapping',
                               None, 'SECURITYGROUP')
         self.agent.sec_br = mock.Mock()
-        with mock.patch.object(self.LOG, 'warn') as mock_logger_warn,\
+        with mock.patch.object(self.LOG, 'warning') as mock_logger_warn,\
                 mock.patch.object(self.agent.sec_br, 'bridge_exists'
                                   ) as mock_ovs_bridge:
             self.assertRaises(SystemExit,
@@ -245,7 +245,7 @@ class TestOVSvAppAgent(base.TestCase):
         cfg.CONF.set_override('security_bridge_mapping',
                               None, 'SECURITYGROUP')
         self.agent.sec_br = mock.Mock()
-        with mock.patch.object(self.LOG, 'warn') as mock_logger_warn, \
+        with mock.patch.object(self.LOG, 'warning') as mock_logger_warn, \
                 mock.patch.object(self.agent.sec_br, 'bridge_exists'
                                   ) as mock_ovs_bridge:
             self.assertRaises(SystemExit,
@@ -369,7 +369,7 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_setup_tunnel_br_flows, \
                 mock.patch.object(self.agent, "_init_ovs_flows"
                                   ) as mock_init_flows, \
-                mock.patch.object(self.agent.monitor_log, "warn"
+                mock.patch.object(self.agent.monitor_log, "warning"
                                   ) as monitor_warning, \
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
@@ -407,7 +407,7 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent, "tunnel_sync"
                                   ) as mock_tun_sync, \
                 mock.patch.object(self.agent, "_init_ovs_flows"), \
-                mock.patch.object(self.agent.monitor_log, "warn"
+                mock.patch.object(self.agent.monitor_log, "warning"
                                   ) as monitor_warning, \
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
@@ -440,7 +440,7 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_setup_tunnel_br_flows, \
                 mock.patch.object(self.LOG, "exception"
                                   ) as mock_exception_log, \
-                mock.patch.object(self.agent.monitor_log, "warn"
+                mock.patch.object(self.agent.monitor_log, "warning"
                                   ) as monitor_warning, \
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
@@ -734,7 +734,7 @@ class TestOVSvAppAgent(base.TestCase):
                                   ), \
                 mock.patch.object(self.agent, '_remove_stale_ports_flows'), \
                 mock.patch.object(self.agent, '_block_stale_ports'), \
-                mock.patch.object(self.agent.monitor_log, "warn"
+                mock.patch.object(self.agent.monitor_log, "warning"
                                   ) as monitor_warning, \
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
@@ -767,7 +767,7 @@ class TestOVSvAppAgent(base.TestCase):
                                ) as mock_get_ports_details_list, \
                 mock.patch.object(self.agent.sg_agent, 'refresh_firewall'
                                   ) as mock_refresh_firewall, \
-                mock.patch.object(self.agent.monitor_log, "warn"
+                mock.patch.object(self.agent.monitor_log, "warning"
                                   ) as monitor_warning, \
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
