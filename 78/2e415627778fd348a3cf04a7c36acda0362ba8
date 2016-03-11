@@ -1,0 +1,10 @@
+Code-Review+1: Raghuveer Shenoy <rshenoy@hp.com>
+Code-Review+2: Armando Migliaccio <armamig@gmail.com>
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Workflow+1: Ihar Hrachyshka <ihrachys@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 11 Mar 2016 05:08:10 +0000
+Reviewed-on: https://review.openstack.org/285231
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/liberty
