@@ -524,3 +524,24 @@ class TestOVSFirewallDriver(base.TestCase):
             self.assertFalse(mock_add_flow_fn.called)
             self.assertIn("123", self.ovs_firewall.filtered_ports)
             self.assertTrue(mock_exception_log.called)
+
+    def test_ovs_firewall_restart_with_canary_flow(self):
+
+        flow = "cookie=0x0, duration=4633.482s, table=23, n_packets=0" + \
+               "n_bytes=0, idle_age=4633, priority=0 actions=drop"
+        with mock.patch.object(self.ovs_firewall.sg_br,
+                               "dump_flows_for_table",
+                               return_value=flow) as mock_dump_flow:
+            canary_flow = self.ovs_firewall.check_ovs_firewall_restart()
+            self.assertTrue(mock_dump_flow.called)
+            self.assertTrue(canary_flow)
+
+    def test_ovs_firewall_restart_without_canary_flow(self):
+
+        flow = ""
+        with mock.patch.object(self.ovs_firewall.sg_br,
+                               "dump_flows_for_table",
+                               return_value=flow) as mock_dump_flow:
+            canary_flow = self.ovs_firewall.check_ovs_firewall_restart()
+            self.assertTrue(mock_dump_flow.called)
+            self.assertFalse(canary_flow)
