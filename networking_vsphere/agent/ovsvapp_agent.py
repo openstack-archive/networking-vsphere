@@ -164,8 +164,11 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.setup_rpc()
         defer_apply = CONF.SECURITYGROUP.defer_apply
         self.monitor_log = self.initiate_monitor_log()
+        pending_start_time = time.time()
         if self.monitor_log:
-            self.monitor_log.warn(_("ovs: pending"))
+            self.monitor_log.warn(
+                _("pending_start_time: %s, ovs: pending"),
+                pending_start_time)
         self.sg_agent = sgagent.OVSvAppSecurityGroupAgent(self.context,
                                                           self.ovsvapp_sg_rpc,
                                                           defer_apply)
@@ -591,8 +594,11 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         try:
             LOG.info(_("RPC get_ports_details_list is called with "
                        "port_ids: %s."), devices)
+            pending_start_time = time.time()
             if self.monitor_log:
-                self.monitor_log.warn(_("ovs: pending"))
+                self.monitor_log.warn(
+                    _("pending_start_time: %s, ovs: pending"),
+                    pending_start_time)
             ports = self.ovsvapp_rpc.get_ports_details_list(
                 self.context, devices, self.agent_id, self.vcenter_id,
                 self.cluster_id)
@@ -671,8 +677,11 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if device_list:
             LOG.info(_("Going to update firewall for ports: "
                        "%s."), device_list)
+            pending_start_time = time.time()
             if self.monitor_log:
-                self.monitor_log.warn(_("ovs: pending"))
+                self.monitor_log.warn(
+                    _("pending_start_time: %s, ovs: pending"),
+                    pending_start_time)
             self.sg_agent.refresh_firewall(device_list)
             if self.monitor_log:
                 self.monitor_log.info(_("ovs: ok"))
@@ -742,8 +751,11 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         # Case where sgagent's devices_to_refilter is having some
         # entries or global_refresh_firewall flag is set to True.
         if self.sg_agent.firewall_refresh_needed():
+            pending_start_time = time.time()
             if self.monitor_log:
-                self.monitor_log.warn(_("ovs: pending"))
+                self.monitor_log.warn(
+                    _("pending_start_time: %s, ovs: pending"),
+                    pending_start_time)
             LOG.info(_("Starting refresh_port_filters."))
             self.sg_agent.refresh_port_filters(
                 self.cluster_host_ports, self.cluster_other_ports)
