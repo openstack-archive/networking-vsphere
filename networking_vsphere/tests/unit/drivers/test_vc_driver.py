@@ -73,6 +73,7 @@ class TestVmwareDriver(base.TestCase):
         self.vc_driver = vmware_driver.VCNetworkDriver()
         self.vc_driver.state = constants.DRIVER_RUNNING
         self.vc_driver.add_cluster("ClusterComputeResource", "test_dvs")
+        self.LOG = vmware_driver.LOG
 
     def test_stop(self):
         with mock.patch.object(vim_util, "cancel_wait_for_updates",
@@ -326,6 +327,21 @@ class TestVmwareDriver(base.TestCase):
             self.vc_driver.delete_stale_portgroups("test_dvs")
             self.assertTrue(mock_unused_ob.called)
             self.assertTrue(mock_delete_pg_ob.called)
+
+    def test_delete_stale_portgroups_exception(self):
+        with mock.patch.object(
+                self.vc_driver,
+                "get_unused_portgroups",
+                return_value=[fake_vmware_api.Constants.PORTGROUP_NAME]
+                ) as mock_unused_ob, \
+                mock.patch.object(self.vc_driver, "delete_portgroup",
+                                  side_effect=Exception()) as mock_del_pg_ob, \
+                mock.patch.object(self.LOG, 'exception'
+                                  ) as mock_exception_log:
+            self.vc_driver.delete_stale_portgroups("test_dvs")
+            self.assertTrue(mock_unused_ob.called)
+            self.assertTrue(mock_del_pg_ob.called)
+            self.assertTrue(mock_exception_log.called)
 
     def test_post_delete_vm(self):
         uuid = fake_vmware_api.Constants.VM_UUID

@@ -72,7 +72,12 @@ class VCNetworkDriver(driver.NetworkDriver):
         for port_group in port_group_names:
             if (re.match(uuid_regex_vlan, port_group, re.IGNORECASE) or
                     re.match(uuid_regex_vxlan, port_group, re.IGNORECASE)):
-                self.delete_portgroup(switch, port_group)
+                try:
+                    self.delete_portgroup(switch, port_group)
+                except Exception as e:
+                    LOG.exception(_LE("Failed to delete portgroup %(pg)s from "
+                                      "dvs %(dvs)s. Cause : %(err)s"),
+                                  {'pg': port_group, 'dvs': switch, 'err': e})
 
     def validate_cluster_switch_mapping(self, cluster_path, switch):
         """Validate the cluster_switch_mapping."""
