@@ -17,7 +17,7 @@ from networking_vsphere.tests.scenario import manager
 
 from neutron.tests.tempest import exceptions
 
-from tempest_lib.common.utils import data_utils
+from tempest.lib.common.utils import data_utils
 
 
 class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):

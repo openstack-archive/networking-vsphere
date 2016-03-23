@@ -30,19 +30,18 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
+from tempest.lib.common import rest_client
+from tempest.lib.common import ssh
+from tempest.lib.common.utils import data_utils
+from tempest.lib.common.utils import misc as misc_utils
+from tempest.lib import exceptions as lib_exc
 from tempest import manager
 from tempest import test
-from tempest_lib.common import rest_client
-from tempest_lib.common import ssh
-from tempest_lib.common.utils import data_utils
-from tempest_lib.common.utils import misc as misc_utils
-from tempest_lib import exceptions as lib_exc
 
 from networking_vsphere.tests.tempest import config as tempest_config
 from neutron._i18n import _LI, _LW
 from neutron.tests.api import base
 from neutron.tests.api import base_security_groups
-from neutron.tests.tempest import exceptions
 
 pyVmomi = importutils.try_import("pyVmomi")
 if pyVmomi:
@@ -254,7 +253,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                            'within the required time (%s s).' %
                            (floating_ip, status, floating_ip_status,
                             build_timeout))
-                raise exceptions.TimeoutException(message)
+                raise lib_exc.TimeoutException(message)
 
     def wait_for_server_termination(self, server_id, ignore_error=False):
         """Waits for server to reach termination."""
@@ -269,7 +268,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
             server_status = body['server']['status']
             if server_status == 'ERROR' and not ignore_error:
-                raise exceptions.BuildErrorException(server_id=server_id)
+                raise lib_exc.BuildErrorException(server_id=server_id)
 
             time.sleep(build_interval)
 
@@ -318,10 +317,10 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 )
             if (server_status == 'ERROR') and raise_on_error:
                 if 'fault' in body:
-                    raise exceptions.BuildErrorException(body['fault'],
-                                                         server_id=server_id)
+                    raise lib_exc.BuildErrorException(body['fault'],
+                                                      server_id=server_id)
                 else:
-                    raise exceptions.BuildErrorException(server_id=server_id)
+                    raise lib_exc.BuildErrorException(server_id=server_id)
 
             timed_out = int(time.time()) - start_time >= timeout
 
@@ -339,7 +338,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 caller = misc_utils.find_test_caller()
                 if caller:
                     message = '(%s) %s' % (caller, message)
-                raise exceptions.TimeoutException(message)
+                raise lib_exc.TimeoutException(message)
             old_status = server_status
             old_task_state = task_state
 
@@ -377,7 +376,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def ping_ip_address(self, ip_address, should_succeed=True,
                         ping_timeout=None):
-        timeout = ping_timeout or CONF.compute.ping_timeout
+        timeout = ping_timeout or CONF.validation.ping_timeout
         cmd = ['ping', '-c1', '-w1', ip_address]
 
         def ping():
@@ -437,7 +436,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         :return: a RemoteClient object
         """
         if username is None:
-            username = CONF.scenario.ssh_user
+            username = CONF.validation.image_ssh_user
         password = CONF.compute.image_ssh_password
         linux_client = ssh.Client(ip, username, password)
 
@@ -583,7 +582,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             return should_succeed
 
         return test.call_until_true(ping_remote,
-                                    CONF.compute.ping_timeout, 1)
+                                    CONF.validation.ping_timeout, 1)
 
     def _fetch_segment_id_from_db(self, segmentid):
         cont_ip = cfg.CONF.VCENTER.controller_ip
@@ -604,8 +603,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def _fetch_cluster_in_use_from_server(self, server_id):
         region = CONF.compute.region
-        auth_provider = manager.get_auth_provider(
-            self.isolated_creds.get_admin_creds())
+        auth_provider = manager.get_auth_provider(self.creds.credentials)
         endpoint_type = CONF.compute.endpoint_type
         build_interval = CONF.compute.build_interval
         build_timeout = CONF.compute.build_timeout
@@ -790,8 +788,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def get_server_ip(self, server_id, net_name):
         region = CONF.compute.region
-        auth_provider = manager.get_auth_provider(
-            self.isolated_creds.get_admin_creds())
+        auth_provider = manager.get_auth_provider(self.creds.credentials)
         endpoint_type = CONF.compute.endpoint_type
         build_interval = CONF.compute.build_interval
         build_timeout = CONF.compute.build_timeout
@@ -859,7 +856,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         output = ssh.stdout.readlines()
         if output[1:] == []:
                 error = ssh.stderr.readlines()
-                raise exceptions.TimeoutException(error)
+                raise lib_exc.TimeoutException(error)
         else:
                 for output_list in output[1:]:
                         self.assertIn('tp_dst=' + str(port), output_list)
@@ -889,7 +886,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         output = ssh.stdout.readlines()
         if output[1:] == []:
                 error = ssh.stderr.readlines()
-                raise exceptions.TimeoutException(error)
+                raise lib_exc.TimeoutException(error)
         else:
                 for output_list in output[1:]:
                         self.assertIn('icmp_type=' + str(icmp_type),
@@ -935,7 +932,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         output = ssh.stdout.readlines()
         if output[1:] == []:
                 error = ssh.stderr.readlines()
-                raise exceptions.TimeoutException(error)
+                raise lib_exc.TimeoutException(error)
         else:
                 for output_list in output[1:]:
                         self.assertIn('icmp_type=' + str(icmp_type),
