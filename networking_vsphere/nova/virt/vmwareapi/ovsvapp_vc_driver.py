@@ -65,6 +65,23 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         self._create_virtual_nic(instance, image_info, network_info, vm_ref)
         self._power_on_vm(instance, vm_ref)
 
+    def network_binding_host_id(self, context, instance):
+        """Get host ID to associate with network ports.
+
+        This defines the binding:host_id parameter to the port-create
+        calls for Neutron.
+        return None here to indicate that port should not yet be bound.
+        As per implementation port-binding state will remain UNBOUND for
+        OVSvAPP hosted ports and will transition to BOUND state directly
+        from OVSvAPP itself
+
+        :param context:  request context
+        :param instance: nova.objects.instance.Instance that the network
+                         ports will be associated with
+        :returns: None
+        """
+        return None
+
     def _power_on_vm(self, instance, vm_ref):
         LOG.info(_LI("Powering on the VM: %s."), instance)
         power_on_task = self._session._call_method(self._session.vim,
