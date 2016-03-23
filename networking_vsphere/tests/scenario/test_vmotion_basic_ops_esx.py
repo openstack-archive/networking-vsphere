@@ -17,7 +17,7 @@ from networking_vsphere.tests.scenario import manager
 
 from oslo_config import cfg
 
-from tempest_lib.common.utils import data_utils
+from tempest.lib.common.utils import data_utils
 
 CONF = cfg.CONF
 
