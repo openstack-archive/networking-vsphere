@@ -72,9 +72,10 @@ function cleanup_ovsvapp_bridges {
 function setup_ovsvapp_bridges {
     echo "Adding Bridges for OVSvApp Agent"
     sudo ovs-vsctl --no-wait -- --may-exist add-br $INTEGRATION_BRIDGE
-    if [ "$OVSVAPP_TENANT_NETWORK_TYPE" == "vxlan" ]; then
+    if [[ "$OVSVAPP_TENANT_NETWORK_TYPE" == *"vxlan"* ]]; then
         sudo ovs-vsctl --no-wait -- --may-exist add-br $TUNNEL_BRIDGE
-    else
+    fi
+    if [[ "$OVSVAPP_TENANT_NETWORK_TYPE" == *"vlan"* ]]; then
         sudo ovs-vsctl --no-wait -- --may-exist add-br $OVSVAPP_PHYSICAL_BRIDGE
         sudo ovs-vsctl --no-wait -- --may-exist add-port $OVSVAPP_PHYSICAL_BRIDGE $OVSVAPP_PHYSICAL_INTERFACE
     fi
