@@ -42,8 +42,27 @@ VCENTER_OPTS = [
                help="Bridge interface of trunk dvs"),
     cfg.StrOpt('neutron_database_name',
                help="Neutron database name as in mysql table")
+
+vrrp_group = cfg.OptGroup(name='vrrp',
+                          title="L3 HA VRRP details")
+]
+
+VrrpGroup = [
+    cfg.StrOpt('deployer_ip_1',
+               help="The first controller ip",
+               deprecated_for_removal=True),
+    cfg.StrOpt('deployer_ip_2',
+               help="The second controller ip",
+               deprecated_for_removal=True),
+    cfg.StrOpt('deployer_ip_3',
+               help="The third controller ip",
+               deprecated_for_removal=True),
+    cfg.StrOpt('host_username',
+               help="username of the host",
+               deprecated_for_removal=True)
 ]
 
 
 def register_options():
     cfg.CONF.register_opts(VCENTER_OPTS, "VCENTER")
+    cfg.CONF.register_opts(VrrpGroup, "vrrp")
