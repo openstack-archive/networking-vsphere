@@ -162,3 +162,141 @@ class L3HAVRRP(base.BaseAdminNetworkTest):
         self._verify_ip_address(HOST1, self.octet11, self.octet22, router_id)
         self._verify_ip_address(HOST2, self.octet11, self.octet22, router_id)
         self._verify_ip_address(HOST3, self.octet11, self.octet22, router_id)
+
+    @test.requires_ext(service='network', extension='hos')
+    @test.idempotent_id('0d434b5e-4c2b-4ea1-9c99-923e714a2382')
+    @test.services('network')
+    def test_end_to_end_vrrp_scenario(self):
+        net_id = self.network['id']
+        router_id = self.router['id']
+        name = data_utils.rand_name('server-smoke')
+        group_create_body = self._create_custom_security_group()
+        serverid = self._create_server_with_sec_group(
+            name, net_id, group_create_body['security_group']['id'])
+        deviceport = self.client.list_ports(device_id=serverid)
+        body = self._associate_floating_ips(
+            port_id=deviceport['ports'][0]['id'])
+        floatingiptoreach = body['floatingip']['floating_ip_address']
+        self._check_public_network_connectivity(floatingiptoreach)
+        router = self.admin_client.list_l3_agents_hosting_router(router_id)
+        values = router['agents']
+        username = CONF.VCENTER.host_username
+        ctrl_ip_address1 = CONF.VCENTER.deployer_ip_1
+        ctrl_ip_address2 = CONF.VCENTER.deployer_ip_2
+        ctrl_ip_address3 = CONF.VCENTER.deployer_ip_3
+        HOST1 = username + "@" + ctrl_ip_address1
+        HOST2 = username + "@" + ctrl_ip_address2
+        HOST3 = username + "@" + ctrl_ip_address3
+        device_owner = "network:router_ha_interface"
+        self.router_list = self._to_find_number_of_l3_agenst_per_routers(HOST1)
+        if self.router_list == 3:
+            port_body = self.admin_client.list_ports(device_id=router_id,
+                                                     device_owner=device_owner)
+            first_id = port_body['ports'][0]['id']
+            second_id = port_body['ports'][1]['id']
+            third_id = port_body['ports'][2]['id']
+            total = [first_id, second_id, third_id]
+
+            self.value1 = self._connect_to_host_to_verify_ha_link(HOST1,
+                                                                  total,
+                                                                  router_id)
+            self.value2 = self._connect_to_host_to_verify_ha_link(HOST2,
+                                                                  total,
+                                                                  router_id)
+            self.value3 = self._connect_to_host_to_verify_ha_link(HOST3,
+                                                                  total,
+                                                                  router_id)
+            content = [self.value1, self.value2, self.value3]
+            count = 0
+            for item in content:
+                if item == []:
+                    count = count + 1
+
+                if count > 0:
+                    msg = "one of the controller is not having a HA link"
+                    raise Exception(msg)
+        if self.router_list == 2:
+            port_body = self.admin_client.list_ports(device_id=router_id,
+                                                     device_owner=device_owner)
+            first_id = port_body['ports'][0]['id']
+            second_id = port_body['ports'][1]['id']
+            total = [first_id, second_id]
+
+            self.value1 = self._connect_to_host_to_verify_ha_link(HOST1,
+                                                                  total,
+                                                                  router_id)
+            self.value2 = self._connect_to_host_to_verify_ha_link(HOST2,
+                                                                  total,
+                                                                  router_id)
+            self.value3 = self._connect_to_host_to_verify_ha_link(HOST3,
+                                                                  total,
+                                                                  router_id)
+            content = [self.value1, self.value2, self.value3]
+            count = 0
+            for item in content:
+                if item == []:
+                    count = count + 1
+
+                if count > 1:
+                    msg = "more than one controller not having HA link"
+                    raise Exception(msg)
+        count = 0
+        count1 = 0
+        for x in values:
+            if x['ha_state'] == 'active':
+                active_host_name = str(x['host'])
+                count = count + 1
+            else:
+                count1 = count1 + 1
+
+        self.value1 = self._connect_to_host_to_get_hostname(HOST1,
+                                                            ctrl_ip_address1)
+        self.value2 = self._connect_to_host_to_get_hostname(HOST2,
+                                                            ctrl_ip_address2)
+        self.value3 = self._connect_to_host_to_get_hostname(HOST3,
+                                                            ctrl_ip_address3)
+
+        if self.value1 == active_host_name and count == 1:
+            ip_value, ip_value1 = self._check_for_ip_address(HOST1,
+                                                             router_id)
+            if ip_value == 'inet' and ip_value1 == 'inet':
+                ha_va, ha_link = self._get_ha_link_from_namespace(HOST1,
+                                                                  router_id)
+                self._connect_to_host_to_make_ha_link_down(HOST1,
+                                                           ha_link,
+                                                           router_id)
+                self._check_public_network_connectivity(floatingiptoreach)
+            else:
+                msg = ('Does not contain IP address '
+                       'for the router interface')
+                raise Exception(msg)
+
+        if self.value2 == active_host_name and count == 1:
+            ip_value, ip_value1 = self._check_for_ip_address(HOST2,
+                                                             router_id)
+            if ip_value == 'inet' and ip_value1 == 'inet':
+                ha_va, ha_link = self._get_ha_link_from_namespace(HOST2,
+                                                                  router_id)
+                self._connect_to_host_to_make_ha_link_down(HOST1,
+                                                           ha_link,
+                                                           router_id)
+                self._check_public_network_connectivity(floatingiptoreach)
+            else:
+                msg = ('Does not contain IP address '
+                       'for the router interface')
+                raise Exception(msg)
+
+        if self.value3 == active_host_name and count == 1:
+            ip_value, ip_value1 = self._check_for_ip_address(HOST3,
+                                                             router_id)
+            if ip_value == 'inet' and ip_value1 == 'inet':
+                ha_va, ha_link = self._get_ha_link_from_namespace(HOST3,
+                                                                  router_id)
+                self._connect_to_host_to_make_ha_link_down(HOST1,
+                                                           ha_link,
+                                                           router_id)
+                self._check_public_network_connectivity(floatingiptoreach)
+            else:
+                msg = ('Does not contain IP address '
+                       'for the router interface')
+                raise Exception(msg)
