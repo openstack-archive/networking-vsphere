@@ -163,3 +163,164 @@ class L3HAVRRP(base.BaseAdminNetworkTest):
         self._verify_ip_address(HOST1, self.octet11, self.octet22, router_id)
         self._verify_ip_address(HOST2, self.octet11, self.octet22, router_id)
         self._verify_ip_address(HOST3, self.octet11, self.octet22, router_id)
+
+    def test_non_preempt_default_option(self):
+        self.external_network_id = CONF.network.public_network_id
+        name = data_utils.rand_name('router-')
+        router = self.admin_client.create_router(
+            name, external_gateway_info={
+                "network_id": CONF.network.public_network_id},
+            admin_state_up=True)
+        time.sleep(20)
+        router_id = router['router']['id']
+        self.addCleanup(self.admin_client.delete_router,
+                        router['router']['id'])
+        router = self.admin_client.list_l3_agents_hosting_router(router_id)
+        values = router['agents']
+        username = CONF.VCENTER.host_username
+        ctrl_ip_address1 = CONF.VCENTER.deployer_ip_1
+        ctrl_ip_address2 = CONF.VCENTER.deployer_ip_2
+        ctrl_ip_address3 = CONF.VCENTER.deployer_ip_3
+        HOST1 = username + "@" + ctrl_ip_address1
+        HOST2 = username + "@" + ctrl_ip_address2
+        HOST3 = username + "@" + ctrl_ip_address3
+        device_owner = "network:router_ha_interface"
+        self.router_list = self._to_find_number_of_l3_agenst_per_routers(HOST1)
+        if self.router_list == 3:
+            port_body = self.admin_client.list_ports(device_id=router_id,
+                                                     device_owner=device_owner)
+            first_id = port_body['ports'][0]['id']
+            second_id = port_body['ports'][1]['id']
+            third_id = port_body['ports'][2]['id']
+            total = [first_id, second_id, third_id]
+
+            self.value1 = self._connect_to_host_to_verify_ha_link(HOST1,
+                                                                  total,
+                                                                  router_id)
+            self.value2 = self._connect_to_host_to_verify_ha_link(HOST2,
+                                                                  total,
+                                                                  router_id)
+            self.value3 = self._connect_to_host_to_verify_ha_link(HOST3,
+                                                                  total,
+                                                                  router_id)
+            content = [self.value1, self.value2, self.value3]
+            count = 0
+            for item in content:
+                if item == []:
+                    count = count + 1
+
+                if count > 0:
+                    msg = "one of the controller is not having a HA link"
+                    raise Exception(msg)
+        if self.router_list == 2:
+            port_body = self.admin_client.list_ports(device_id=router_id,
+                                                     device_owner=device_owner)
+            first_id = port_body['ports'][0]['id']
+            second_id = port_body['ports'][1]['id']
+            total = [first_id, second_id]
+
+            self.value1 = self._connect_to_host_to_verify_ha_link(HOST1,
+                                                                  total,
+                                                                  router_id)
+            self.value2 = self._connect_to_host_to_verify_ha_link(HOST2,
+                                                                  total,
+                                                                  router_id)
+            self.value3 = self._connect_to_host_to_verify_ha_link(HOST3,
+                                                                  total,
+                                                                  router_id)
+            content = [self.value1, self.value2, self.value3]
+            count = 0
+            for item in content:
+                if item == []:
+                    count = count + 1
+
+                if count > 1:
+                    msg = "more than one controller not having HA link"
+                    raise Exception(msg)
+        count = 0
+        count1 = 0
+        for x in values:
+            if x['ha_state'] == 'active':
+                active_host_name = str(x['host'])
+                count = count + 1
+            else:
+                count1 = count1 + 1
+
+        self.value1 = self._connect_to_host_to_get_hostname(HOST1,
+                                                            ctrl_ip_address1)
+        self.value2 = self._connect_to_host_to_get_hostname(HOST2,
+                                                            ctrl_ip_address2)
+        self.value3 = self._connect_to_host_to_get_hostname(HOST3,
+                                                            ctrl_ip_address3)
+
+        if self.value1 == active_host_name and count == 1:
+            ha_variable, host1_ha_link = self._get_ha_link_from_namespace(
+                HOST1, router_id)
+            self._connect_to_host_to_make_ha_link_down(HOST1,
+                                                       host1_ha_link,
+                                                       router_id)
+            ha_variable1, ha_link = self._get_ha_link_from_namespace(HOST1,
+                                                                     router_id)
+            router = self.admin_client.list_l3_agents_hosting_router(
+                router_id)
+            check_values = router['agents']
+            for r in check_values:
+                if (r['ha_state'] == 'standby' and r['host'] == self.value1 and
+                        ha_variable1 != 'ha'):
+                    self._connect_to_host_to_make_ha_link_up(HOST1,
+                                                             host1_ha_link,
+                                                             router_id)
+                    latest_value, ha_link = self._get_ha_link_from_namespace(
+                        HOST2, router_id)
+                    if (r['ha_state'] == 'standby' and
+                            latest_value == 'ha'):
+                        break
+
+        elif self.value2 == active_host_name and count == 1:
+            ha_variable, host2_ha_link = self._get_ha_link_from_namespace(
+                HOST2, router_id)
+            self._connect_to_host_to_make_ha_link_down(HOST2,
+                                                       host2_ha_link,
+                                                       router_id)
+            ha_variable1, ha_link = self._get_ha_link_from_namespace(HOST2,
+                                                                     router_id)
+            router = self.admin_client.list_l3_agents_hosting_router(
+                router_id)
+            check_values = router['agents']
+            for r in check_values:
+                if (r['ha_state'] == 'standby' and r['host'] == self.value2 and
+                        ha_variable1 != 'ha'):
+                    self._connect_to_host_to_make_ha_link_up(HOST2,
+                                                             host2_ha_link,
+                                                             router_id)
+                    latest_value, ha_link = self._get_ha_link_from_namespace(
+                        HOST2, router_id)
+                    if (r['ha_state'] == 'standby' and
+                            latest_value == 'ha'):
+                        break
+
+        elif self.value3 == active_host_name and count == 1:
+            ha_variable, host3_ha_link = self._get_ha_link_from_namespace(
+                HOST3, router_id)
+            self._connect_to_host_to_make_ha_link_down(HOST3,
+                                                       host3_ha_link,
+                                                       router_id)
+            ha_variable1, ha_link = self._get_ha_link_from_namespace(HOST3,
+                                                                     router_id)
+            router = self.admin_client.list_l3_agents_hosting_router(
+                router_id)
+            check_values = router['agents']
+            for r in check_values:
+                if (r['ha_state'] == 'standby' and r['host'] == self.value3 and
+                        ha_variable1 != 'ha'):
+                    self._connect_to_host_to_make_ha_link_up(HOST3,
+                                                             host3_ha_link,
+                                                             router_id)
+                    latest_value, ha_link = self._get_ha_link_from_namespace(
+                        HOST2, router_id)
+                    if (r['ha_state'] == 'standby' and
+                            latest_value == 'ha'):
+                        break
+
+        else:
+            raise Exception("HA state of a contoller is not standby state")
