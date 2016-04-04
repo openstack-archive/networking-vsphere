@@ -382,6 +382,8 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.cluster_host_ports = set(['1111'])
         self.agent.cluster_other_ports = set(['2222'])
         with mock.patch.object(self.LOG, 'info') as mock_logger_info, \
+                mock.patch.object(self.agent, "wait_for_ovs_service"
+                                  ) as mock_wait_for_ovs, \
                 mock.patch.object(self.agent, "setup_integration_br"
                                   ) as mock_int_br, \
                 mock.patch.object(self.agent, "setup_physical_bridges"
@@ -401,6 +403,7 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
             self.agent.mitigate_ovs_restart()
+            self.assertTrue(mock_wait_for_ovs.called)
             self.assertTrue(mock_int_br.called)
             self.assertTrue(mock_phys_brs.called)
             self.assertTrue(mock_sec_br.called)
@@ -421,6 +424,8 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.cluster_host_ports = set(['1111'])
         self.agent.cluster_other_ports = set(['2222'])
         with mock.patch.object(self.LOG, 'info') as mock_logger_info, \
+                mock.patch.object(self.agent, "wait_for_ovs_service"
+                                  ) as mock_wait_for_ovs, \
                 mock.patch.object(self.agent, "setup_integration_br"), \
                 mock.patch.object(self.agent, "setup_physical_bridges"
                                   ) as mock_phys_brs, \
@@ -439,6 +444,7 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
             self.agent.mitigate_ovs_restart()
+            self.assertTrue(mock_wait_for_ovs.called)
             self.assertTrue(mock_setup_tunnel_br.called)
             self.assertTrue(mock_setup_tunnel_br_flows.called)
             self.assertFalse(mock_phys_brs.called)
@@ -457,6 +463,8 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.cluster_other_ports = set(['2222'])
 
         with mock.patch.object(self.LOG, "info") as mock_logger_info, \
+                mock.patch.object(self.agent, "wait_for_ovs_service"
+                                  ) as mock_wait_for_ovs, \
                 mock.patch.object(self.agent, "setup_integration_br",
                                   side_effect=Exception()) as mock_int_br, \
                 mock.patch.object(self.agent, "setup_physical_bridges"
@@ -472,6 +480,7 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
             self.agent.mitigate_ovs_restart()
+            self.assertTrue(mock_wait_for_ovs.called)
             self.assertTrue(mock_int_br.called)
             self.assertFalse(mock_phys_brs.called)
             self.assertFalse(mock_setup_tunnel_br.called)
