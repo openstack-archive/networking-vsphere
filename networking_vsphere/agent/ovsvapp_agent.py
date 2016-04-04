@@ -682,6 +682,32 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if uncached_devices:
             self._process_uncached_devices(uncached_devices)
 
+    def wait_for_ovs_service(self):
+        """Waits for OpenvSwitch service to startup before mitigation
+
+        When OVS service becomes unresponsive and is restarted by agent
+        monitoring mitigation feature kicks in which resets the bridge
+        configuration. This method waits for OVS service to become active
+        before we execute the mitigation steps
+
+        Waits for upto 10 mins for Openvswitch service to become active.
+        If it does not respond within 10 mins, ovsvapp-agent service will
+        exit because of failure to take mitigation action and will be
+        resarted by upstart/systemd.
+        """
+        retry_count = 100
+        status = False
+        int_br = ovs_lib.OVSBridge('br-int')
+        while retry_count > 0:
+            str_op = int_br.run_ofctl('show', [])
+            if not str_op:
+                retry_count -= 1
+                time.sleep(6)
+            else:
+                status = True
+            break
+        return status
+
     def mitigate_ovs_restart(self):
         """Mitigates OpenvSwitch process restarts.
 
@@ -693,6 +719,10 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         try:
             if self.monitor_log:
                 self.monitor_log.warning(_LW("ovs: broken"))
+            if not self.wait_for_ovs_service():
+                LOG.error(_LE("No response from OpenvSwitch service."
+                              "Terminating the agent!"))
+                raise SystemExit(1)
             self.setup_integration_br()
             self.setup_security_br()
             if self.enable_tunneling:
