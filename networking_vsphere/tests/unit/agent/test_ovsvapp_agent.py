@@ -382,6 +382,8 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.cluster_host_ports = set(['1111'])
         self.agent.cluster_other_ports = set(['2222'])
         with mock.patch.object(self.LOG, 'info') as mock_logger_info, \
+                mock.patch.object(self.agent, "wait_for_ovs_service"
+                                  ) as mock_wait_for_ovs, \
                 mock.patch.object(self.agent, "setup_integration_br"
                                   ) as mock_int_br, \
                 mock.patch.object(self.agent, "setup_physical_bridges"
@@ -401,6 +403,7 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
             self.agent.mitigate_ovs_restart()
+            self.assertTrue(mock_wait_for_ovs.called)
             self.assertTrue(mock_int_br.called)
             self.assertTrue(mock_phys_brs.called)
             self.assertTrue(mock_sec_br.called)
@@ -421,6 +424,8 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.cluster_host_ports = set(['1111'])
         self.agent.cluster_other_ports = set(['2222'])
         with mock.patch.object(self.LOG, 'info') as mock_logger_info, \
+                mock.patch.object(self.agent, "wait_for_ovs_service"
+                                  ) as mock_wait_for_ovs, \
                 mock.patch.object(self.agent, "setup_integration_br"), \
                 mock.patch.object(self.agent, "setup_physical_bridges"
                                   ) as mock_phys_brs, \
@@ -439,6 +444,7 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
             self.agent.mitigate_ovs_restart()
+            self.assertTrue(mock_wait_for_ovs.called)
             self.assertTrue(mock_setup_tunnel_br.called)
             self.assertTrue(mock_setup_tunnel_br_flows.called)
             self.assertFalse(mock_phys_brs.called)
@@ -449,6 +455,24 @@ class TestOVSvAppAgent(base.TestCase):
             monitor_info.assert_called_with("ovs: ok")
             self.assertTrue(mock_logger_info.called)
 
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.run_ofctl')
+    @mock.patch('time.sleep')
+    def test_wait_for_ovs_service_error(self, sleep_fn, ofctl_fn):
+            ofctl_fn.return_value = None
+            sleep_fn.return_value = None
+            self.assertFalse(self.agent.wait_for_ovs_service())
+            self.assertTrue(ofctl_fn.called)
+            self.assertTrue(sleep_fn.called)
+
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.run_ofctl')
+    @mock.patch('time.sleep')
+    def test_wait_for_ovs_service(self, sleep_fn, ofctl_fn):
+            ofctl_fn.return_value = 'OFPT_FEATURES_REPLY (xid=0x2): \
+                                                dpid:0000f63e30f05640'
+            self.assertTrue(self.agent.wait_for_ovs_service())
+            self.assertTrue(ofctl_fn.called)
+            self.assertFalse(sleep_fn.called)
+
     def test_mitigate_ovs_restart_exception(self):
         self.agent.enable_tunneling = False
         self.agent.refresh_firewall_required = False
@@ -457,6 +481,8 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.cluster_other_ports = set(['2222'])
 
         with mock.patch.object(self.LOG, "info") as mock_logger_info, \
+                mock.patch.object(self.agent, "wait_for_ovs_service"
+                                  ) as mock_wait_for_ovs, \
                 mock.patch.object(self.agent, "setup_integration_br",
                                   side_effect=Exception()) as mock_int_br, \
                 mock.patch.object(self.agent, "setup_physical_bridges"
@@ -472,6 +498,7 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
             self.agent.mitigate_ovs_restart()
+            self.assertTrue(mock_wait_for_ovs.called)
             self.assertTrue(mock_int_br.called)
             self.assertFalse(mock_phys_brs.called)
             self.assertFalse(mock_setup_tunnel_br.called)
