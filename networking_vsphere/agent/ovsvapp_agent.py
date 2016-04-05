@@ -25,7 +25,7 @@ import oslo_messaging
 from oslo_service import loopingcall
 import six
 
-from neutron._i18n import _, _LE, _LI, _LW
+from networking_vsphere._i18n import _, _LE, _LI, _LW
 from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
 from neutron.common import rpc as n_rpc

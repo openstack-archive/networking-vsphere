@@ -26,7 +26,7 @@ from neutron.common import constants as n_const
 from neutron.common import topics
 from neutron.common import utils
 from neutron import context
-from neutron.i18n import _, _LE, _LI
+from networking_vsphere._i18n import _, _LE, _LI
 from neutron.plugins.common import constants
 from oslo_config import cfg
 from oslo_log import log as logging

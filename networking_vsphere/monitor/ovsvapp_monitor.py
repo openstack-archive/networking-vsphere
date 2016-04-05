@@ -24,7 +24,7 @@ import random
 import requests
 
 from neutron import context as neutron_context
-from neutron._i18n import _, _LE, _LI, _LW
+from networking_vsphere._i18n import _, _LE, _LI, _LW
 from neutron.db import agents_db
 from neutron.db import common_db_mixin
 from neutron import manager

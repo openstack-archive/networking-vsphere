@@ -14,7 +14,7 @@
 #    under the License.
 
 from neutron.agent import firewall
-from neutron.i18n import _LW, _LI
+from networking_vsphere._i18n import _LW, _LI
 from oslo_log import log as logging
 
 from networking_vsphere.common import vmware_conf as config

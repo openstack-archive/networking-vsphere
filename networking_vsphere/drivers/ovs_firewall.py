@@ -19,7 +19,7 @@ import netaddr
 from oslo_config import cfg
 from oslo_log import log
 
-from neutron._i18n import _LE, _LW
+from networking_vsphere._i18n import _LE, _LW
 from neutron.agent.common import ovs_lib
 from neutron.agent import firewall
 from neutron.common import constants

@@ -23,7 +23,7 @@ from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import utils as ovsvapp_utils
 from networking_vsphere.db import ovsvapp_db
 
-from neutron._i18n import _LE, _LI, _LW
+from networking_vsphere._i18n import _LE, _LI, _LW
 from neutron.common import constants as common_const
 from neutron.common import exceptions as exc
 from neutron.common import rpc as n_rpc

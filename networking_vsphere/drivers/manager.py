@@ -23,7 +23,7 @@ from networking_vsphere.drivers import base_manager
 from networking_vsphere.drivers import dvs_driver
 from networking_vsphere.utils import vim_session
 
-from neutron._i18n import _LE, _LW
+from networking_vsphere._i18n import _LE, _LW
 
 LOG = log.getLogger(__name__)
 
