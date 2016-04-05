@@ -21,7 +21,7 @@ from oslo_log import log
 
 from networking_vsphere.common import error
 
-from neutron._i18n import _LI
+from networking_vsphere._i18n import _LI
 
 LOG = log.getLogger(__name__)
 

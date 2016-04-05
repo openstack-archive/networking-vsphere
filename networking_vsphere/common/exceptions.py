@@ -13,8 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from networking_vsphere._i18n import _
 from neutron.common import exceptions
-from neutron.i18n import _
 
 
 class VMWareDVSException(exceptions.NeutronException):

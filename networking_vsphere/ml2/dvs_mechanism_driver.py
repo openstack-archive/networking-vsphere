@@ -15,11 +15,11 @@
 
 import six
 
+from networking_vsphere._i18n import _LI
 from neutron.agent import securitygroups_rpc
 from neutron.common import constants as n_const
 from neutron import context
 from neutron.extensions import portbindings
-from neutron.i18n import _LI
 from neutron.plugins.common import constants
 from neutron.plugins.ml2 import driver_api
 from neutron.plugins.ml2.drivers import mech_agent

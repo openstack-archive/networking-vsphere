@@ -21,7 +21,7 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import timeutils
 
-from neutron._i18n import _LE, _LI
+from networking_vsphere._i18n import _LE, _LI
 from neutron.common import constants as common_const
 from neutron.common import rpc as n_rpc
 from neutron.common import topics

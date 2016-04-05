@@ -16,10 +16,11 @@
 #
 import six
 
+from networking_vsphere._i18n import _
+
 from neutronclient.common import exceptions
 from neutronclient.common import extension
 from neutronclient.common import utils
-from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
 
 from oslo_serialization import jsonutils

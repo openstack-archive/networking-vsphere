@@ -14,8 +14,8 @@
 #    under the License.
 from oslo_log import log as logging
 
+from networking_vsphere._i18n import _LI
 from neutron.agent import securitygroups_rpc
-from neutron.i18n import _LI
 
 LOG = logging.getLogger(__name__)
 

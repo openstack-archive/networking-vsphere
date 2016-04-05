@@ -39,7 +39,7 @@ from tempest import manager
 from tempest import test
 
 from networking_vsphere.tests.tempest import config as tempest_config
-from neutron._i18n import _LI, _LW
+from networking_vsphere._i18n import _LI, _LW
 from neutron.tests.api import base
 from neutron.tests.api import base_security_groups
 
