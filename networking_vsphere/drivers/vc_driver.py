@@ -18,6 +18,7 @@ import re
 import time
 
 from oslo_log import log
+from oslo_vmware import exceptions
 
 from neutron._i18n import _LE, _LI, _LW
 
@@ -260,14 +261,12 @@ class VCNetworkDriver(driver.NetworkDriver):
                         events = self._process_update_set(updateSet)
                         LOG.debug("Sending events : %s.", events)
                         self.dispatch_events(events)
-                except error_util.VimFaultException as e:
-                    excp = e.exception_obj
+                except exceptions.VimFaultException as e:
                     # InvalidCollectorVersionFault happens
                     # on session re-connect.
                     # Re-initialize WaitForUpdatesEx.
-                    if hasattr(excp.fault.detail,
-                               "InvalidCollectorVersionFault"):
-                        LOG.debug("InvalidCollectorVersionFault - "
+                    if "InvalidCollectorVersion" in e.fault_list:
+                        LOG.debug("InvalidCollectorVersion - "
                                   "Re-initializing vCenter updates "
                                   "monitoring.")
                         version = ""
