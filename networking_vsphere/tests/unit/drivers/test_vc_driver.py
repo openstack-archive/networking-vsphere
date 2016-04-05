@@ -29,6 +29,8 @@ from networking_vsphere.utils import cache
 from networking_vsphere.utils import resource_util
 from networking_vsphere.utils import vim_util
 
+from oslo_vmware import exceptions
+
 VcCache = cache.VCCache
 
 
@@ -378,3 +380,40 @@ class TestVmwareDriver(base.TestCase):
                                           "test_dvs")
             self.assertFalse(mock_unreg_ob.called)
             self.assertTrue(mock_find_ob.called)
+
+    @mock.patch('time.sleep', side_effect=Exception())
+    def test_monitor_events_with_no_exception(self, time_fn):
+        self.vc_driver.state = constants.DRIVER_READY
+        with mock.patch.object(self.LOG, 'info') as mock_info_log,\
+                mock.patch.object(self.vc_driver, "dispatch_events",
+                                  ) as mock_dispatch_events, \
+                mock.patch.object(self.vc_driver, "_process_update_set",
+                                  ) as mock_process_update_set, \
+                mock.patch.object(vim_util, 'wait_for_updates_ex'
+                                  ) as mock_wait_for_update_ex, \
+                mock.patch.object(self.LOG, 'exception') as mock_except_log:
+            self.vc_driver.monitor_events()
+            self.assertTrue(mock_info_log.called)
+            self.assertTrue(mock_dispatch_events.called)
+            self.assertTrue(mock_process_update_set.called)
+            self.assertTrue(mock_wait_for_update_ex.called)
+            self.assertTrue(mock_except_log.called)
+
+    @mock.patch('time.sleep', side_effect=Exception())
+    def test_monitor_events_with_fault_exception(self, time_fn):
+        self.vc_driver.state = constants.DRIVER_READY
+        with mock.patch.object(self.LOG, 'info') as mock_info_log,\
+                mock.patch.object(self.vc_driver, "dispatch_events",
+                                  ) as mock_dispatch_events, \
+                mock.patch.object(self.vc_driver, "_process_update_set",
+                                  ) as mock_process_update_set, \
+                mock.patch.object(vim_util, 'wait_for_updates_ex',
+                                  side_effect=exceptions.VimFaultException(
+                                      [], None)) as mock_vim_fault_exception, \
+                mock.patch.object(self.LOG, 'exception') as mock_except_log:
+            self.vc_driver.monitor_events()
+            self.assertTrue(mock_info_log.called)
+            self.assertFalse(mock_dispatch_events.called)
+            self.assertFalse(mock_process_update_set.called)
+            self.assertTrue(mock_vim_fault_exception.called)
+            self.assertTrue(mock_except_log.called)
