@@ -52,7 +52,7 @@ VMWARE_OPTS = [
                default=None,
                help='ESX host name where this OVSvApp is hosted.'),
     cfg.BoolOpt('esx_maintenance_mode',
-                default=True,
+                default=False,
                 help='Set host into maintenance mode.'),
     cfg.MultiStrOpt('cluster_dvs_mapping',
                     default=[''],
