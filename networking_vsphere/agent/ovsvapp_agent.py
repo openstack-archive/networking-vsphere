@@ -25,7 +25,6 @@ import oslo_messaging
 from oslo_service import loopingcall
 import six
 
-from neutron._i18n import _, _LE, _LI, _LW
 from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
 from neutron.common import rpc as n_rpc
@@ -40,6 +39,7 @@ from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_tun  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa
 
+from networking_vsphere._i18n import _, _LE, _LI, _LW
 from networking_vsphere.agent import agent
 from networking_vsphere.agent import ovsvapp_sg_agent as sgagent
 from networking_vsphere.common import constants as ovsvapp_const

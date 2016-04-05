@@ -21,7 +21,7 @@ import subprocess
 import sys
 import time
 
-from neutron._i18n import _LE, _LI
+from networking_vsphere._i18n import _LE, _LI
 from neutron.common import config as common_config
 
 LOG = logging.getLogger(__name__)

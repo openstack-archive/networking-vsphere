@@ -19,12 +19,12 @@ from neutron.agent import securitygroups_rpc
 from neutron.common import constants as n_const
 from neutron import context
 from neutron.extensions import portbindings
-from neutron.i18n import _LI
 from neutron.plugins.common import constants
 from neutron.plugins.ml2 import driver_api
 from neutron.plugins.ml2.drivers import mech_agent
 from oslo_log import log
 
+from networking_vsphere._i18n import _LI
 from networking_vsphere.common import constants as dvs_const
 from networking_vsphere.common import dvs_agent_rpc_api
 from networking_vsphere.common import exceptions

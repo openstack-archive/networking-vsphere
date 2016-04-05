@@ -18,11 +18,11 @@ import sys
 
 import eventlet
 eventlet.monkey_patch()
-from neutron._i18n import _, _LE, _LI
 from neutron.common import config as common_config
 from oslo_config import cfg
 from oslo_log import log
 
+from networking_vsphere._i18n import _, _LE, _LI
 from networking_vsphere.agent import agent
 from networking_vsphere.common import config as ovsvapp_config
 from networking_vsphere.common import utils

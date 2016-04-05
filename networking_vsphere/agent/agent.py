@@ -16,12 +16,11 @@
 from oslo_config import cfg
 from oslo_log import log
 
+from networking_vsphere._i18n import _LI
 from networking_vsphere.common import constants
 from networking_vsphere.common import utils
 from networking_vsphere.drivers import base_manager as manager
 from networking_vsphere.drivers import driver
-
-from neutron._i18n import _LI
 
 LOG = log.getLogger(__name__)
 

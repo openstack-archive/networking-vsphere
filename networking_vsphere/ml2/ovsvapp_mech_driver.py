@@ -21,7 +21,6 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import timeutils
 
-from neutron._i18n import _LE, _LI
 from neutron.common import constants as common_const
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
@@ -32,6 +31,7 @@ from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import mech_agent
 
+from networking_vsphere._i18n import _LE, _LI
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.db import ovsvapp_db
 from networking_vsphere.ml2 import ovsvapp_rpc

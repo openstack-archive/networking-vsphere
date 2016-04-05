@@ -17,8 +17,7 @@
 
 from oslo_log import log
 
-from neutron._i18n import _LE
-
+from networking_vsphere._i18n import _LE
 from networking_vsphere.utils import cache
 from networking_vsphere.utils import common_util
 from networking_vsphere.utils import vim_util

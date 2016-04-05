@@ -23,9 +23,9 @@ import netaddr
 import threading
 import time
 
+from networking_vsphere._i18n import _LI
 from networking_vsphere.common import constants as ovsvapp_const
 
-from neutron._i18n import _LI
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.common import rpc as n_rpc
 

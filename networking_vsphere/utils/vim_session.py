@@ -15,7 +15,7 @@
 
 import time
 
-from neutron._i18n import _LE
+from networking_vsphere._i18n import _LE
 
 from oslo_log import log
 from oslo_vmware import api

@@ -17,8 +17,7 @@ from eventlet import greenthread
 from oslo_config import cfg
 from oslo_log import log
 
-from neutron._i18n import _LE, _LI
-
+from networking_vsphere._i18n import _LE, _LI
 from networking_vsphere.common import constants
 from networking_vsphere.utils import common_util
 from networking_vsphere.utils import error_util

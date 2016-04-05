@@ -19,6 +19,7 @@ and supports VMware Distributed Virtual Switch.
 
 from oslo_log import log
 
+from networking_vsphere._i18n import _, _LE, _LI, _LW
 from networking_vsphere.common import constants
 from networking_vsphere.common import error
 from networking_vsphere.common import utils
@@ -29,9 +30,6 @@ from networking_vsphere.utils import error_util
 from networking_vsphere.utils import network_util
 from networking_vsphere.utils import resource_util
 from networking_vsphere.utils import vim_util
-
-from neutron._i18n import _LE, _LI, _LW
-
 
 LOG = log.getLogger(__name__)
 
