@@ -32,10 +32,6 @@ CONF = cfg.CONF
 eventlet.monkey_patch()
 
 
-def fake_consume_in_threads(self):
-    return []
-
-
 class TestCase(base.BaseTestCase):
 
     """Test case base class for all unit tests."""
@@ -55,9 +51,8 @@ class TestCase(base.BaseTestCase):
 
     def setup_rpc_mocks(self):
         # don't actually start RPC listeners when testing
-        self.useFixture(fixtures.MonkeyPatch(
-            'neutron.common.rpc.Connection.consume_in_threads',
-            fake_consume_in_threads))
+        mock.patch('neutron.common.rpc.Connection.consume_in_threads',
+                   return_value=[]).start()
 
         self.useFixture(fixtures.MonkeyPatch(
             'oslo_messaging.Notifier', fake_notifier.FakeNotifier))
