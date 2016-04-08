@@ -14,7 +14,6 @@
 #    under the License.
 #
 
-import fixtures
 import mock
 
 from neutron.plugins.common import constants as p_const
@@ -35,22 +34,6 @@ from oslo_vmware import exceptions
 VcCache = cache.VCCache
 
 
-def fake_is_valid_switch(obj, cluster_mor, switch):
-    return fake_vmware_api._db_content["HostSystem"].values()
-
-
-def fake_get_unused_portgroups(obj, switch):
-    return []
-
-
-def fake_delete_portgroup(obj, switch, pg):
-    return
-
-
-def fake_create_network(obj, network, virtual_switch):
-    return
-
-
 class TestVmwareDriver(base.TestCase):
 
     def setUp(self):
@@ -59,19 +42,18 @@ class TestVmwareDriver(base.TestCase):
         self.fake_visdk = self.useFixture(stubs.FakeVmware())
         self.session = self.fake_visdk.session
         self.useFixture(stubs.CacheFixture())
-        self.useFixture(fixtures.MonkeyPatch(
-            'networking_vsphere.drivers.vc_driver.'
-            'VCNetworkDriver.is_valid_switch', fake_is_valid_switch))
-        self.useFixture(fixtures.MonkeyPatch(
-            'networking_vsphere.drivers.vc_driver.'
-            'VCNetworkDriver.get_unused_portgroups',
-            fake_get_unused_portgroups))
-        self.useFixture(fixtures.MonkeyPatch(
-            'networking_vsphere.drivers.vc_driver.'
-            'VCNetworkDriver.delete_portgroup', fake_delete_portgroup))
-        self.useFixture(fixtures.MonkeyPatch(
-            'networking_vsphere.drivers.vc_driver.'
-            'VCNetworkDriver.create_network', fake_create_network))
+        mock.patch('networking_vsphere.drivers.vc_driver.'
+                   'VCNetworkDriver.is_valid_switch',
+                   return_value=fake_vmware_api._db_content["HostSystem"
+                                                            ].values()
+                   ).start()
+        mock.patch('networking_vsphere.drivers.vc_driver.'
+                   'VCNetworkDriver.get_unused_portgroups',
+                   return_value=[]).start()
+        mock.patch('networking_vsphere.drivers.vc_driver.'
+                   'VCNetworkDriver.delete_portgroup').start()
+        mock.patch('networking_vsphere.drivers.vc_driver.'
+                   'VCNetworkDriver.create_network').start()
         self.vc_driver = vmware_driver.VCNetworkDriver()
         self.vc_driver.state = constants.DRIVER_RUNNING
         self.vc_driver.add_cluster("ClusterComputeResource", "test_dvs")
