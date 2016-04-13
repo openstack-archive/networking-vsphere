@@ -46,6 +46,12 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self.t_pool = eventlet.GreenPool(ovsvapp_const.THREAD_POOL_SIZE)
         LOG.info(_LI("OVSvAppSecurityGroupAgent initialized."))
 
+    @property
+    def use_enhanced_rpc(self):
+        if self._use_enhanced_rpc is None:
+            self._use_enhanced_rpc = False
+        return self._use_enhanced_rpc
+
     def init_firewall(self, defer_refresh_firewall=False):
         firewall_driver = cfg.CONF.SECURITYGROUP.ovsvapp_firewall_driver
         LOG.debug("Init firewall settings (driver=%s).", firewall_driver)
