@@ -77,6 +77,11 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         self.agent._use_enhanced_rpc = None
         self.LOG = sg_agent.LOG
 
+    def test_use_enhanced_rpc(self):
+        expected = False
+        _use_enhanced_rpc = self.agent.use_enhanced_rpc
+        self.assertEqual(expected, _use_enhanced_rpc)
+
     def test_sg_provider_updated(self):
         ports_dict = {'123': {'id': '123',
                               'network_id': 'net_1',
