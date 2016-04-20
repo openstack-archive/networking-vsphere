@@ -90,7 +90,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         """
         group_create_body = self._create_custom_security_group()
         network2 = self.create_network()
-        sub_cidr = netaddr.IPNetwork(CONF.network.tenant_network_cidr).next()
+        sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
         subnet2 = self.create_subnet(network2, cidr=sub_cidr)
         router2 = self.create_router(data_utils.rand_name('router2-'),
                                      external_network_id=self.ext_net_id,
@@ -135,7 +135,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         port_body1 = self.client.create_port(**post_body1)
         self.addCleanup(self.client.delete_port, port_body1['port']['id'])
         network2 = self.create_network()
-        sub_cidr = netaddr.IPNetwork(CONF.network.tenant_network_cidr).next()
+        sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
         subnet2 = self.create_subnet(network2, cidr=sub_cidr)
         router2 = self.create_router(data_utils.rand_name('router2-'),
                                      external_network_id=self.ext_net_id,
@@ -202,7 +202,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         """
         group_create_body = self._create_custom_security_group()
         network2 = self.create_network()
-        sub_cidr = netaddr.IPNetwork(CONF.network.tenant_network_cidr).next()
+        sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
         subnet2 = self.create_subnet(network2, cidr=sub_cidr)
         router2 = self.create_router(data_utils.rand_name('router2-'),
                                      external_network_id=self.ext_net_id,

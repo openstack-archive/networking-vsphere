@@ -73,7 +73,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         # Create network, subnet, router and add interface
         cls.network = cls.create_network()
         cls.subnet = cls.create_subnet(cls.network)
-        cls.tenant_cidr = (CONF.network.tenant_network_cidr
+        cls.tenant_cidr = (CONF.network.project_network_cidr
                            if cls._ip_version == 4 else
                            CONF.network.tenant_network_v6_cidr)
         cls.router = cls.create_router(data_utils.rand_name('router-'),
