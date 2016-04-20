@@ -281,6 +281,31 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(mock_int_name.called)
             self.assertEqual(self.agent.int_ofports['physnet1'], 6)
 
+    def test_init_ovs_flows(self):
+        cfg.CONF.set_override('bridge_mappings',
+                              ["physnet1:br-eth1"], 'OVSVAPP')
+        self.agent.bridge_mappings = n_utils.parse_mappings(
+            cfg.CONF.OVSVAPP.bridge_mappings)
+        self.agent.patch_sec_ofport = 5
+        self.agent.int_ofports = {'physnet1': 'br-eth1'}
+        self.agent.phys_ofports = {"physnet1": "br-eth1"}
+        port = self._build_port(FAKE_PORT_1)
+        br = self._build_phys_brs(port)
+        self.agent.br = mock.Mock()
+        with mock.patch.object(self.agent.int_br,
+                               "delete_flows"
+                               ) as mock_int_br_delete_flows, \
+            mock.patch.object(self.agent,
+                              "br_phys_cls") as mock_ovs_br, \
+            mock.patch.object(self.agent.int_br,
+                              "add_flow") as mock_int_br_add_flow:
+            self.agent._init_ovs_flows(self.agent.bridge_mappings)
+            self.assertTrue(mock_int_br_delete_flows.called)
+            self.assertTrue(mock_ovs_br.called)
+            self.assertTrue(br.delete_flows.called)
+            self.assertTrue(br.add_flows.called)
+            self.assertTrue(mock_int_br_add_flow.called)
+
     def test_update_port_bindings(self):
         self.agent.ports_to_bind.add("fake_port")
         with mock.patch.object(self.agent.ovsvapp_rpc,
