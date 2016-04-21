@@ -236,7 +236,7 @@ class OVSVAPPTestadminJSON(manager.ESXNetworksTestJSON):
         body = self.admin_client.create_network(**post_body)
         network2 = body['network']
         self.addCleanup(self.admin_client.delete_network, network2['id'])
-        sub_cidr = netaddr.IPNetwork(CONF.network.tenant_network_cidr).next()
+        sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
         subnet2 = self.create_subnet(network2, client=self.admin_client,
                                      cidr=sub_cidr)
         name = data_utils.rand_name('router-')
