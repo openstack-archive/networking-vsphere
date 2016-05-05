@@ -64,12 +64,12 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             'configurations': {'bridge_mappings': bridge_mappings,
                                'vsphere_hostname': vsphere_hostname,
                                'log_agent_heartbeats':
-                                   cfg.CONF.AGENT.log_agent_heartbeats},
+                                   cfg.CONF.DVS_AGENT.log_agent_heartbeats},
             'agent_type': 'DVS agent',
             'start_flag': True}
 
         self.setup_rpc()
-        report_interval = cfg.CONF.AGENT.report_interval
+        report_interval = cfg.CONF.DVS_AGENT.report_interval
         if report_interval:
             heartbeat = loopingcall.FixedIntervalLoopingCall(
                 self._report_state)
@@ -386,8 +386,8 @@ def create_agent_config_map(config):
         vsphere_login=config.ML2_VMWARE.vsphere_login,
         vsphere_password=config.ML2_VMWARE.vsphere_password,
         bridge_mappings=bridge_mappings,
-        polling_interval=config.AGENT.polling_interval,
-        quitting_rpc_timeout=config.AGENT.quitting_rpc_timeout,
+        polling_interval=config.DVS_AGENT.polling_interval,
+        quitting_rpc_timeout=config.DVS_AGENT.quitting_rpc_timeout,
     )
     return kwargs
 

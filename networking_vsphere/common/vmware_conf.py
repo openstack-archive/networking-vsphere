@@ -31,6 +31,11 @@ agent_opts = [
                help=_("Set new timeout in seconds for new rpc calls after "
                       "agent receives SIGTERM. If value is set to 0, rpc "
                       "timeout won't be changed")),
+    cfg.BoolOpt('log_agent_heartbeats', default=False,
+                help=_("Log agent heartbeats")),
+    cfg.IntOpt('report_interval',
+               default=30,
+               help='Seconds between nodes reporting state to server.'),
 ]
 
 vmware_opts = [
