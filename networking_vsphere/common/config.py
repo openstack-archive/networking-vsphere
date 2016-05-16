@@ -56,7 +56,14 @@ VMWARE_OPTS = [
                 help='Set host into maintenance mode.'),
     cfg.MultiStrOpt('cluster_dvs_mapping',
                     default=[''],
-                    help='vCenter cluster to DVS mapping.')
+                    help='vCenter cluster to DVS mapping.'),
+    cfg.MultiStrOpt('cluster_vss_mapping',
+                    default=[''],
+                    help='vCenter cluster to VSS mapping.'),
+    cfg.BoolOpt('is_enterprise',
+                help=_("Flag set to false for supporting"
+                       " non-enterprise vSphere"),
+                default=False)        
 ]
 
 # OVSvApp Agent related config read from ovsvapp_agent.ini and neutron.conf.

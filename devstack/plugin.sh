@@ -89,6 +89,7 @@ function configure_ovsvapp_config {
     iniset /$OVSVAPP_CONF_FILE vmware vcenter_password $OVSVAPP_VCENTER_PASSWORD
     iniset /$OVSVAPP_CONF_FILE vmware wsdl_location $OVSVAPP_WSDL_LOCATION
     iniset /$OVSVAPP_CONF_FILE vmware cluster_dvs_mapping $OVSVAPP_CLUSTER_DVS_MAPPING
+    iniset /$OVSVAPP_CONF_FILE vmware cluster_vss_mapping $OVSVAPP_CLUSTER_VSS_MAPPING
     iniset /$OVSVAPP_CONF_FILE vmware esx_hostname $OVSVAPP_ESX_HOSTNAME
     if [ "$OVSVAPP_TENANT_NETWORK_TYPE" == "vxlan" ]; then
         iniset /$OVSVAPP_CONF_FILE ovsvapp tenant_network_type $OVSVAPP_TENANT_NETWORK_TYPE
