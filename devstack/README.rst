@@ -33,6 +33,11 @@
      # For Example:
      # OVSVAPP_CLUSTER_DVS_MAPPING=DatacenterName/host/ClusterName:vDSName
 
+     # Provide Cluster to VSS mapping.
+     OVSVAPP_CLUSTER_VSS_MAPPING=
+     # For Example:
+     # OVSVAPP_CLUSTER_VSS_MAPPING=DatacenterName/host/ClusterName:VSSName
+
      # Provide the tenant network type (VLAN or VXLAN).
      OVSVAPP_TENANT_NETWORK_TYPE=
 

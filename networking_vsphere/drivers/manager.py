@@ -22,6 +22,7 @@ from oslo_log import log
 from networking_vsphere.drivers import base_manager
 from networking_vsphere.drivers import dvs_driver
 from networking_vsphere.utils import vim_session
+from networking_vsphere.drivers import vss_driver
 
 LOG = log.getLogger(__name__)
 
@@ -39,6 +40,7 @@ class VcenterManager(base_manager.DriverManager):
         self.cluster_switch_mapping = {}
         self.connection_thread = None
         self.https_port = cfg.CONF.VMWARE.https_port
+        self.is_enterprise = cfg.CONF.VMWARE.is_enterprise
 
     def _parse_mapping(self, entry):
         """Parse an entry of cluster_dvs_mapping.
@@ -51,25 +53,44 @@ class VcenterManager(base_manager.DriverManager):
         :returns: A list of (cluster, dvs) tuples
         """
         try:
-            cluster_dvs_list = []
-            LOG.debug("Parsing cluster_dvs_mapping %s." % entry)
-            mappings = entry.split(",")
-            for mapping in mappings:
-                cluster = None
-                vds = None
-                if ":" in mapping:
-                    cluster, vds = mapping.split(":", 1)
-                    cluster = cluster.strip()
-                    vds = vds.strip()
-                if not cluster or not vds:
-                    LOG.error(_("Invalid value %s for opt "
-                                "cluster_dvs_mapping.") % mapping)
-                else:
-                    cluster_dvs_list.append((cluster, vds))
+            if self.is_enterprise:
+                x = "cluster_dvs_mapping"
+                cluster_dvs_list = []
+                LOG.debug("Parsing cluster_dvs_mapping %s." % entry)
+                mappings = entry.split(",")
+                for mapping in mappings:
+                    cluster = None
+                    vds = None
+                    if ":" in mapping:
+                        cluster, vds = mapping.split(":", 1)
+                        cluster = cluster.strip()
+                        vds = vds.strip()
+                    if not cluster or not vds:
+                        LOG.error(_("Invalid value %s for opt "
+                                    "cluster_dvs_mapping.") % mapping)
+                    else:
+                        cluster_dvs_list.append((cluster, vds))
+                return cluster_dvs_list
+            else:
+                x = "cluster_vss_mapping"
+                cluster_vss_list = []
+                LOG.debug("Parsing cluster_vss_mapping %s." % entry)
+                mappings = entry.split(",")
+                for mapping in mappings:
+                    cluster = None
+                    vss = None
+                    if ":" in mapping:
+                        cluster, vss = mapping.split(":", 1)
+                        cluster = cluster.strip()
+                        vss = vss.strip()
+                    if not cluster or not vss:
+                        LOG.error(_("Invalid value %s for opt "
+                                    "cluster_vss_mapping.") % mapping)
+                    else:
+                        cluster_vss_list.append((cluster, vss))
+                    return cluster_vss_list        
         except Exception:
-            LOG.exception(_("Invalid value %s for opt cluster_dvs_mapping.")
-                          % entry)
-        return cluster_dvs_list
+            LOG.exception(_("Invalid value %s for opt %s") % (entry, x))
 
     def _add_cluster(self, cluster, vds):
         try:
@@ -90,6 +111,7 @@ class VcenterManager(base_manager.DriverManager):
         self.wsdl_location = cfg.CONF.VMWARE.wsdl_location
         self.https_port = cfg.CONF.VMWARE.https_port
         self.ca_path = None
+        self.is_enterprise = cfg.CONF.VMWARE.is_enterprise
         if cfg.CONF.VMWARE.cert_check:
             if not cfg.CONF.VMWARE.cert_path:
                 LOG.error(_("SSL certificate path is not defined to establish "
@@ -126,12 +148,20 @@ class VcenterManager(base_manager.DriverManager):
             LOG.error(_("Must specify vcenter_ip, vcenter_username, "
                         "vcenter_password and wsdl_location."))
             return
-        self.driver = dvs_driver.DvsNetworkDriver()
-        self.driver.set_callback(self.netcallback)
-        for mapping in cfg.CONF.VMWARE.cluster_dvs_mapping:
-            cluster_dvs_list = self._parse_mapping(mapping)
-            for cluster, vds in cluster_dvs_list:
-                self._add_cluster(cluster, vds)
+        if self.is_enterprise:
+            self.driver = dvs_driver.DvsNetworkDriver()
+            self.driver.set_callback(self.netcallback)
+            for mapping in cfg.CONF.VMWARE.cluster_dvs_mapping:
+                cluster_dvs_list = self._parse_mapping(mapping)
+                for cluster, vds in cluster_dvs_list:
+                    self._add_cluster(cluster, vds)
+        else:
+            self.driver = vss_driver.VssNetworkDriver()
+            self.driver.set_callback(self.netcallback)
+            for mapping in cfg.CONF.VMWARE.cluster_vss_mapping:
+                cluster_vss_list = self._parse_mapping(mapping)
+                for cluster, vss in cluster_vss_list:
+                    self._add_cluster(cluster, vss)
 
     def start(self):
         """Start the driver event monitoring."""

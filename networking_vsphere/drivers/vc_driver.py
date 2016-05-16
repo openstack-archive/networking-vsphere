@@ -18,6 +18,7 @@ import re
 import time
 
 from oslo_log import log
+from oslo_config import cfg
 from oslo_vmware import exceptions
 
 from networking_vsphere.common import constants
@@ -29,6 +30,7 @@ from networking_vsphere.utils import cache
 from networking_vsphere.utils import common_util
 from networking_vsphere.utils import error_util
 from networking_vsphere.utils import network_util
+from networking_vsphere.utils import vss_network_util
 from networking_vsphere.utils import resource_util
 from networking_vsphere.utils import vim_session
 from networking_vsphere.utils import vim_util
@@ -45,6 +47,7 @@ class VCNetworkDriver(driver.NetworkDriver):
         self.cluster_id_to_filter = {}
         cache.VCCache.reset()
         self.session = vim_session.ConnectionHandler.get_connection()
+        self.is_enterprise = cfg.CONF.VMWARE.is_enterprise
 
     def get_unused_portgroups(self, switch):
         raise NotImplementedError()
@@ -166,7 +169,10 @@ class VCNetworkDriver(driver.NetworkDriver):
                          {'cp': cluster_path, 'sw': switch_name})
                 cache.VCCache.add_switch_for_cluster_path(cluster_path,
                                                           switch_name)
-                self.delete_stale_portgroups(switch_name)
+                if self.is_enterprise:
+                    self.delete_stale_portgroups(switch_name)
+                else:
+                    self.delete_stale_portgroups(cluster_mor, switch_name)
                 return
             else:
                 # Now this path points to a different cluster.
@@ -189,7 +195,10 @@ class VCNetworkDriver(driver.NetworkDriver):
         self.cluster_id_to_filter[cluster_mor.value] = property_filter_obj
         cache.VCCache.add_switch_for_cluster_path(cluster_path,
                                                   switch_name)
-        self.delete_stale_portgroups(switch_name)
+        if self.is_enterprise:
+            self.delete_stale_portgroups(switch_name)
+        else:
+            self.delete_stale_portgroups(cluster_mor, switch_name)
         if self.state != constants.DRIVER_RUNNING and self.is_connected():
             self.state = constants.DRIVER_READY
 
@@ -372,8 +381,19 @@ class VCNetworkDriver(driver.NetworkDriver):
                                 vnics = []
                                 for nicdev in nicdvs:
                                     macadd = nicdev.macAddress
-                                    port = nicdev.backing.port
-                                    pgkey = port.portgroupKey
+                                    if hasattr(nicdev.backing, "port"):
+                                        port = nicdev.backing.port
+                                        pgkey = port.portgroupKey
+                                    else:
+                                        # VSS port groups will not have
+                                        # "nicdev.backing.port" element
+                                        # Set it to None for now to fix
+                                        # KeyError issue during  VSS to VDS
+                                        # ESX migration.
+                                        # Need to update this code when OVSVAPP
+                                        # supports VSS
+                                        pg= nicdev.backing.network
+                                        pgkey= None
                                     portid = extraconfigs.get("nvp.iface-id.%d"
                                                               % i)
                                     vnic = model.VirtualNic(
@@ -443,7 +463,10 @@ class VCNetworkDriver(driver.NetworkDriver):
         for host_mor in host_mors:
             hosts.append(model.Host(key=host_mor.value))
         vswitch = model.VirtualSwitch(switch, hosts=hosts)
-        self.create_network(network, vswitch)
+        if self.is_enterprise:
+            self.create_network(network, vswitch)
+        else:
+            self.create_network(network, cluster_mor, vswitch)
 
     @utils.require_state(state=[constants.DRIVER_READY,
                          constants.DRIVER_RUNNING])

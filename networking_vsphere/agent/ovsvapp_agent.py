@@ -95,7 +95,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.vcenter_id = CONF.VMWARE.vcenter_ip
         self.cluster_moid = None  # Cluster domain ID.
         self.cluster_dvs_info = (CONF.VMWARE.cluster_dvs_mapping)[0].split(":")
-        self.cluster_id = self.cluster_dvs_info[0]  # Datacenter/host/cluster.
+        self.cluster_vss_info = (CONF.VMWARE.cluster_vss_mapping)[0].split(":")
+        self.is_enterprise = cfg.CONF.VMWARE.is_enterprise
+        if self.is_enterprise:
+            self.cluster_id = self.cluster_dvs_info[0]  # Datacenter/host/cluster.
+        else:
+            self.cluster_id = self.cluster_vss_info[0]  # Datacenter/host/cluster.
         self.ports_dict = {}
         self.network_port_count = {}
         self.local_vlan_map = {}
@@ -1334,9 +1339,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                     "network: %s."), network.name)
                     exception_str = str(e)
                     if ("The name" and "already exists" in exception_str):
+                        if self.is_enterprise:
+                            x = self.cluster_dvs_info[1]
+                        else:
+                            x = self.cluster_vss_info[1]
                         pg_vlan_id = (self.net_mgr.get_driver().
                                       get_vlanid_for_port_group(
-                                      self.cluster_dvs_info[1],
+                                      x,
                                       pg_name))
                         local_vlan_id = pg_vlan_id
                         break
