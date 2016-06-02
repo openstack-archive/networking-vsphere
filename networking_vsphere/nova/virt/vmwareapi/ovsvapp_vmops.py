@@ -40,7 +40,8 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
 
         LOG.info(_LI("Inside OVSvApp VMOps spawn method."))
         client_factory = self._session.vim.client.factory
-        image_info = images.VMwareImage.from_image(instance.image_ref,
+        image_info = images.VMwareImage.from_image(context,
+                                                   instance.image_ref,
                                                    image_meta)
         extra_specs = self._get_extra_specs(instance.flavor, image_meta)
 
