@@ -60,7 +60,8 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         vm_ref = vm_util.get_vm_ref(self._session, instance)
         if vm_ref is None:
             raise exception.InstanceNotFound(instance_id=instance['uuid'])
-        image_info = images.VMwareImage.from_image(instance.image_ref,
+        image_info = images.VMwareImage.from_image(context,
+                                                   instance.image_ref,
                                                    image_meta)
         self._create_virtual_nic(instance, image_info, network_info, vm_ref)
         self._power_on_vm(instance, vm_ref)
