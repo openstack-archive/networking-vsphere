@@ -91,10 +91,11 @@ function configure_ovsvapp_config {
     iniset /$OVSVAPP_CONF_FILE vmware wsdl_location $OVSVAPP_WSDL_LOCATION
     iniset /$OVSVAPP_CONF_FILE vmware cluster_dvs_mapping $OVSVAPP_CLUSTER_DVS_MAPPING
     iniset /$OVSVAPP_CONF_FILE vmware esx_hostname $OVSVAPP_ESX_HOSTNAME
-    if [ "$OVSVAPP_TENANT_NETWORK_TYPES" == "vxlan" ]; then
-        iniset /$OVSVAPP_CONF_FILE ovsvapp tenant_network_types $OVSVAPP_TENANT_NETWORK_TYPES
+    iniset /$OVSVAPP_CONF_FILE ovsvapp tenant_network_types $OVSVAPP_TENANT_NETWORK_TYPES
+    if [[ "$OVSVAPP_TENANT_NETWORK_TYPES" == *"vxlan"* ]]; then
         iniset /$OVSVAPP_CONF_FILE ovsvapp local_ip $OVSVAPP_LOCAL_IP
-    else
+    fi
+    if [[ "$OVSVAPP_TENANT_NETWORK_TYPES" == *"vlan"* ]]; then
         iniset /$OVSVAPP_CONF_FILE ovsvapp bridge_mappings $OVSVAPP_BRIDGE_MAPPINGS
     fi
     iniset /$OVSVAPP_CONF_FILE securitygroup security_bridge_mapping $OVSVAPP_SECURITY_BRIDGE_MAPPINGS
