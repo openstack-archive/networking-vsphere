@@ -25,7 +25,6 @@ from networking_vsphere.common import utils as ovsvapp_utils
 from networking_vsphere.db import ovsvapp_db
 
 from neutron.common import constants as common_const
-from neutron.common import exceptions as exc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.db import models_v2
@@ -356,9 +355,13 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                             "%(agent_id)s not found in database."),
                         {'port_id': port_id, 'agent_id': agent_id})
             return None
-        except exc.MultipleResultsFound:
+        except sa_exc.MultipleResultsFound:
             LOG.error(_LE("Multiple ports have port_id starting with %s."),
                       port_id)
+            return None
+        except Exception:
+            LOG.exception(_LE("Failed to get details for port %s "),
+                          port_id)
             return None
 
     def get_ports_details_list(self, rpc_context, **kwargs):
@@ -379,7 +382,6 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
             network = self.plugin.get_network(rpc_context, port['network_id'])
             levels = db.get_binding_levels(rpc_context.session, port_id,
                                            port_db.port_binding.host)
-
             port_context = driver_context.PortContext(self.plugin,
                                                       rpc_context,
                                                       port,
@@ -389,7 +391,6 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
             segment = port_context.top_bound_segment
             # Reference: ML2  Driver API changes for hierarchical port binding.
             bound_port = port_context.current
-
             if not segment:
                 LOG.warning(_LW("Port %(port_id)s requested by agent "
                                 "%(agent_id)s on network %(network_id)s not "
