@@ -30,6 +30,8 @@ from networking_vsphere.agent import ovsvapp_sg_agent
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.ml2 import ovsvapp_rpc
 
+from sqlalchemy.orm import exc as sa_exc
+
 cfg.CONF.import_group('ml2', 'neutron.plugins.ml2.config')
 
 FAKE_CLUSTER_ID = 'fake_cluster_id'
@@ -40,10 +42,11 @@ FAKE_PORT_ID = 'fake_port_id'
 FAKE_NETWORK_ID = "fake_network_id"
 FAKE_SUBNET_ID = "fake_subnet_id"
 FAKE_DEVICE_OWNER = "fake_device_owner"
-FAKE_DEVICE_1 = "fake_device_1"
-FAKE_DEVICE_2 = "fake_device_2"
-FAKE_MAC_ADDRESS = "fake_mac_address"
-FAKE_IP_ADDRESS = "fake_ip_address"
+FAKE_DEVICE_1 = 'fake_device_1'
+FAKE_DEVICE_2 = 'fake_device_2'
+FAKE_MAC_ADDRESS = 'fake_mac_address'
+FAKE_IP_ADDRESS = 'fake_ip_address'
+FAKE_SECURITY_GROUP = 'fake_grouop_id'
 
 
 class TestFakePortContext(base.FakePortContext):
@@ -89,16 +92,17 @@ class TestFakePortContext(base.FakePortContext):
             return self._expand_segment(self._bound_segment)
 
 
-class OVSvAppServerRpcCallbackTest(object):
+class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
 
     def setUp(self):
         super(OVSvAppServerRpcCallbackTest, self).setUp()
         self.ovsvapp_callbacks = ovsvapp_rpc.OVSvAppServerRpcCallback(
-            mock.Mock())
-        self.callbacks = plugin_rpc.RpcCallbacks(mock.Mock())
+            mock.Mock(), mock.Mock())
+        self.callbacks = plugin_rpc.RpcCallbacks(mock.Mock(), mock.Mock())
         self.plugin = self.manager.get_plugin()
 
-    def test_get_ports_for_device(self):
+    @mock.patch('networking_vsphere.ml2.ovsvapp_rpc.ovsvapp_db.get_local_vlan')
+    def test_get_ports_for_device(self, ovsvapp_db):
         kwargs = {'agent_id': FAKE_AGENT_ID,
                   'host': FAKE_HOST,
                   'device': {'id': 1,
@@ -111,6 +115,8 @@ class OVSvAppServerRpcCallbackTest(object):
         port['status'] = 'DOWN'
         port['admin_state_up'] = True
         port['security_groups'] = ['fake-sg1', 'fake-sg2']
+
+        ovsvapp_db.return_value = 1234
         with mock.patch.object(self.plugin,
                                'get_ports',
                                return_value=[port]), \
@@ -125,7 +131,7 @@ class OVSvAppServerRpcCallbackTest(object):
                                   ) as mock_get_ports_from_devices, \
                 mock.patch.object(self.plugin, 'update_port_status'
                                   ) as mock_update_port_status, \
-                mock.patch.object(self.plugin,
+                mock.patch.object(self.ovsvapp_callbacks.sg_rpc,
                                   'security_group_info_for_esx_ports'
                                   ) as mock_sg_info_for_esx_ports, \
                 mock.patch.object(self.ovsvapp_callbacks,
@@ -244,10 +250,12 @@ class OVSvAppServerRpcCallbackTest(object):
             self.assertIn("fake_port_id", status)
             self.assertFalse(mock_log_debug.called)
 
+    @mock.patch('networking_vsphere.ml2.ovsvapp_rpc.ovsvapp_db.get_local_vlan')
     @mock.patch('neutron.plugins.ml2.driver_context.PortContext')
     @mock.patch.object(ovsvapp_rpc.LOG, 'debug')
     def test_get_ports_details_list_all_ports_bound(self, mock_log_debug,
-                                                    mock_port_ctxt):
+                                                    mock_port_ctxt,
+                                                    mock_ovsvapp_db):
         kwargs = {'agent_id': FAKE_AGENT_ID,
                   'port_ids': [FAKE_PORT_ID],
                   'vcenter_id': FAKE_VCENTER,
@@ -260,6 +268,7 @@ class OVSvAppServerRpcCallbackTest(object):
                           'device_owner': FAKE_DEVICE_OWNER,
                           'mac_address': FAKE_MAC_ADDRESS,
                           'admin_state_up': True,
+                          'security_groups': [FAKE_SECURITY_GROUP],
                           'network_id': FAKE_NETWORK_ID}
         VLAN_SEGMENTS = [{api.ID: 'vlan_segment_id',
                           api.NETWORK_TYPE: 'vlan',
@@ -269,6 +278,7 @@ class OVSvAppServerRpcCallbackTest(object):
         fake_network = {'id': FAKE_NETWORK_ID}
         fake_context_obj = mock.Mock()
         mock_port_ctxt.return_value = fake_port_context
+        mock_ovsvapp_db.return_value = 1234
         with mock.patch.object(self.ovsvapp_callbacks, '_get_port_db',
                                return_value=fake_port_db
                                ) as mock_get_port_db, \
@@ -295,13 +305,16 @@ class OVSvAppServerRpcCallbackTest(object):
                  'network_id': FAKE_NETWORK_ID,
                  'segmentation_id': VLAN_SEGMENTS[0][api.SEGMENTATION_ID],
                  'physical_network': VLAN_SEGMENTS[0][api.PHYSICAL_NETWORK],
+                 'security_groups': [FAKE_SECURITY_GROUP],
                  'network_type': VLAN_SEGMENTS[0][api.NETWORK_TYPE]}]
             self.assertEqual(expected, actual)
 
+    @mock.patch('networking_vsphere.ml2.ovsvapp_rpc.ovsvapp_db.get_local_vlan')
     @mock.patch('neutron.plugins.ml2.driver_context.PortContext')
     @mock.patch.object(ovsvapp_rpc.LOG, 'debug')
     def test_get_ports_details_list_ports_not_bound(self, mock_log_debug,
-                                                    mock_port_ctxt):
+                                                    mock_port_ctxt,
+                                                    mock_ovsvapp_db):
         kwargs = {'agent_id': FAKE_AGENT_ID,
                   'port_ids': [FAKE_PORT_ID],
                   'vcenter_id': FAKE_VCENTER,
@@ -314,12 +327,14 @@ class OVSvAppServerRpcCallbackTest(object):
                           'device_owner': FAKE_DEVICE_OWNER,
                           'mac_address': FAKE_MAC_ADDRESS,
                           'admin_state_up': True,
+                          'security_groups': [FAKE_SECURITY_GROUP],
                           'network_id': FAKE_NETWORK_ID,
                           portbindings.VIF_TYPE: ''}
         fake_port_context = TestFakePortContext(fake_port_dict)
         fake_network = {'id': FAKE_NETWORK_ID}
         fake_context_obj = mock.Mock()
         mock_port_ctxt.return_value = fake_port_context
+        mock_ovsvapp_db.return_value = 1234
         with mock.patch.object(self.ovsvapp_callbacks,
                                '_get_port_db',
                                return_value=fake_port_db
@@ -347,7 +362,7 @@ class OVSvAppServerRpcCallbackTest(object):
                   'host': FAKE_HOST}
         ret_value = {'devices_up': devices,
                      'failed_devices_up': []}
-        with mock.patch.object(self.callbacks, 'update_device_up'
+        with mock.patch.object(self.ovsvapp_callbacks, 'update_device_up'
                                ) as mock_update_device_up:
             result = self.ovsvapp_callbacks.update_devices_up('fake_context',
                                                               **kwargs)
@@ -361,7 +376,7 @@ class OVSvAppServerRpcCallbackTest(object):
                   'host': FAKE_HOST}
         ret_value = {'devices_up': [],
                      'failed_devices_up': devices}
-        with mock.patch.object(self.callbacks, 'update_device_up',
+        with mock.patch.object(self.ovsvapp_callbacks, 'update_device_up',
                                side_effect=Exception
                                ) as mock_update_device_up:
             result = self.ovsvapp_callbacks.update_devices_up('fake_context',
@@ -376,7 +391,7 @@ class OVSvAppServerRpcCallbackTest(object):
                   'host': FAKE_HOST}
         ret_value = {'devices_down': devices,
                      'failed_devices_down': []}
-        with mock.patch.object(self.callbacks, 'update_device_down'
+        with mock.patch.object(self.ovsvapp_callbacks, 'update_device_down'
                                ) as mock_update_device_down:
             result = self.ovsvapp_callbacks.update_devices_down('fake_context',
                                                                 **kwargs)
@@ -390,7 +405,7 @@ class OVSvAppServerRpcCallbackTest(object):
                   'host': FAKE_HOST}
         ret_value = {'devices_down': [],
                      'failed_devices_down': devices}
-        with mock.patch.object(self.callbacks, 'update_device_down',
+        with mock.patch.object(self.ovsvapp_callbacks, 'update_device_down',
                                side_effect=Exception
                                ) as mock_update_device_down:
             result = self.ovsvapp_callbacks.update_devices_down('fake_context',
@@ -440,6 +455,17 @@ class OVSvAppServerRpcCallbackTest(object):
         set_threshold.assert_called_with(FAKE_VCENTER, FAKE_CLUSTER_ID)
         self.assertFalse(release_lock.called)
         self.assertTrue(log_exception.called)
+
+    @mock.patch.object(ovsvapp_rpc.LOG, 'error')
+    def test_get_port_db_exception(self, log_exception):
+        session = mock.Mock()
+        with mock.patch.object(session, 'query',
+                               side_effect=sa_exc.MultipleResultsFound
+                               ) as mock_get_port_db:
+            self.ovsvapp_callbacks._get_port_db(session, 'fake_port_id',
+                                                'fake_agent_id')
+            self.assertTrue(log_exception.called)
+            self.assertEqual(1, mock_get_port_db.call_count)
 
 
 class OVSvAppAgentNotifyAPITest(test_rpc.RpcApiTestCase):
