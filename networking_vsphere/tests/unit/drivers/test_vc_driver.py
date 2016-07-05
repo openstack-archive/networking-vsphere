@@ -14,6 +14,7 @@
 #    under the License.
 #
 
+import copy
 import mock
 
 from neutron.plugins.common import constants as p_const
@@ -257,6 +258,47 @@ class TestVmwareDriver(base.TestCase):
         events = self.vc_driver._process_update_set(updateSet)
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].event_type, constants.VM_CREATED)
+
+    def test_process_update_set_snapshot(self):
+        updateSet = fake_vmware_api.DataObject()
+        updateSet.version = 1
+        filterSet = []
+        updateSet.filterSet = filterSet
+        propFilterUpdate = fake_vmware_api.DataObject()
+        filterSet.append(propFilterUpdate)
+        objectSet = []
+        propFilterUpdate.objectSet = objectSet
+        objectUpdate = fake_vmware_api.DataObject()
+        objectUpdate.obj = (
+            fake_vmware_api._db_content["VirtualMachine"].values()[0])
+        objectUpdate.kind = "modify"
+        changeSet = []
+        objectUpdate.changeSet = changeSet
+        for prop in objectUpdate.obj.propSet:
+            if prop.name == "runtime.host":
+                delattr(prop, "val")
+            changeSet.append(prop)
+        objectSet.append(objectUpdate)
+        events = self.vc_driver._process_update_set(updateSet)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].event_type, constants.VM_CREATED)
+        self.assertTrue(VcCache.get_vm_mor_for_uuid(
+                        fake_vmware_api.Constants.VM_UUID))
+        self.assertEqual(VcCache.get_vm_mor_for_uuid(
+                         fake_vmware_api.Constants.VM_UUID).value,
+                         objectUpdate.obj.value)
+        obj_orig = objectUpdate.obj
+        objectUpdate.obj = copy.deepcopy(objectUpdate.obj)
+        object.__setattr__(objectUpdate.obj, 'value',
+                           'aaaa-bbbbb-ccccc-ddddd-eeeee')
+        events = self.vc_driver._process_update_set(updateSet)
+        self.assertEqual(len(events), 0)
+        self.assertNotEqual(objectUpdate.obj.value, obj_orig.value)
+        self.assertEqual(objectUpdate.obj.get('config.extraConfig["nvp.vm-uuid"]').value,
+                         obj_orig.get('config.extraConfig["nvp.vm-uuid"]').value)
+        self.assertEqual(VcCache.get_vm_mor_for_uuid(
+                         fake_vmware_api.Constants.VM_UUID).value,
+                         obj_orig.value)
 
     def test_process_update_set_leave(self):
         updateSet = fake_vmware_api.DataObject()
