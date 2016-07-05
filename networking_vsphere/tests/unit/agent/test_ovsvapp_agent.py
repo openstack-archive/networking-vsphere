@@ -237,6 +237,9 @@ class TestOVSvAppAgent(base.TestCase):
         with mock.patch.object(self.LOG, 'info') as mock_logger_info, \
                 mock.patch.object(ovs_lib, "OVSBridge") as mock_ovs_br, \
                 mock.patch.object(self.agent.sec_br,
+                                  "get_bridge_for_iface",
+                                  return_value='br-fake'), \
+                mock.patch.object(self.agent.sec_br,
                                   "add_patch_port",
                                   return_value=5), \
                 mock.patch.object(self.agent.int_br,
@@ -245,6 +248,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.setup_security_br()
             self.assertTrue(mock_ovs_br.called)
             self.assertTrue(self.agent.sec_br.add_patch_port.called)
+            self.assertTrue(self.agent.sec_br.get_bridge_for_iface.called)
             self.assertTrue(mock_logger_info.called)
 
     def test_recover_security_br_none(self):
