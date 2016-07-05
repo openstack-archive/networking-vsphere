@@ -230,6 +230,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "agent!"), secbr_name)
             raise SystemExit(1)
         # br-sec patch port to br-int.
+        br_name = self.sec_br.get_bridge_for_iface(
+            ovsvapp_const.SEC_TO_INT_PATCH)
+        if br_name is not None:
+            if br_name != secbr_name:
+                br = ovs_lib.OVSBridge(br_name)
+                br.delete_port(ovsvapp_const.SEC_TO_INT_PATCH)
         patch_sec_int_ofport = self.sec_br.add_patch_port(
             ovsvapp_const.SEC_TO_INT_PATCH, ovsvapp_const.INT_TO_SEC_PATCH)
         # br-int patch port to br-sec.
@@ -269,6 +275,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "Security bridge %s. Terminating the "
                           "agent!"), secbr_name)
             raise SystemExit(1)
+        br_name = self.sec_br.get_bridge_for_iface(
+            ovsvapp_const.SEC_TO_INT_PATCH)
+        if br_name is not None:
+            if br_name != secbr_name:
+                br = ovs_lib.OVSBridge(br_name)
+                br.delete_port(ovsvapp_const.SEC_TO_INT_PATCH)
         # br-sec patch port to br-int.
         patch_sec_int_ofport = self.sec_br.get_port_ofport(
             ovsvapp_const.SEC_TO_INT_PATCH)
