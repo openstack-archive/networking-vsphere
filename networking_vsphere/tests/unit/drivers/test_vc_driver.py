@@ -257,6 +257,17 @@ class TestVmwareDriver(base.TestCase):
         events = self.vc_driver._process_update_set(updateSet)
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].event_type, constants.VM_CREATED)
+        self.assertTrue(VcCache.get_vm_mor_for_uuid(
+                        fake_vmware_api.Constants.VM_UUID))
+        self.assertEqual(VcCache.get_vm_mor_for_uuid(
+                         fake_vmware_api.Constants.VM_UUID).value,
+                         objectUpdate.obj.value)
+        objectUpdate.obj.value = 'aaaa-bbbbb-ccccc-ddddd-eeeee'
+        events = self.vc_driver._process_update_set(updateSet)
+        self.assertEqual(len(events), 0)
+        self.assertEqual(VcCache.get_vm_mor_for_uuid(
+                         fake_vmware_api.Constants.VM_UUID).value,
+                         objectUpdate.obj.value)
 
     def test_process_update_set_leave(self):
         updateSet = fake_vmware_api.DataObject()
