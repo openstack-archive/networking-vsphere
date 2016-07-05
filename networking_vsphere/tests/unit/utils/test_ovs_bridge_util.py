@@ -34,7 +34,9 @@ FAKE_ETH_OFPORT = 6
 
 class TestOVSvAppIntegrationBridge(base.TestCase):
 
-    def setUp(self):
+    @mock.patch('neutron.agent.ovsdb.api.'
+                'API.get')
+    def setUp(self, mock_ovsdb_api):
         super(TestOVSvAppIntegrationBridge, self).setUp()
         self.int_br = ovsvapp_br.OVSvAppIntegrationBridge("br-int")
 
