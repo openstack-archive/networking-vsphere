@@ -141,6 +141,8 @@ class TestOVSvAppAgent(base.TestCase):
 
     @mock.patch('neutron.common.config.init')
     @mock.patch('neutron.common.config.setup_logging')
+    @mock.patch('neutron.agent.ovsdb.api.'
+                'API.get')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.RpcPluginApi')
     @mock.patch('neutron.agent.securitygroups_rpc.SecurityGroupServerRpcApi')
     @mock.patch('neutron.agent.rpc.PluginReportStateAPI')
@@ -172,7 +174,8 @@ class TestOVSvAppAgent(base.TestCase):
               mock_setup_integration_br, mock_create_consumers,
               mock_get_admin_context_without_session, mock_ovsvapp_pluginapi,
               mock_plugin_report_stateapi, mock_securitygroup_server_rpcapi,
-              mock_rpc_pluginapi, mock_setup_logging, mock_init):
+              mock_rpc_pluginapi, mock_ovsdb_api, mock_setup_logging,
+              mock_init):
         super(TestOVSvAppAgent, self).setUp()
         cfg.CONF.set_override('security_bridge_mapping',
                               "fake_sec_br:fake_if", 'SECURITYGROUP')
@@ -256,7 +259,9 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(mock_logger_warn.called)
             self.assertFalse(mock_ovs_bridge.called)
 
-    def test_recover_physical_bridges(self):
+    @mock.patch('neutron.agent.ovsdb.api.'
+                'API.get')
+    def test_recover_physical_bridges(self, mock_ovsdb_api):
         cfg.CONF.set_override('bridge_mappings',
                               ["physnet1:br-eth1"], 'OVSVAPP')
         self.agent.bridge_mappings = n_utils.parse_mappings(
@@ -363,7 +368,9 @@ class TestOVSvAppAgent(base.TestCase):
             mock_phys_brs.assert_called_with(self.agent.bridge_mappings)
             mock_init_ovs_flows.assert_called_with(self.agent.bridge_mappings)
 
-    def test_setup_ovs_bridges_vxlan(self):
+    @mock.patch('neutron.agent.ovsdb.api.'
+                'API.get')
+    def test_setup_ovs_bridges_vxlan(self, mock_ovsdb_api):
         self.agent.local_ip = "10.10.10.10"
         self.agent.tenant_network_types = [p_const.TYPE_VXLAN]
         with mock.patch.object(self.agent, 'setup_tunnel_br'
