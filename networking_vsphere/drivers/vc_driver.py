@@ -321,7 +321,11 @@ class VCNetworkDriver(driver.NetworkDriver):
                         vm_uuid = changes.get('config.extraConfig'
                                               '["nvp.vm-uuid"]').value
                         event_type = constants.VM_CREATED
-                        cache.VCCache.add_vm_mor_for_uuid(vm_uuid, obj_mor)
+                        if vm_uuid is not None:
+                            vm_mor = cache.VCCache.get_vm_mor_for_uuid(vm_uuid)
+                            if vm_mor is None:
+                                cache.VCCache.add_vm_mor_for_uuid(vm_uuid,
+                                                                  obj_mor)
                     else:
                         vm_uuid = cache.VCCache.get_vmuuid_for_moid(
                             obj_mor.value)
