@@ -149,7 +149,9 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
             self.assertTrue(mock_update_port_binding.called)
 
     @mock.patch.object(ovsvapp_rpc.LOG, 'debug')
-    def test_get_ports_for_device_no_security_groups(self, mock_log_debug):
+    @mock.patch('networking_vsphere.ml2.ovsvapp_rpc.ovsvapp_db.get_local_vlan')
+    def test_get_ports_for_device_no_security_groups(self, mock_log_debug,
+                                                     ovsvapp_db):
         kwargs = {'agent_id': FAKE_AGENT_ID,
                   'host': FAKE_HOST,
                   'device': {'id': 1,
@@ -161,6 +163,7 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
         port['id'] = FAKE_PORT_ID
         port['status'] = 'DOWN'
         port['admin_state_up'] = True
+        ovsvapp_db.return_value = 1234
         with mock.patch.object(self.plugin,
                                'get_ports',
                                return_value=[port]), \
