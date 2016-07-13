@@ -53,7 +53,7 @@ class VcenterManager(base_manager.DriverManager):
         """
         try:
             cluster_dvs_list = []
-            LOG.debug("Parsing cluster_dvs_mapping %s." % entry)
+            LOG.debug("Parsing cluster_dvs_mapping %s.", entry)
             mappings = entry.split(",")
             for mapping in mappings:
                 cluster = None
@@ -64,12 +64,12 @@ class VcenterManager(base_manager.DriverManager):
                     vds = vds.strip()
                 if not cluster or not vds:
                     LOG.error(_LE("Invalid value %s for opt "
-                                  "cluster_dvs_mapping.") % mapping)
+                                  "cluster_dvs_mapping."), mapping)
                 else:
                     cluster_dvs_list.append((cluster, vds))
         except Exception:
-            LOG.exception(_LE("Invalid value %s for opt cluster_dvs_mapping.")
-                          % entry)
+            LOG.exception(_LE("Invalid value %s for opt cluster_dvs_mapping."),
+                          entry)
         return cluster_dvs_list
 
     def _add_cluster(self, cluster, vds):

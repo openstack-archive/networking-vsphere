@@ -160,11 +160,11 @@ def wait_until_dvs_portgroup_available(session, vm_ref, pg_name, wait_time):
                                                  network._type,
                                                  "config")
                     if props.name in pg_name:
-                        LOG.debug("DistributedVirtualPortgroup created %s "
-                                  % pg_name)
+                        LOG.debug("DistributedVirtualPortgroup created %s ",
+                                  pg_name)
                         return True
         LOG.debug("Portgroup %s not created yet. Retrying again "
-                  "after 5 seconds" % pg_name)
+                  "after 5 seconds", pg_name)
         greenthread.sleep(5)
         time_elapsed += 5
     if time_elapsed >= wait_time:
@@ -335,9 +335,9 @@ def is_valid_dvswitch(session, cluster_mor, dvs_name):
                 if hostname == cfg.CONF.VMWARE.esx_hostname:
                     if host.value not in dvs_attached_host_ids:
                         LOG.error(_LE("DVS not present on"
-                                      "host %s") % host.value)
+                                      "host %s"), host.value)
                         return False
             return hosts_in_cluster
     else:
-        LOG.error(_LE("DVS not present %s") % dvs_name)
+        LOG.error(_LE("DVS not present %s"), dvs_name)
         return False

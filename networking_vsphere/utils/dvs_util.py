@@ -105,10 +105,10 @@ class DVSController(object):
                     'Destroy_Task',
                     pg_ref)
                 self.connection.wait_for_task(pg_delete_task)
-                LOG.info(_LI('Network %(name)s deleted.') % {'name': name})
+                LOG.info(_LI('Network %(name)s deleted.'), {'name': name})
                 break
             except exceptions.PortGroupNotFound:
-                LOG.debug('Network %s not present in vcenter.' % name)
+                LOG.debug('Network %s not present in vcenter.', name)
                 break
             except vmware_exceptions.VimException as e:
                 raise exceptions.wrap_wmvare_vim_exception(e)

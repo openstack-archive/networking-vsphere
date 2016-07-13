@@ -172,8 +172,8 @@ class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
                               "%(res)s", {'res': response,
                                           'ip': monitoring_ip})
                     status = response.json()
-                    LOG.info(_LI("ovs status is %(st)s from agent@ %(ip)s")
-                             % {'st': status, 'ip': monitoring_ip})
+                    LOG.info(_LI("ovs status is %(st)s from agent@ %(ip)s"),
+                             {'st': status, 'ip': monitoring_ip})
                     return (status.get('ovs') == "OK")
             except Exception:
                 LOG.exception(_LE("Failed to get OVS status. Will continue "

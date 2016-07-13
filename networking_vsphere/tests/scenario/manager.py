@@ -315,7 +315,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 waitsec = (time.time() - start_time)
                 LOG.info(
                     _LI('State transition %(oldstatus)s => %(serverstatus)s '
-                        'after %(waitsec)d second wait') %
+                        'after %(waitsec)d second wait'),
                     {'oldstatus': oldstatus, 'serverstatus': serverstatus,
                      'waitsec': waitsec}
                 )
@@ -418,7 +418,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def check_public_network_connectivity(self, ip_address, username,
                                           should_connect=True,
                                           msg=None):
-        LOG.debug('checking network connections to IP %s with user: %s' %
+        LOG.debug('checking network connections to IP %s with user: %s',
                   (ip_address, username))
         try:
             self.check_vm_connectivity(ip_address,
@@ -580,7 +580,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 self.ping_host(source, dest)
             except lib_exc.SSHExecCommandFailed:
                 LOG.warning(_LW('Failed to ping IP: %(dest)s '
-                                'via a ssh connection from: %(source)s.') %
+                                'via a ssh connection from: %(source)s.'),
                             {'dest': dest, 'source': source})
                 return not should_succeed
             return should_succeed

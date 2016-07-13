@@ -974,7 +974,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "provisioning for %(name)s %(uuid)s."),
                       {'name': event.src_obj.__class__.__name__,
                        'uuid': event.src_obj.uuid})
-            LOG.exception(_LE("Cause of failure: %s.") % str(e))
+            LOG.exception(_LE("Cause of failure: %s."), str(e))
 
     def _add_ports_to_host_ports(self, ports, hosting=True):
         for port_id in ports:
@@ -1055,7 +1055,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     ovsvapp_l2pop_lock.acquire()
                     try:
                         LOG.info(_LI("Invoking update_device_binding RPC for "
-                                     "device %s.") % vm.uuid)
+                                     "device %s."), vm.uuid)
                         self.ovsvapp_rpc.update_device_binding(
                             self.context,
                             agent_id=self.agent_id,
@@ -1063,7 +1063,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             host=self.hostname)
                     except Exception as e:
                         LOG.exception(_LE("Failed to handle VM migration "
-                                          "for device: %s.") % vm.uuid)
+                                          "for device: %s."), vm.uuid)
                         raise error.OVSvAppNeutronAgentError(e)
                     finally:
                         ovsvapp_l2pop_lock.release()

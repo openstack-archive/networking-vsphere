@@ -100,9 +100,9 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             dvs = self._lookup_dvs_for_context(segment)
         except (exceptions.NoDVSForPhysicalNetwork,
                 exceptions.NotSupportedNetworkType) as e:
-            LOG.info(_LI('Network %(id)s not created. Reason: %(reason)s') % {
-                'id': current['id'],
-                'reason': e.message})
+            LOG.info(_LI('Network %(id)s not created. Reason: %(reason)s'),
+                     {'id': current['id'],
+                      'reason': e.message})
         except exceptions.InvalidNetwork:
             pass
         else:
@@ -114,9 +114,9 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             dvs = self._lookup_dvs_for_context(segment)
         except (exceptions.NoDVSForPhysicalNetwork,
                 exceptions.NotSupportedNetworkType) as e:
-            LOG.info(_LI('Network %(id)s not deleted. Reason: %(reason)s') % {
-                'id': current['id'],
-                'reason': e.message})
+            LOG.info(_LI('Network %(id)s not deleted. Reason: %(reason)s'),
+                     {'id': current['id'],
+                      'reason': e.message})
         except exceptions.InvalidNetwork:
             pass
         else:
@@ -128,9 +128,9 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             dvs = self._lookup_dvs_for_context(segment)
         except (exceptions.NoDVSForPhysicalNetwork,
                 exceptions.NotSupportedNetworkType) as e:
-            LOG.info(_LI('Network %(id)s not updated. Reason: %(reason)s') % {
-                'id': current['id'],
-                'reason': e.message})
+            LOG.info(_LI('Network %(id)s not updated. Reason: %(reason)s'),
+                     {'id': current['id'],
+                      'reason': e.message})
         except exceptions.InvalidNetwork:
             pass
         else:
@@ -159,9 +159,9 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                 self.added_ports.add(current['id'])
                 self.booked_ports.discard(current['id'])
         except exceptions.NotSupportedNetworkType as e:
-            LOG.info(_LI('Port %(id)s not updated. Reason: %(reason)s') % {
-                'id': current['id'],
-                'reason': e.message})
+            LOG.info(_LI('Port %(id)s not updated. Reason: %(reason)s'),
+                     {'id': current['id'],
+                      'reason': e.message})
         except exceptions.NoDVSForPhysicalNetwork:
             raise exceptions.InvalidSystemState(details=_(
                 'Port %(port_id)s belong to VMWare VM, but there is '
@@ -176,9 +176,9 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         try:
             dvs = self._lookup_dvs_for_context(segment)
         except exceptions.NotSupportedNetworkType as e:
-            LOG.info(_LI('Port %(id)s not deleted. Reason: %(reason)s') % {
-                'id': current['id'],
-                'reason': e.message})
+            LOG.info(_LI('Port %(id)s not deleted. Reason: %(reason)s'),
+                     {'id': current['id'],
+                      'reason': e.message})
         except exceptions.NoDVSForPhysicalNetwork:
             raise exceptions.InvalidSystemState(details=_(
                 'Port %(port_id)s belong to VMWare VM, but there is '
@@ -195,7 +195,7 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                 return self.network_map[physical_network]
             except KeyError:
                 LOG.debug('No dvs mapped for physical '
-                          'network: %s' % physical_network)
+                          'network: %s', physical_network)
                 raise exceptions.NoDVSForPhysicalNetwork(
                     physical_network=physical_network)
         else:
