@@ -259,6 +259,35 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(mock_logger_warn.called)
             self.assertFalse(mock_ovs_bridge.called)
 
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge')
+    def test_recover_security_br(self, mock_ovs_bridge):
+        cfg.CONF.set_override('security_bridge_mapping',
+                              "br-sec:physnet1", 'SECURITYGROUP')
+        self.agent.int_br = mock.Mock()
+        self.agent.sec_br = mock.Mock()
+        mock_br = mock_ovs_bridge.return_value
+        with mock.patch.object(self.LOG, 'info') as mock_logger_info, \
+                mock.patch.object(mock_br, 'bridge_exists'), \
+                mock.patch.object(mock_br, 'add_patch_port') as mock_add_patch_port, \
+                mock.patch.object(self.agent.int_br,
+                                  "get_port_ofport",
+                                  return_value=6), \
+                mock.patch.object(mock_br,
+                                  "get_port_ofport",
+                                  return_value=6), \
+                mock.patch.object(mock_br,
+                                  "delete_port") as mock_delete_port:
+            mock_br.get_bridge_for_iface.return_value = 'br-sec'
+            self.agent.recover_security_br()
+            self.assertTrue(mock_logger_info.called)
+            self.assertFalse(mock_delete_port.called)
+            self.assertFalse(mock_add_patch_port.called)
+            mock_br.get_bridge_for_iface.return_value = 'br-fake'
+            self.agent.recover_security_br()
+            self.assertTrue(mock_logger_info.called)
+            self.assertTrue(mock_delete_port.called)
+            self.assertTrue(mock_add_patch_port.called)
+
     @mock.patch('neutron.agent.ovsdb.api.'
                 'API.get')
     def test_recover_physical_bridges(self, mock_ovsdb_api):
