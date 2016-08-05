@@ -1255,7 +1255,11 @@ class TestOVSvAppAgent(base.TestCase):
         event = SampleEvent(ovsvapp_const.VM_CREATED,
                             FAKE_HOST_1, FAKE_CLUSTER_MOID, vm)
         self.agent.state = ovsvapp_const.AGENT_RUNNING
-        self.agent.process_event(event)
+        self.agent.sec_br = mock.Mock()
+        with mock.patch.object(self.agent.sec_br, 'dump_flows_for',
+                               return_value='mock_flow') as mock_dump_flows:
+            self.agent.process_event(event)
+            self.assertTrue(mock_dump_flows.called)
         for vnic in vm.vnics:
             self.assertIn(vnic.port_uuid, self.agent.devices_to_filter)
             self.assertIn(vnic.port_uuid, self.agent.cluster_other_ports)
@@ -1269,11 +1273,23 @@ class TestOVSvAppAgent(base.TestCase):
         event = SampleEvent(ovsvapp_const.VM_CREATED,
                             FAKE_HOST_1, FAKE_CLUSTER_MOID, vm)
         self.agent.state = ovsvapp_const.AGENT_RUNNING
-        self.agent.process_event(event)
+        self.agent.sec_br = mock.Mock()
+        with mock.patch.object(self.agent.sec_br, 'dump_flows_for',
+                               return_value='mock_flow') as mock_dump_flows:
+            self.agent.process_event(event)
+            self.assertTrue(mock_dump_flows.called)
         for vnic in vm.vnics:
             self.assertIn(vnic.port_uuid, self.agent.devices_to_filter)
             self.assertIn(vnic.port_uuid, self.agent.cluster_host_ports)
             self.assertNotIn(vnic.port_uuid, self.agent.cluster_other_ports)
+        with mock.patch.object(self.agent.sec_br, 'dump_flows_for',
+                               return_value='') as mock_dump_flows, \
+                mock.patch.object(self.agent.ovsvapp_rpc,
+                                  "get_ports_for_device",
+                                  return_value=True) as mock_get_ports:
+            self.agent.process_event(event)
+            self.assertTrue(mock_dump_flows.called)
+            self.assertTrue(mock_get_ports.called)
 
     def test_process_event_vm_updated_nonhost(self):
         self.agent.esx_hostname = FAKE_HOST_2
@@ -1439,6 +1455,29 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertFalse(mock_update_device_binding.called)
             self.assertFalse(mock_log_exception.called)
+
+    def test_notify_device_update_not_found(self):
+        host = FAKE_HOST_1
+        self.agent.esx_hostname = host
+        vm_port1 = SamplePort(FAKE_PORT_1)
+        vm = VM(FAKE_VM, [vm_port1])
+        port = self._build_port(FAKE_PORT_1)
+        self._build_phys_brs(port)
+        self._build_lvm(port)
+        self.agent.state = ovsvapp_const.AGENT_RUNNING
+        self.agent.tenant_network_types = [p_const.TYPE_VLAN]
+        br = self.agent.phys_brs[port['physical_network']]['br']
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               "update_device_binding"
+                               ):
+            self.agent._notify_device_updated(vm, host, True)
+            self.assertFalse(br.add_drop_flows.called)
+        self.agent.ports_dict[port['id']] = self.agent._build_port_info(port)
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               "update_device_binding"
+                               ):
+            self.agent._notify_device_updated(vm, host, True)
+            self.assertTrue(br.add_drop_flows.called)
 
     def test_notify_device_updated_host_vlan(self):
         host = FAKE_HOST_1
