@@ -264,8 +264,8 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                 retry_count = 3
                 while retry_count > 0:
                     sleep = False
-                    for port in ports:
-                        if port['status'] != common_const.PORT_STATUS_ACTIVE:
+                    for pport in ports:
+                        if pport['status'] != common_const.PORT_STATUS_ACTIVE:
                             sleep = True
                             break
                     if sleep:
