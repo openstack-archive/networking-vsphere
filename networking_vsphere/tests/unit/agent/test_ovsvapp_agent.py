@@ -1347,6 +1347,29 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertFalse(mock_update_device_binding.called)
             self.assertFalse(mock_log_exception.called)
 
+    def test_notify_device_update_not_found(self):
+        host = FAKE_HOST_1
+        self.agent.esx_hostname = host
+        vm_port1 = SamplePort(FAKE_PORT_1)
+        vm = VM(FAKE_VM, [vm_port1])
+        port = self._build_port(FAKE_PORT_1)
+        self._build_phys_brs(port)
+        self._build_lvm(port)
+        self.agent.state = ovsvapp_const.AGENT_RUNNING
+        self.agent.tenant_network_types = [p_const.TYPE_VLAN]
+        br = self.agent.phys_brs[port['physical_network']]['br']
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               "update_device_binding"
+                               ):
+            self.agent._notify_device_updated(vm, host, True)
+            self.assertFalse(br.add_drop_flows.called)
+        self.agent.ports_dict[port['id']] = self.agent._build_port_info(port)
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               "update_device_binding"
+                               ):
+            self.agent._notify_device_updated(vm, host, True)
+            self.assertTrue(br.add_drop_flows.called)
+
     def test_notify_device_updated_host_vlan(self):
         host = FAKE_HOST_1
         self.agent.esx_hostname = host

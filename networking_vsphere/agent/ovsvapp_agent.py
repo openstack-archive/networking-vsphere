@@ -1089,7 +1089,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     finally:
                         ovsvapp_l2pop_lock.release()
                     for vnic in vm.vnics:
-                        updated_port = self.ports_dict[vnic.port_uuid]
+                        updated_port = self.ports_dict.get(vnic.port_uuid)
                         if (updated_port and
                            updated_port.network_type == p_const.TYPE_VLAN):
                             # Update the physical bridge drop flows.
@@ -1105,19 +1105,19 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             else:
                 for vnic in vm.vnics:
                     if host_changed:
-                        updated_port = self.ports_dict[vnic.port_uuid]
-                        net_type = updated_port.network_type
-                        if (updated_port and
-                                net_type == p_const.TYPE_VLAN):
-                            if vnic.port_uuid in self.cluster_host_ports:
-                                # Delete the physical bridge flows.
-                                network_id = updated_port.network_id
-                                lvm = self._get_port_vlan_mapping(network_id)
-                                seg_id = lvm.segmentation_id
-                                phys_net = updated_port.phys_net
-                                br = self.phys_brs[phys_net]['br']
-                                br.delete_drop_flows(updated_port.mac_addr,
-                                                     seg_id)
+                        updated_port = self.ports_dict.get(vnic.port_uuid)
+                        if updated_port:
+                            net_type = updated_port.network_type
+                            if net_type == p_const.TYPE_VLAN:
+                                if vnic.port_uuid in self.cluster_host_ports:
+                                    # Delete the physical bridge flows.
+                                    network_id = updated_port.network_id
+                                    lvm = self.local_vlan_map[network_id]
+                                    seg_id = lvm.segmentation_id
+                                    phys_net = updated_port.phys_net
+                                    br = self.phys_brs[phys_net]['br']
+                                    br.delete_drop_flows(updated_port.mac_addr,
+                                                         seg_id)
                     self._add_ports_to_host_ports([vnic.port_uuid], False)
                     if vnic.port_uuid in self.ports_to_bind:
                         ovsvapplock.acquire()
