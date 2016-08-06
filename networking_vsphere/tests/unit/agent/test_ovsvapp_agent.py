@@ -137,6 +137,69 @@ class SamplePortUIDMac(object):
         self.mac_address = mac_address
 
 
+class TestOVSvAppAgentRestart(base.TestCase):
+
+    @mock.patch('neutron.common.config.init')
+    @mock.patch('neutron.common.config.setup_logging')
+    @mock.patch('neutron.agent.ovsdb.api.'
+                'API.get')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.RpcPluginApi')
+    @mock.patch('neutron.agent.securitygroups_rpc.SecurityGroupServerRpcApi')
+    @mock.patch('neutron.agent.rpc.PluginReportStateAPI')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.OVSvAppPluginApi')
+    @mock.patch('neutron.context.get_admin_context_without_session')
+    @mock.patch('neutron.agent.rpc.create_consumers')
+    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent.'
+                'ovs_neutron_agent.OVSNeutronAgent.setup_integration_br')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
+                'OVSvAppAgent.setup_ovs_bridges')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
+                'OVSvAppAgent.setup_security_br')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
+                'OVSvAppAgent._init_ovs_flows')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                'check_ovs_firewall_restart')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.'
+                'OVSFirewallDriver.setup_base_flows')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.create')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.set_secure_mode')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.OVSvAppAgent.__init__')
+    def setUp(self, mock_ovs_init, mock_get_port_ofport,
+              mock_set_secure_mode, mock_create_ovs_bridge,
+              mock_setup_base_flows, mock_check_ovs_firewall_restart,
+              mock_init_ovs_flows, mock_setup_security_br,
+              mock_setup_ovs_bridges,
+              mock_setup_integration_br, mock_create_consumers,
+              mock_get_admin_context_without_session, mock_ovsvapp_pluginapi,
+              mock_plugin_report_stateapi, mock_securitygroup_server_rpcapi,
+              mock_rpc_pluginapi, mock_ovsdb_api, mock_setup_logging,
+              mock_init):
+        super(TestOVSvAppAgentRestart, self).setUp()
+        cfg.CONF.set_override('security_bridge_mapping',
+                              "fake_sec_br:fake_if", 'SECURITYGROUP')
+        mock_get_port_ofport.return_value = 5
+        mock_ovs_init.return_value = None
+        self.agent = ovsvapp_agent.OVSvAppAgent()
+        self.agent.run_refresh_firewall_loop = False
+        self.LOG = ovsvapp_agent.LOG
+        self.agent.monitor_log = logging.getLogger('monitor')
+
+    def test_check_ovsvapp_agent_restart(self):
+        self.agent.int_br = mock.Mock()
+        with mock.patch.object(self.agent.int_br, 'bridge_exists',
+                               return_value=True) as mock_br_exists, \
+                mock.patch.object(self.agent.int_br, 'dump_flows_for_table',
+                                  return_value='') as mock_dump_flows:
+            self.assertFalse(self.agent.check_ovsvapp_agent_restart())
+            self.assertTrue(mock_br_exists.called)
+            self.assertTrue(mock_dump_flows.called)
+            mock_dump_flows.return_value = 'cookie = 0x0'
+            self.assertTrue(self.agent.check_ovsvapp_agent_restart())
+            self.assertTrue(mock_br_exists.called)
+            self.assertTrue(mock_dump_flows.called)
+
+
 class TestOVSvAppAgent(base.TestCase):
 
     @mock.patch('neutron.common.config.init')

@@ -92,7 +92,7 @@ class OVSvAppTunnelBridge(br_tun.OVSTunnelBridge):
     def provision_local_vlan(self, lvid, segmentation_id,
                              tun_ofports):
         if tun_ofports:
-            self.mod_flow(table=ovs_const.FLOOD_TO_TUN,
+            self.add_flow(table=ovs_const.FLOOD_TO_TUN,
                           dl_vlan=lvid,
                           actions="strip_vlan,"
                           "set_tunnel:%s,output:%s" %
