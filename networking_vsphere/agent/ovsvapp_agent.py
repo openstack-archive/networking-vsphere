@@ -102,6 +102,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.devices_up_list = list()
         self.devices_down_list = list()
         self.run_update_devices_loop = True
+        self.ovsvapp_mitigation_required = False
         self.refresh_firewall_required = False
         self._pool = None
         self.run_check_for_updates = True
@@ -726,7 +727,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         OpenvSwitch process restart is also handled through this thread.
         """
         ovs_restarted = self.check_ovs_status()
-        if ovs_restarted == ovs_const.OVS_RESTARTED:
+        if ovs_restarted == ovs_const.OVS_DEAD:
+            self.ovsvapp_mitigation_required = True
+        if ovs_restarted == ovs_const.OVS_RESTARTED or  \
+           (self.ovsvapp_mitigation_required and
+                ovs_restarted == ovs_const.OVS_NORMAL):
+            self.local_vlan_map = {}
+            self.ovsvapp_mitigation_required = False
             self.mitigate_ovs_restart()
         # Case where devices_to_filter is having some entries.
         if self.refresh_firewall_required:
