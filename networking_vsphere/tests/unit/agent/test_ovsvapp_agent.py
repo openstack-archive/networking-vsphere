@@ -916,6 +916,36 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(mock_firewall_refresh.called)
             self.assertFalse(mock_update_port_bindings.called)
 
+    @mock.patch.object(ovsvapp_agent.OVSvAppAgent, 'check_ovs_status')
+    def test_check_for_updates_ovs_dead(self, check_ovs_status):
+        check_ovs_status.return_value = 2
+        self.agent.refresh_firewall_required = False
+        self.agent.ports_to_bind = None
+        with mock.patch.object(self.agent, 'mitigate_ovs_restart'
+                               ) as mock_mitigate, \
+                mock.patch.object(self.agent, '_update_firewall'
+                                  ) as mock_update_firewall, \
+                mock.patch.object(self.agent.sg_agent,
+                                  'firewall_refresh_needed',
+                                  return_value=False
+                                  ) as mock_firewall_refresh, \
+                mock.patch.object(self.agent, '_update_port_bindings'
+                                  ) as mock_update_port_bindings:
+            self.agent._check_for_updates()
+            self.assertTrue(self.agent.ovsvapp_mitigation_required)
+            self.assertTrue(check_ovs_status.called)
+            self.assertFalse(mock_mitigate.called)
+            self.assertTrue(mock_firewall_refresh.called)
+            self.assertFalse(mock_update_port_bindings.called)
+            check_ovs_status.return_value = 1
+            self.agent._check_for_updates()
+            self.assertTrue(check_ovs_status.called)
+            self.assertTrue(mock_mitigate.called)
+            self.assertFalse(mock_update_firewall.called)
+            self.assertTrue(mock_firewall_refresh.called)
+            self.assertFalse(mock_update_port_bindings.called)
+            self.assertFalse(self.agent.ovsvapp_mitigation_required)
+
     def test_check_for_updates_devices_to_filter(self):
         self.agent.refresh_firewall_required = True
         self.agent.ports_to_bind = None
