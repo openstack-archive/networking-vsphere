@@ -193,7 +193,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if not self.int_br.bridge_exists(CONF.OVSVAPP.integration_bridge):
             return False
         canary_flow = self.int_br.dump_flows_for_table(ovs_const.CANARY_TABLE)
-        return canary_flow
+        retval = False
+        if canary_flow:
+            canary_flow = '\n'.join(item for item in canary_flow.splitlines()
+                                    if 'OFPST_FLOW' not in item)
+        if canary_flow != '':
+            retval = True
+        return retval
 
     def check_integration_br(self):
         """Check if the integration bridge is still existing."""

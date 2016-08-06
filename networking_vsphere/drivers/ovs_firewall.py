@@ -78,10 +78,17 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         """Called when a security group is updated."""
         pass
 
+
     def check_ovs_firewall_restart(self):
-        canary_flow = self.sg_br.dump_flows_for_table(
-            ovsvapp_const.SG_CANARY_TABLE_ID)
-        return canary_flow
+        canary_flow = self.sg_br.dump_flows_for_table(ovsvapp_const.SG_CANARY_TABLE_ID)
+        retval = False
+        if canary_flow:
+            canary_flow = '\n'.join(item for item in canary_flow.splitlines()
+                                    if 'OFPST_FLOW' not in item)
+        if canary_flow != '':
+            retval = True
+        return retval
+
 
     @property
     def ports(self):
