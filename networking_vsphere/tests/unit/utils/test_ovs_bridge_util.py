@@ -158,9 +158,8 @@ class TestOVSvAppTunnelBridge(base.TestCase):
             self.tun_br.provision_local_vlan(FAKE_LVID,
                                              FAKE_SEG_ID,
                                              FAKE_TUN_OFPORT)
-            self.assertTrue(mock_add_flow.called)
-            self.assertTrue(mock_mod_flow.called)
-            mock_add_flow.assert_called_once_with(
+            self.assertEqual(mock_add_flow.call_count, 2)
+            mock_add_flow.assert_called_with(
                 table=ovs_const.TUN_TABLE[p_const.TYPE_VXLAN],
                 priority=1,
                 tun_id=FAKE_SEG_ID,
