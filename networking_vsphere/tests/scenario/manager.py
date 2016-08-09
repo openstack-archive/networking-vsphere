@@ -64,7 +64,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         cls.user_id = cls.creds.user_id
         cls.username = cls.creds.username
         cls.password = cls.creds.password
-        cls.auth_provider = manager.get_auth_provider(cls.creds.credentials)
+        cls.auth_provider = manager.get_auth_provider(cls.creds)
         if not test.is_extension_enabled('router', 'network'):
             msg = "router extension not enabled."
             raise cls.skipException(msg)
@@ -418,8 +418,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def check_public_network_connectivity(self, ip_address, username,
                                           should_connect=True,
                                           msg=None):
-        LOG.debug('checking network connections to IP %s with user: %s',
-                  (ip_address, username))
+        LOG.debug('checking network connection')
         try:
             self.check_vm_connectivity(ip_address,
                                        username,
@@ -598,7 +597,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         proc = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE)
         segment_id = proc.communicate()[0]
-        return segment_id.strip('\r\n')
+        return int(segment_id.strip('\r\n'))
 
     def _get_vm_name(self, server_id):
         content = self._create_connection()
@@ -624,24 +623,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         cst_name = body['server']['OS-EXT-SRV-ATTR:hypervisor_hostname']
         return cst_name[cst_name.index("(") + 1:cst_name.rindex(")")]
 
-    def _verify_portgroup_vxlan(self, trunk_dvswitch, vm_name, net_id,
-                                segment_id):
-        content = self._create_connection()
-
-        dvswitch_obj = self.get_obj(content, [vim.DistributedVirtualSwitch],
-                                    trunk_dvswitch)
-        port_groups = dvswitch_obj.portgroup
-        for port_group in port_groups:
-                if vm_name in port_group.vm:
-                        if net_id in port_group.summary.name[0:36]:
-                                seg_id = port_group.config.defaultPortConfig
-                                self.assertEqual(seg_id.vlan.vlanId,
-                                                 int(segment_id))
-                                return True
-        return False
-
-    def _verify_portgroup_vlan(self, trunk_dvswitch, vm_name, net_id,
-                               segment_id):
+    def _verify_portgroup_vlan_vxlan(self, trunk_dvswitch, vm_name, net_id,
+                                     segment_id):
         content = self._create_connection()
 
         dvswitch_obj = self.get_obj(content, [vim.DistributedVirtualSwitch],
@@ -657,30 +640,13 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         return False
 
     def verify_portgroup(self, net_id, server_id):
-        tenant_network_type = CONF.VCENTER.tenant_network_type
-        if "vlan" == tenant_network_type:
-                net = self.admin_client.show_network(net_id)
-                segment_id = net['network']['provider:segmentation_id']
-        else:
-                segment_id = self._fetch_segment_id_from_db(net_id)
-        # cluster_name = self._fetch_cluster_in_use_from_server(server_id)
-        # Made changes for openstack liberty release
-        cluster_name = CONF.VCENTER.cluster_in_use
+        segment_id = self._fetch_segment_id_from_db(net_id)
         vm_name = self._get_vm_name(server_id)
         trunk_dvswitch_name = CONF.VCENTER.trunk_dvswitch_name
-        trunk_dvswitch_name = trunk_dvswitch_name.split(',')
-        for trunk_dvswitch in trunk_dvswitch_name:
-            if "vxlan" == tenant_network_type:
-                if str(cluster_name) in trunk_dvswitch:
-                    return (self._verify_portgroup_vxlan(trunk_dvswitch,
-                                                         vm_name,
-                                                         net_id,
-                                                         segment_id))
-            else:
-                return (self._verify_portgroup_vlan(trunk_dvswitch,
-                                                    vm_name,
-                                                    net_id,
-                                                    segment_id))
+        return (self._verify_portgroup_vlan_vxlan(trunk_dvswitch_name,
+                                                  vm_name,
+                                                  net_id,
+                                                  segment_id))
         return False
 
     def verify_portgroup_after_vm_delete(self, net_id):
