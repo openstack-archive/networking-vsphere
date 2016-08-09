@@ -61,7 +61,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         floating_ip = self._associate_floating_ips(port_id=port_id2)
         fip = floating_ip['floatingip']['floating_ip_address']
         sg_access_server = device_port2['ports'][0]['security_groups'][0]
-        dest_ip = device_port2['ports'][0]['fixed_ips'][0]['ip_address']
+        dest_ip = device_port1['ports'][0]['fixed_ips'][0]['ip_address']
         # Add tcp rule to ssh to first server.
         self.client.create_security_group_rule(
             security_group_id=sg_access_server,
