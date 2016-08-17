@@ -26,17 +26,20 @@ from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import error
 from networking_vsphere.tests import base
 from networking_vsphere.tests.unit.drivers import fake_manager
+from networking_vsphere.utils import ovs_bridge_util as ovsvapp_br
 from networking_vsphere.utils import resource_util
 
 from neutron.agent.common import ovs_lib
 from neutron.common import utils as n_utils
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.common import utils as p_utils
+from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ovs_const  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa
 
 NETWORK_ID = 'fake_net_id'
 VNIC_ADDED = 'VNIC_ADDED'
 FAKE_DEVICE_ID = 'fake_device_id'
+FAKE_LVID = '1'
 FAKE_VM = 'fake_vm'
 FAKE_HOST_1 = 'fake_host_1'
 FAKE_HOST_2 = 'fake_host_2'
@@ -50,6 +53,7 @@ FAKE_PORT_3 = 'fake_port_3'
 FAKE_PORT_4 = 'fake_port_4'
 MAC_ADDRESS = '01:02:03:04:05:06'
 FAKE_CONTEXT = 'fake_context'
+FAKE_SEG_ID = '1001'
 FAKE_SG = {'fake_sg': 'fake_sg_rule'}
 
 FAKE_SG_RULE = {'security_group_source_groups': ['fake_rule_1',
@@ -135,6 +139,67 @@ class SamplePortUIDMac(object):
     def __init__(self, port_uuid, mac_address):
         self.port_uuid = port_uuid
         self.mac_address = mac_address
+
+
+class TestOVSvAppAgentRestart(base.TestCase):
+
+    @mock.patch('neutron.common.config.init')
+    @mock.patch('neutron.common.config.setup_logging')
+    @mock.patch('neutron.agent.ovsdb.api.'
+                'API.get')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.RpcPluginApi')
+    @mock.patch('neutron.agent.securitygroups_rpc.SecurityGroupServerRpcApi')
+    @mock.patch('neutron.agent.rpc.PluginReportStateAPI')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.OVSvAppPluginApi')
+    @mock.patch('neutron.context.get_admin_context_without_session')
+    @mock.patch('neutron.agent.rpc.create_consumers')
+    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent.'
+                'ovs_neutron_agent.OVSNeutronAgent.setup_integration_br')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
+                'OVSvAppAgent.setup_ovs_bridges')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
+                'OVSvAppAgent.setup_security_br')
+    @mock.patch('networking_vsphere.agent.ovsvapp_agent.'
+                'OVSvAppAgent._init_ovs_flows')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                'check_ovs_firewall_restart')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.'
+                'OVSFirewallDriver.setup_base_flows')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.create')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.set_secure_mode')
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
+    def setUp(self, mock_get_port_ofport,
+              mock_set_secure_mode, mock_create_ovs_bridge,
+              mock_setup_base_flows, mock_check_ovs_firewall_restart,
+              mock_init_ovs_flows, mock_setup_security_br,
+              mock_setup_ovs_bridges,
+              mock_setup_integration_br, mock_create_consumers,
+              mock_get_admin_context_without_session, mock_ovsvapp_pluginapi,
+              mock_plugin_report_stateapi, mock_securitygroup_server_rpcapi,
+              mock_rpc_pluginapi, mock_ovsdb_api, mock_setup_logging,
+              mock_init):
+        super(TestOVSvAppAgentRestart, self).setUp()
+        cfg.CONF.set_override('security_bridge_mapping',
+                              "fake_sec_br:fake_if", 'SECURITYGROUP')
+        mock_get_port_ofport.return_value = 5
+        self.agent = ovsvapp_agent.OVSvAppAgent()
+        self.agent.run_refresh_firewall_loop = False
+        self.LOG = ovsvapp_agent.LOG
+        self.agent.monitor_log = logging.getLogger('monitor')
+
+    def test_check_ovsvapp_agent_restart(self):
+        self.agent.int_br = ovsvapp_br.OVSvAppIntegrationBridge("br-int")
+        with mock.patch.object(self.agent.int_br, 'bridge_exists',
+                               return_value=True) as mock_br_exists, \
+                mock.patch.object(self.agent.int_br, 'dump_flows_for_table',
+                                  return_value='') as mock_dump_flows:
+            self.assertFalse(self.agent.check_ovsvapp_agent_restart())
+            self.assertTrue(mock_br_exists.called)
+            self.assertTrue(mock_dump_flows.called)
+            mock_dump_flows.return_value = 'cookie = 0x0'
+            self.assertTrue(self.agent.check_ovsvapp_agent_restart())
+            self.assertTrue(mock_br_exists.called)
+            self.assertTrue(mock_dump_flows.called)
 
 
 class TestOVSvAppAgent(base.TestCase):
@@ -1943,6 +2008,32 @@ class TestOVSvAppAgent(base.TestCase):
                                             success=False)
             self.assertTrue(log_exception.called)
             self.assertTrue(time_sleep.called)
+
+    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent.'
+                'openflow.ovs_ofctl.br_int.OVSIntegrationBridge.add_flow')
+    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent.'
+                'openflow.ovs_ofctl.br_tun.OVSTunnelBridge.add_flow')
+    @mock.patch('neutron.plugins.ml2.drivers.openvswitch.agent.'
+                'openflow.ovs_ofctl.br_tun.OVSTunnelBridge.mod_flow')
+    def test_provision_local_vlan(self, mock_add_flow,
+                                  mock_tun_add_flow, mock_mod_flow):
+        port = self._build_port(FAKE_PORT_1)
+        port['network_type'] = 'vxlan'
+        self.agent.tun_br_ofports = {'vxlan': {'1': '1'}}
+        self.agent.patch_sec_ofport = 0
+        self.agent.patch_tun_ofport = 0
+        self.agent.int_br = ovsvapp_br.OVSvAppIntegrationBridge("br-int")
+        self.agent.tun_br = ovsvapp_br.OVSvAppTunnelBridge("br-tun")
+        self.agent._provision_local_vlan(port)
+        self.assertTrue(mock_add_flow.called)
+        self.assertTrue(mock_mod_flow.called)
+        self.assertTrue(mock_tun_add_flow.called)
+        mock_tun_add_flow.assert_called_once_with(
+            table=ovs_const.TUN_TABLE[p_const.TYPE_VXLAN],
+            priority=1,
+            tun_id=FAKE_SEG_ID,
+            actions="mod_vlan_vid:%s,resubmit(,%s)" %
+            (FAKE_LVID, ovs_const.LEARN_FROM_TUN))
 
     def test_enhanced_sg_provider_updated(self):
         kwargs = {'network_id': NETWORK_ID}

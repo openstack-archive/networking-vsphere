@@ -192,7 +192,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if not self.int_br.bridge_exists(CONF.OVSVAPP.integration_bridge):
             return False
         canary_flow = self.int_br.dump_flows_for_table(ovs_const.CANARY_TABLE)
-        return canary_flow
+        retval = False
+        if canary_flow:
+            canary_flow = '\n'.join(item for item in canary_flow.splitlines()
+                                    if 'OFPST_FLOW' not in item)
+        if canary_flow != '':
+            retval = True
+        return retval
 
     def check_integration_br(self):
         """Check if the integration bridge is still existing."""
@@ -427,17 +433,21 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                     self.phys_ofports[phys_net],
                                     eth_ofport)
         else:
-            ofports = self._ofport_set_to_str(self.tun_br_ofports[
-                port['network_type']].values())
-            self.int_br.provision_local_vlan(port['network_type'],
+            ofports = self.tun_br_ofports[
+                port['network_type']].values()
+            if ofports:
+                self.int_br.provision_local_vlan(port['network_type'],
+                                                 port['lvid'],
+                                                 port['segmentation_id'],
+                                                 self.patch_sec_ofport,
+                                                 None,
+                                                 self.patch_tun_ofport)
+                self.tun_br.install_flood_to_tun(port['lvid'],
+                                                 port['segmentation_id'],
+                                                 ofports)
+            self.tun_br.provision_local_vlan(port['network_type'],
                                              port['lvid'],
-                                             port['segmentation_id'],
-                                             self.patch_sec_ofport,
-                                             None,
-                                             self.patch_tun_ofport)
-            self.tun_br.provision_local_vlan(port['lvid'],
-                                             port['segmentation_id'],
-                                             ofports)
+                                             port['segmentation_id'])
 
     def _reclaim_local_vlan(self, lvm):
         if lvm.network_type == p_const.TYPE_VLAN:
