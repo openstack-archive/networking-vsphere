@@ -89,21 +89,6 @@ class OVSvAppPhysicalBridge(br_phys.OVSPhysicalBridge):
 
 class OVSvAppTunnelBridge(br_tun.OVSTunnelBridge):
 
-    def provision_local_vlan(self, lvid, segmentation_id,
-                             tun_ofports):
-        if tun_ofports:
-            self.mod_flow(table=ovs_const.FLOOD_TO_TUN,
-                          dl_vlan=lvid,
-                          actions="strip_vlan,"
-                          "set_tunnel:%s,output:%s" %
-                          (segmentation_id, tun_ofports))
-        self.add_flow(
-            table=ovs_const.TUN_TABLE[p_const.TYPE_VXLAN],
-            priority=1,
-            tun_id=segmentation_id,
-            actions="mod_vlan_vid:%s,resubmit(,%s)" %
-            (lvid, ovs_const.LEARN_FROM_TUN))
-
     def reclaim_local_vlan(self, segmentation_id, vlan):
         self.delete_flows(
             table=ovs_const.TUN_TABLE[p_const.TYPE_VXLAN],
