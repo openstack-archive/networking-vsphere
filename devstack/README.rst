@@ -11,9 +11,13 @@
      enable_plugin networking-vsphere http://git.openstack.org/openstack/networking-vsphere
 
 
-3. Add the following required flag in local.conf to enable the OVSvApp ML2 MechanismDriver::
+3. Specify the preferred Networking-vSphere ML2 MechanismDriver in local.conf::
 
      Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovsvapp
+
+   or::
+
+     Q_ML2_PLUGIN_MECHANISM_DRIVERS=vmware_dvs
 
 
 4. Add the following required flags in local.conf to enable the OVSvApp Agent::
@@ -64,11 +68,38 @@
      # For Example:
      # OVSVAPP_SECURITY_BRIDGE_MAPPING=br-sec:ethy
 
+     # Set the name of neutron agent.
+     OVSVAPP_AGENT_BINARY=
+     # For Example:
+     # OVSVAPP_AGENT_BINARY=/usr/local/bin/neutron-ovsvapp-agent
+
+     # Set the name of agent's config file
+     OVSVAPP_CONF_FILENAME=
+     # For Example:
+     # OVSVAPP_CONF_FILENAME=ovsvapp_agent.ini
+
      Kindly, refer the ovsvapp_agent.ini for other default config parameters.
 
-     # We have to disable the Neutron L2 agent. OVSvApp solution does not use the
-     # Neutron L2 agent, instead uses a OVSvApp Agent to program OVS on each
-     # ESX host.
+     Next 3 settings are necessary for VMware DVS driver.
+
+     # Provide DVS Uplink mapping .
+     VMWARE_DVS_UPLINK_MAPPING=
+     # For Example:
+     # VMWARE_DVS_UPLINK_MAPPING=physnet2:dvUplink1
+
+     # Enable Security Group support.
+     # VMWARE_DVS_ENABLE_SG=
+     # For Example:
+     # VMWARE_DVS_ENABLE_SG=True
+
+     # Set the fireall driver
+     VMWARE_DVS_FW_DRIVER=
+     # For Example:
+     # VMWARE_DVS_FW_DRIVER=networking_vsphere.agent.firewalls.vcenter_firewall.DVSFirwallDriver
+
+     # For OVSvAPP (but not for VMware DVS) we have to disable the Neutron L2 agent.
+     # OVSvApp solution does not use the Neutron L2 agent, instead uses a
+     # OVSvApp Agent to program OVS on each ESX host.
      disable_service q-agt
 
      # Provide to enable Fault Tolerance for OVSvApp.
@@ -78,7 +109,7 @@
      # [OVSVAPP]
      # enable_ovsvapp_monitor=True
 
-5.  Add the following required flags in local.conf to enable the OVSvApp Compute VCDriver::
+5.  Add the following required flags in local.conf to enable the vSphere Compute VCDriver::
 
      VIRT_DRIVER=vsphere
      VMWAREAPI_IP=$vCenter_ip_address
