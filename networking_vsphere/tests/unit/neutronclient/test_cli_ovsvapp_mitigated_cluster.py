@@ -38,7 +38,6 @@ class CLITestV20ExtensionOVSvAppMitigatedClusterJSON(
     def _create_patch(self, name, func=None):
         patcher = mock.patch(name)
         thing = patcher.start()
-        self.addCleanup(patcher.stop)
         return thing
 
     def _mock_extension_loading(self):
