@@ -30,18 +30,22 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
+from tempest.common import waiters
 from tempest.lib.common import rest_client
 from tempest.lib.common import ssh
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import misc as misc_utils
+from tempest.lib.common.utils import test_utils
 from tempest.lib import exceptions as lib_exc
 from tempest import manager
 from tempest import test
 
 from networking_vsphere.tests.tempest import config as tempest_config
 from networking_vsphere._i18n import _LI, _LW
-from neutron.tests.tempest.api import base
-from neutron.tests.tempest.api import base_security_groups
+
+from tempest.api.network import base
+from tempest.api.network import base_security_groups
+
 
 pyVmomi = importutils.try_import("pyVmomi")
 if pyVmomi:
@@ -60,11 +64,21 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     @classmethod
     def resource_setup(cls):
         super(ESXNetworksTestJSON, cls).resource_setup()
+        cls.servers_client = cls.manager.servers_client
+        cls.networks_client = cls.manager.networks_client
+        cls.ports_client = cls.manager.ports_client
+        cls.routers_client = cls.manager.routers_client
+        cls.subnets_client = cls.manager.subnets_client
+        cls.floating_ips_client = cls.manager.floating_ips_client
+        cls.security_groups_client = cls.manager.security_groups_client
+        cls.security_group_rules_client = (
+            cls.manager.security_group_rules_client)
+
         cls.creds = cls.os.credentials
         cls.user_id = cls.creds.user_id
         cls.username = cls.creds.username
         cls.password = cls.creds.password
-        cls.auth_provider = manager.get_auth_provider(cls.creds.credentials)
+        cls.auth_provider = manager.get_auth_provider(cls.creds)
         if not test.is_extension_enabled('router', 'network'):
             msg = "router extension not enabled."
             raise cls.skipException(msg)
@@ -94,6 +108,20 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         self.build_interval = CONF.compute.build_interval
         self.tenant_network_type = CONF.VCENTER.tenant_network_type
         self.br_inf = CONF.VCENTER.bridge_interface_trunk
+        self.cleanup_waits = []
+        self.addCleanup(self._wait_for_cleanups)
+
+    def _wait_for_cleanups(self):
+        # To handle async delete actions, a list of waits is added
+        # which will be iterated over as the last step of clearing the
+        # cleanup queue. That way all the delete calls are made up front
+        # and the tests won't succeed unless the deletes are eventually
+        # successful. This is the same basic approach used in the api tests to
+        # limit cleanup execution time except here it is multi-resource,
+        # because of the nature of the scenario tests.
+        for wait in self.cleanup_waits:
+            waiter_callable = wait.pop('waiter_callable')
+            waiter_callable(**wait)
 
     def get_obj(self, content, vimtype, name):
         """Get the vsphere object associated with a given text name."""
@@ -101,9 +129,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         container = content.viewManager.CreateContainerView(content.rootFolder,
                                                             vimtype, True)
         for containername in container.view:
-                if containername.name == name:
-                    obj = containername
-                    break
+            if containername.name == name:
+                obj = containername
+                break
         return obj
 
     def _connect_server(self):
@@ -126,12 +154,12 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         vcenter_username = CONF.VCENTER.vcenter_username
         vcenter_password = CONF.VCENTER.vcenter_password
         try:
-                msg = "Trying to connect %s vCenter" % vcenter_ip
-                LOG.info(msg)
-                connection = connect.Connect(vcenter_ip, 443,
-                                             vcenter_username,
-                                             vcenter_password,
-                                             service="hostd")
+            msg = "Trying to connect %s vCenter" % vcenter_ip
+            LOG.info(msg)
+            connection = connect.Connect(vcenter_ip, 443,
+                                         vcenter_username,
+                                         vcenter_password,
+                                         service="hostd")
         except Exception:
             msg = ('Could not connect to the specified vCenter')
             raise lib_exc.TimeoutException(msg)
@@ -151,20 +179,20 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def _portgroup_verify(self, portgroup, segmentid):
         port_groups = self._get_portgroups()
         for port_group in port_groups:
-                portgroupname = port_group.name
-                self.portgroup_list.append(portgroupname)
-                segment_id = port_group.config.defaultPortConfig.vlan.vlanId
-                self.segmentid_list.append(segment_id)
+            portgroupname = port_group.name
+            self.portgroup_list.append(portgroupname)
+            segment_id = port_group.config.defaultPortConfig.vlan.vlanId
+            self.segmentid_list.append(segment_id)
         self.assertIn(portgroup, self.portgroup_list)
         self.assertIn(segmentid, self.segmentid_list)
 
     def _portgroup_verify_after_server_delete(self, portgroup, segmentid):
         port_groups = self._get_portgroups()
         for port_group in port_groups:
-                portgroupname = port_group.name
-                segment_id = port_group.config.defaultPortConfig.vlan.vlanId
-                self.portgroup_deleted_list.append(portgroupname)
-                self.segmentid_deleted_list.append(segment_id)
+            portgroupname = port_group.name
+            segment_id = port_group.config.defaultPortConfig.vlan.vlanId
+            self.portgroup_deleted_list.append(portgroupname)
+            self.segmentid_deleted_list.append(segment_id)
         self.assertNotIn(portgroup, self.portgroup_deleted_list)
         self.assertNotIn(segmentid, self.segmentid_deleted_list)
 
@@ -180,13 +208,39 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         self._portgroup_verify_after_server_delete(portgroup=network,
                                                    segmentid=net_segmentid)
 
+    def addCleanup_with_wait(self, waiter_callable, thing_id, thing_id_param,
+                             cleanup_callable, cleanup_args=None,
+                             cleanup_kwargs=None, waiter_client=None):
+        """Adds wait for async resource deletion at the end of cleanups
+
+        @param waiter_callable: callable to wait for the resource to delete
+            with the following waiter_client if specified.
+        @param thing_id: the id of the resource to be cleaned-up
+        @param thing_id_param: the name of the id param in the waiter
+        @param cleanup_callable: method to load pass to self.addCleanup with
+            the following *cleanup_args, **cleanup_kwargs.
+            usually a delete method.
+        """
+        if cleanup_args is None:
+            cleanup_args = []
+        if cleanup_kwargs is None:
+            cleanup_kwargs = {}
+        self.addCleanup(cleanup_callable, *cleanup_args, **cleanup_kwargs)
+        wait_dict = {
+            'waiter_callable': waiter_callable,
+            thing_id_param: thing_id
+        }
+        if waiter_client:
+            wait_dict['client'] = waiter_client
+        self.cleanup_waits.append(wait_dict)
+
     def _create_server_with_sec_group(self, name=None, network=None,
                                       securitygroup=None, wait_on_boot=True):
         rs_client = self._connect_server()
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
         data = {"server": {"name": name, "imageRef": image,
-                "flavorRef": flavor, "max_count": 1, "min_count": 1,
+                           "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network}],
                            "security_groups": [{"name": securitygroup}]}}
 
@@ -195,10 +249,18 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
-        self.addCleanup(self._try_delete_resource, self._delete_server,
+        clients = self.manager
+        self.addCleanup(waiters.wait_for_server_termination,
+                        clients.servers_client,
                         server_id)
+        self.addCleanup_with_wait(
+            waiter_callable=waiters.wait_for_server_termination,
+            thing_id=server_id, thing_id_param='server_id',
+            cleanup_callable=test_utils.call_and_ignore_notfound_exc,
+            cleanup_args=[clients.servers_client.delete_server, server_id],
+            waiter_client=clients.servers_client)
         if wait_on_boot:
-                self.wait_for_server_status(server_id, 'ACTIVE')
+            self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
 
     def _create_server(self, name=None, network=None,
@@ -207,7 +269,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         flavor = CONF.compute.flavor_ref
         rs_client = self._connect_server()
         data = {"server": {"name": name, "imageRef": image,
-                "flavorRef": flavor, "max_count": 1, "min_count": 1,
+                           "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network}]}}
 
         data = jsonutils.dumps(data)
@@ -215,22 +277,38 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
-        self.addCleanup(self._try_delete_resource, self._delete_server,
+        clients = self.manager
+        self.addCleanup(waiters.wait_for_server_termination,
+                        clients.servers_client,
                         server_id)
+        self.addCleanup_with_wait(
+            waiter_callable=waiters.wait_for_server_termination,
+            thing_id=server_id, thing_id_param='server_id',
+            cleanup_callable=test_utils.call_and_ignore_notfound_exc,
+            cleanup_args=[clients.servers_client.delete_server, server_id],
+            waiter_client=clients.servers_client)
         if wait_on_boot:
-                self.wait_for_server_status(server_id, 'ACTIVE')
+            self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
 
     def _delete_server(self, server=None):
         rs_client = self._connect_server()
         resp, body = rs_client.delete("servers/%s" % str(server))
-        self.addCleanup(self._try_delete_resource, self._delete_server,
+        clients = self.manager
+        self.addCleanup(waiters.wait_for_server_termination,
+                        clients.servers_client,
                         server)
-        self.wait_for_server_termination(server)
+        self.addCleanup_with_wait(
+            waiter_callable=waiters.wait_for_server_termination,
+            thing_id=server, thing_id_param='server_id',
+            cleanup_callable=test_utils.call_and_ignore_notfound_exc,
+            cleanup_args=[clients.servers_client.delete_server, server],
+            waiter_client=clients.servers_client)
+
         rest_client.ResponseBody(resp, body)
 
     def _associate_floating_ips(self, port_id=None):
-        floating_ip = self.client.update_floatingip(
+        floating_ip = self.floating_ips_client.update_floatingip(
             self.floating_ip['id'], port_id=port_id)
         updated_floating_ip = floating_ip['floatingip']
         self.assertEqual(updated_floating_ip['port_id'], port_id)
@@ -241,14 +319,15 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         """Waits for a floating_ip to reach a given status."""
         build_timeout = CONF.compute.build_timeout
         build_interval = CONF.compute.build_interval
-        floating_ip = self.client.show_floatingip(floating_ip_id)
+        floating_ip = self.floating_ips_client.show_floatingip(floating_ip_id)
         shown_floating_ip = floating_ip['floatingip']
         floating_ip_status = shown_floating_ip['status']
         start = int(time.time())
 
         while floating_ip_status != status:
             time.sleep(build_interval)
-            floating_ip = self.client.show_floatingip(floating_ip_id)
+            floating_ip = self.floating_ips_client.show_floatingip(
+                floating_ip_id)
             shown_floating_ip = floating_ip['floatingip']
             floating_ip_status = shown_floating_ip['status']
             if int(time.time()) - start >= build_timeout:
@@ -352,16 +431,17 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                            port_range_max,
                                            remote_group_id=None,
                                            remote_ip_prefix=None):
-        rule_create_body = self.client.create_security_group_rule(
-            security_group_id=sg_id,
-            direction=direction,
-            ethertype=ethertype,
-            protocol=protocol,
-            port_range_min=port_range_min,
-            port_range_max=port_range_max,
-            remote_group_id=remote_group_id,
-            remote_ip_prefix=remote_ip_prefix
-        )
+        rule_create_body = \
+            self.security_group_rules_client.create_security_group_rule(
+                security_group_id=sg_id,
+                direction=direction,
+                ethertype=ethertype,
+                protocol=protocol,
+                port_range_min=port_range_min,
+                port_range_max=port_range_max,
+                remote_group_id=remote_group_id,
+                remote_ip_prefix=remote_ip_prefix
+            )
 
         sec_group_rule = rule_create_body['security_group_rule']
         self.addCleanup(self._delete_security_group_rule,
@@ -418,8 +498,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def check_public_network_connectivity(self, ip_address, username,
                                           should_connect=True,
                                           msg=None):
-        LOG.debug('checking network connections to IP %s with user: %s',
-                  (ip_address, username))
+        LOG.debug('checking network connection')
         try:
             self.check_vm_connectivity(ip_address,
                                        username,
@@ -502,16 +581,18 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             floatingip_status = 'ACTIVE'
         # Check FloatingIP Status before initiating a connection
         if should_check_floating_ip_status:
-            floating_ip = self.client.show_floatingip(self.floating_ip['id'])
+            floating_ip = self.floating_ips_client.show_floatingip(
+                self.floating_ip['id'])
             shown_floating_ip = floating_ip['floatingip']
             self.assertEqual(floatingip_status, shown_floating_ip['status'])
         self.check_public_network_connectivity(ip_address, ssh_login,
                                                should_connect, msg)
 
     def _disassociate_floating_ips(self, port_id=None):
-        disassociate_floating_ip_body = self.client.update_floatingip(
-            self.floating_ip['id'],
-            port_id=None)
+        disassociate_floating_ip_body =\
+            self.floating_ips_client.update_floatingip(
+                self.floating_ip['id'],
+                port_id=None)
         self.wait_for_floating_ip_status(self.floating_ip['id'], "DOWN")
         return disassociate_floating_ip_body
 
@@ -522,7 +603,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         flavor = CONF.compute.flavor_ref
         rs_client = self._connect_server()
         data = {"server": {"name": name, "imageRef": image,
-                "flavorRef": flavor, "max_count": 1, "min_count": 1,
+                           "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"uuid": network1},
                                         {"uuid": network2}],
                            "security_groups": [{"name": securitygroup}]}}
@@ -531,10 +612,19 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
-        self.addCleanup(self._try_delete_resource, self._delete_server,
+        clients = self.manager
+        self.addCleanup(waiters.wait_for_server_termination,
+                        clients.servers_client,
                         server_id)
+        self.addCleanup_with_wait(
+            waiter_callable=waiters.wait_for_server_termination,
+            thing_id=server_id, thing_id_param='server_id',
+            cleanup_callable=test_utils.call_and_ignore_notfound_exc,
+            cleanup_args=[clients.servers_client.delete_server, server_id],
+            waiter_client=clients.servers_client)
+
         if wait_on_boot:
-                self.wait_for_server_status(server_id, 'ACTIVE')
+            self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
 
     def _create_server_multiple_nic_user_created_port(self, name=None,
@@ -544,7 +634,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         image = CONF.compute.image_ref
         flavor = CONF.compute.flavor_ref
         data = {"server": {"name": name, "imageRef": image,
-                "flavorRef": flavor, "max_count": 1, "min_count": 1,
+                           "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"port": port1},
                                         {"port": port2}]}}
         data = jsonutils.dumps(data)
@@ -552,10 +642,19 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
-        self.addCleanup(self._try_delete_resource, self._delete_server,
+        clients = self.manager
+        self.addCleanup(waiters.wait_for_server_termination,
+                        clients.servers_client,
                         server_id)
+        self.addCleanup_with_wait(
+            waiter_callable=waiters.wait_for_server_termination,
+            thing_id=server_id, thing_id_param='server_id',
+            cleanup_callable=test_utils.call_and_ignore_notfound_exc,
+            cleanup_args=[clients.servers_client.delete_server, server_id],
+            waiter_client=clients.servers_client)
+
         if wait_on_boot:
-                self.wait_for_server_status(server_id, 'ACTIVE')
+            self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
 
     def ping_host(self, source, host):
@@ -598,7 +697,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         proc = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE)
         segment_id = proc.communicate()[0]
-        return segment_id.strip('\r\n')
+        return int(segment_id.strip('\r\n'))
 
     def _get_vm_name(self, server_id):
         content = self._create_connection()
@@ -624,77 +723,45 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         cst_name = body['server']['OS-EXT-SRV-ATTR:hypervisor_hostname']
         return cst_name[cst_name.index("(") + 1:cst_name.rindex(")")]
 
-    def _verify_portgroup_vxlan(self, trunk_dvswitch, vm_name, net_id,
-                                segment_id):
+    def _verify_portgroup_vlan_vxlan(self, trunk_dvswitch, vm_name, net_id,
+                                     segment_id):
         content = self._create_connection()
 
         dvswitch_obj = self.get_obj(content, [vim.DistributedVirtualSwitch],
                                     trunk_dvswitch)
         port_groups = dvswitch_obj.portgroup
         for port_group in port_groups:
-                if vm_name in port_group.vm:
-                        if net_id in port_group.summary.name[0:36]:
-                                seg_id = port_group.config.defaultPortConfig
-                                self.assertEqual(seg_id.vlan.vlanId,
-                                                 int(segment_id))
-                                return True
-        return False
-
-    def _verify_portgroup_vlan(self, trunk_dvswitch, vm_name, net_id,
-                               segment_id):
-        content = self._create_connection()
-
-        dvswitch_obj = self.get_obj(content, [vim.DistributedVirtualSwitch],
-                                    trunk_dvswitch)
-        port_groups = dvswitch_obj.portgroup
-        for port_group in port_groups:
-                if vm_name in port_group.vm:
-                        if net_id in port_group.summary.name:
-                                seg_id = port_group.config.defaultPortConfig
-                                self.assertEqual(seg_id.vlan.vlanId,
-                                                 segment_id)
-                                return True
+            if vm_name in port_group.vm:
+                if net_id in port_group.summary.name:
+                    seg_id = port_group.config.defaultPortConfig
+                    self.assertEqual(seg_id.vlan.vlanId,
+                                     segment_id)
+                    return True
         return False
 
     def verify_portgroup(self, net_id, server_id):
-        tenant_network_type = CONF.VCENTER.tenant_network_type
-        if "vlan" == tenant_network_type:
-                net = self.admin_client.show_network(net_id)
-                segment_id = net['network']['provider:segmentation_id']
-        else:
-                segment_id = self._fetch_segment_id_from_db(net_id)
-        # cluster_name = self._fetch_cluster_in_use_from_server(server_id)
-        # Made changes for openstack liberty release
-        cluster_name = CONF.VCENTER.cluster_in_use
+        segment_id = self._fetch_segment_id_from_db(net_id)
         vm_name = self._get_vm_name(server_id)
         trunk_dvswitch_name = CONF.VCENTER.trunk_dvswitch_name
-        trunk_dvswitch_name = trunk_dvswitch_name.split(',')
-        for trunk_dvswitch in trunk_dvswitch_name:
-            if "vxlan" == tenant_network_type:
-                if str(cluster_name) in trunk_dvswitch:
-                    return (self._verify_portgroup_vxlan(trunk_dvswitch,
-                                                         vm_name,
-                                                         net_id,
-                                                         segment_id))
-            else:
-                return (self._verify_portgroup_vlan(trunk_dvswitch,
-                                                    vm_name,
-                                                    net_id,
-                                                    segment_id))
+        return (self._verify_portgroup_vlan_vxlan(trunk_dvswitch_name,
+                                                  vm_name,
+                                                  net_id,
+                                                  segment_id))
         return False
 
     def verify_portgroup_after_vm_delete(self, net_id):
         content = self._create_connection()
         trunk_dvswitch_name = CONF.VCENTER.trunk_dvswitch_name
         trunk_dvswitch_name = trunk_dvswitch_name.split(',')
+        time.sleep(10)
         for trunk_dvswitch in trunk_dvswitch_name:
-                dvswitch_obj = self.get_obj(content,
-                                            [vim.DistributedVirtualSwitch],
-                                            trunk_dvswitch)
-                port_groups = dvswitch_obj.portgroup
-                for port_group in port_groups:
-                        if net_id in port_group.summary.name:
-                                return True
+            dvswitch_obj = self.get_obj(content,
+                                        [vim.DistributedVirtualSwitch],
+                                        trunk_dvswitch)
+            port_groups = dvswitch_obj.portgroup
+            for port_group in port_groups:
+                if net_id in port_group.summary.name:
+                    return True
         return False
 
     def _create_server_user_created_port(self, name=None,
@@ -704,17 +771,26 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         flavor = CONF.compute.flavor_ref
         rs_client = self._connect_server()
         data = {"server": {"name": name, "imageRef": image,
-                "flavorRef": flavor, "max_count": 1, "min_count": 1,
+                           "flavorRef": flavor, "max_count": 1, "min_count": 1,
                            "networks": [{"port": port1}]}}
         data = jsonutils.dumps(data)
         resp, body = rs_client.post("/servers", data)
         rs_client.expected_success(202, resp.status)
         body = jsonutils.loads(body)
         server_id = body['server']['id']
-        self.addCleanup(self._try_delete_resource, self._delete_server,
+        clients = self.manager
+        self.addCleanup(waiters.wait_for_server_termination,
+                        clients.servers_client,
                         server_id)
+        self.addCleanup_with_wait(
+            waiter_callable=waiters.wait_for_server_termination,
+            thing_id=server_id, thing_id_param='server_id',
+            cleanup_callable=test_utils.call_and_ignore_notfound_exc,
+            cleanup_args=[clients.servers_client.delete_server, server_id],
+            waiter_client=clients.servers_client)
+
         if wait_on_boot:
-                self.wait_for_server_status(server_id, 'ACTIVE')
+            self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
 
     def _get_vm_info(self, dic, vm, depth=1):
@@ -778,8 +854,16 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             server_id = self._create_server_with_sec_group(
                 name, self.network['id'],
                 group_create_body_update['security_group']['id'])
-            self.addCleanup(self._try_delete_resource, self._delete_server,
+            clients = self.manager
+            self.addCleanup(waiters.wait_for_server_termination,
+                            clients.servers_client,
                             server_id)
+            self.addCleanup_with_wait(
+                waiter_callable=waiters.wait_for_server_termination,
+                thing_id=server_id, thing_id_param='server_id',
+                cleanup_callable=test_utils.call_and_ignore_notfound_exc,
+                cleanup_args=[clients.servers_client.delete_server, server_id],
+                waiter_client=clients.servers_client)
             serv = self._get_host_name(server_id)
 
             if count is not 0:
@@ -793,7 +877,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
     def get_server_ip(self, server_id, net_name):
         region = CONF.compute.region
-        auth_provider = manager.get_auth_provider(self.creds.credentials)
+        auth_provider = manager.get_auth_provider(self.creds)
         endpoint_type = CONF.compute.endpoint_type
         build_interval = CONF.compute.build_interval
         build_timeout = CONF.compute.build_timeout
@@ -842,60 +926,47 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                               port, net_id):
         HOST = self.vapp_username + "@" + vapp_ipadd
         time.sleep(self.build_interval)
-        if "vlan" == self.tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows' +
-                       self.br_inf + 'table=0' + ',' +
-                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-                       str(vlan) + ',tp_dst=' + str(port))
-        else:
-                segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows' +
-                       self.br_inf + 'table=0' + ',' +
-                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-                       str(segment_id) + ',tp_dst=' + str(port))
+        segment_id = self._fetch_segment_id_from_db(str(net_id))
+        cmd = ('sudo ovs-ofctl dump-flows ' +
+               self.br_inf + ' table=0' + ',' +
+               str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+               str(segment_id) + ',tp_dst=' + str(port))
         ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
                                shell=False,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
         if output[1:] == []:
-                error = ssh.stderr.readlines()
-                raise lib_exc.TimeoutException(error)
+            error = ssh.stderr.readlines()
+            raise lib_exc.TimeoutException(error)
         else:
-                for output_list in output[1:]:
-                        self.assertIn('tp_dst=' + str(port), output_list)
+            for output_list in output[1:]:
+                self.assertIn('tp_dst=' + str(port), output_list)
 
     def _dump_flows_on_br_sec_for_icmp_rule(self, vapp_ipadd, protocol, vlan,
                                             mac, icmp_type, icmp_code, net_id):
         HOST = self.vapp_username + "@" + vapp_ipadd
         time.sleep(self.build_interval)
-        if "vlan" == self.tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows' +
-                       self.br_inf + 'table=0' + ',' +
-                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-                       str(vlan) + ',icmp_type=' + str(icmp_type) +
-                       ',icmp_code=' + str(icmp_code))
-        else:
-                segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows' +
-                       self.br_inf + 'table=0' + ',' +
-                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-                       str(segment_id) + ',icmp_type=' + str(icmp_type) +
-                       ',icmp_code=' + str(icmp_code))
+        segment_id = self._fetch_segment_id_from_db(str(net_id))
+        cmd = ('sudo ovs-ofctl dump-flows ' +
+               self.br_inf + ' table=0' + ',' +
+               str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+               str(segment_id) + ',icmp_type=' + str(icmp_type) +
+               ',icmp_code=' + str(icmp_code))
         ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
                                shell=False,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
         if output[1:] == []:
-                error = ssh.stderr.readlines()
-                raise lib_exc.TimeoutException(error)
+            error = ssh.stderr.readlines()
+            raise lib_exc.TimeoutException(error)
         else:
-                for output_list in output[1:]:
-                        self.assertIn('icmp_type=' + str(icmp_type),
-                                      output_list)
-                        self.assertIn('icmp_code=' + str(icmp_code),
-                                      output_list)
+            for output_list in output[1:]:
+                self.assertIn('icmp_type=' + str(icmp_type),
+                              output_list)
+                self.assertIn('icmp_code=' + str(icmp_code),
+                              output_list)
 
     def _get_vapp_ip_from_agent_list(self, host_n):
         content = self._create_connection()
@@ -909,33 +980,27 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                     host_name = self._get_vm_info(dic, vm)
                     if host_name is not None:
                         for key in host_name:
-                                if key == host_n:
-                                        return host_name[key]['ip_address']
+                            if key == host_n:
+                                return host_name[key]['ip_address']
 
     def _dump_flows_on_br_sec_for_icmp_type(self, vapp_ipadd, protocol, vlan,
                                             mac, icmp_type, net_id):
         HOST = self.vapp_username + "@" + vapp_ipadd
         time.sleep(self.build_interval)
-        if "vlan" == self.tenant_network_type:
-                cmd = ('sudo ovs-ofctl dump-flows' +
-                       self.br_inf + 'table=0' + ',' +
-                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-                       str(vlan) + ',icmp_type=' + str(icmp_type))
-        else:
-                segment_id = self._fetch_segment_id_from_db(str(net_id))
-                cmd = ('sudo ovs-ofctl dump-flows' +
-                       self.br_inf + 'table=0' + ',' +
-                       str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
-                       str(segment_id) + ',icmp_type=' + str(icmp_type))
+        segment_id = self._fetch_segment_id_from_db(str(net_id))
+        cmd = ('sudo ovs-ofctl dump-flows ' +
+               self.br_inf + ' table=0' + ',' +
+               str(protocol) + ',dl_dst=' + str(mac) + ',dl_vlan=' +
+               str(segment_id) + ',icmp_type=' + str(icmp_type))
         ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
                                shell=False,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
         if output[1:] == []:
-                error = ssh.stderr.readlines()
-                raise lib_exc.TimeoutException(error)
+            error = ssh.stderr.readlines()
+            raise lib_exc.TimeoutException(error)
         else:
-                for output_list in output[1:]:
-                        self.assertIn('icmp_type=' + str(icmp_type),
-                                      output_list)
+            for output_list in output[1:]:
+                self.assertIn('icmp_type=' + str(icmp_type),
+                              output_list)
