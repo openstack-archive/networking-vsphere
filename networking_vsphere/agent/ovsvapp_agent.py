@@ -35,6 +35,7 @@ from neutron.plugins.common import constants as p_const
 from neutron.plugins.common import utils as p_utils
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ovs_const  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa
+from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
 from networking_vsphere._i18n import _, _LE, _LI, _LW
 from networking_vsphere.agent import agent
@@ -92,7 +93,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.cluster_dvs_info = (CONF.VMWARE.cluster_dvs_mapping)[0].split(":")
         self.cluster_id = self.cluster_dvs_info[0]  # Datacenter/host/cluster.
         self.ports_dict = {}
-        self.local_vlan_map = {}
+        self.vlan_manager = vlanmanager.LocalVlanManager()
         self.vnic_info = {}
         self.phys_brs = {}
         self.devices_to_filter = set()
@@ -411,6 +412,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
     def _ofport_set_to_str(self, ofport_set):
         return ",".join(map(str, ofport_set))
 
+    def _get_port_vlan_mapping(self, network_id):
+        try:
+            obj = self.vlan_manager.get(network_id)
+            return obj
+        except vlanmanager.MappingNotFound:
+            return None
+
     def _provision_local_vlan(self, port):
         if port['network_type'] == p_const.TYPE_VLAN:
             phys_net = port['physical_network']
@@ -460,10 +468,14 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                            lvm.vlan)
 
     def _populate_lvm(self, port):
-        self.local_vlan_map[port['network_id']] = ovs_agent.LocalVLANMapping(
-            port['lvid'], port['network_type'],
-            port['physical_network'],
-            port['segmentation_id'])
+        try:
+            self.vlan_manager.add(port['network_id'], port['lvid'],
+                                  port['network_type'],
+                                  port['physical_network'],
+                                  port['segmentation_id'])
+        except vlanmanager.MappingAlreadyExists:
+            LOG.error(_LE("Mapping already exists for network: %s"),
+                      port['network_id'])
 
     def _process_port(self, port):
         ovsvapplock.acquire()
@@ -478,7 +490,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                                    port['physical_network'],
                                                    port['network_type'])
             self.sg_agent.add_devices_to_filter([port])
-            if port['network_id'] not in self.local_vlan_map:
+            if not self._get_port_vlan_mapping(port['network_id']):
                 self._populate_lvm(port)
                 self._provision_local_vlan(port)
             if (port['id'] in self.cluster_host_ports and
@@ -1082,7 +1094,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                            updated_port.network_type == p_const.TYPE_VLAN):
                             # Update the physical bridge drop flows.
                             network_id = updated_port.network_id
-                            lvm = self.local_vlan_map[network_id]
+                            lvm = self._get_port_vlan_mapping(network_id)
                             segmentation_id = lvm.segmentation_id
                             phys_net = updated_port.phys_net
                             br = self.phys_brs[phys_net]['br']
@@ -1100,7 +1112,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             if vnic.port_uuid in self.cluster_host_ports:
                                 # Delete the physical bridge flows.
                                 network_id = updated_port.network_id
-                                lvm = self.local_vlan_map[network_id]
+                                lvm = self._get_port_vlan_mapping(network_id)
                                 seg_id = lvm.segmentation_id
                                 phys_net = updated_port.phys_net
                                 br = self.phys_brs[phys_net]['br']
@@ -1162,7 +1174,10 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     if del_port.network_type == p_const.TYPE_VLAN:
                         phys_net = del_port.phys_net
                         net_id = del_port.network_id
-                        seg_id = self.local_vlan_map[net_id].segmentation_id
+                        vmap = self._get_port_vlan_mapping(net_id)
+                        seg_id = None
+                        if vmap:
+                            seg_id = vmap.segmentation_id
                         br = self.phys_brs[phys_net]['br']
                         br.delete_drop_flows(del_port.mac_addr,
                                              seg_id)
@@ -1307,7 +1322,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 local_vlan_id = port['lvid']
                 net_id = port['network_id']
                 self.ports_dict[port['id']] = self._build_port_info(port)
-                if net_id not in self.local_vlan_map:
+                if not self._get_port_vlan_mapping(net_id):
                     self._populate_lvm(port)
                     # Add to missed provider rule ports list
                     # if sg provider rule is missing in ports_sg_rules.
@@ -1498,7 +1513,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             # network_id - local_vlan_id - segmentation_id.
             LOG.debug("Reclaiming local vlan associated with the network: %s.",
                       network_id)
-            lvm = self.local_vlan_map.pop(network_id, None)
+            lvm = self.vlan_manager.pop(network_id)
             if lvm:
                 self._reclaim_local_vlan(lvm)
             else:
