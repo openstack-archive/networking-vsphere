@@ -30,7 +30,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         # Create rules for each protocol
         protocols = ['tcp', 'udp', 'icmp']
         for protocol in protocols:
-            self.client.create_security_group_rule(
+            self.security_group_rules_client.create_security_group_rule(
                 security_group_id=group_create_body['security_group']['id'],
                 protocol=protocol,
                 direction='ingress',
@@ -63,7 +63,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         serverid = self._create_server_with_sec_group(
             name, net_id, group_create_body['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
-        deviceport = self.client.list_ports(device_id=serverid)
+        deviceport = self.ports_client.list_ports(device_id=serverid)
         body = self._associate_floating_ips(
             port_id=deviceport['ports'][0]['id'])
         floatingiptoreach = body['floatingip']['floating_ip_address']
@@ -102,7 +102,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             group_create_body['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid))
-        deviceport = self.client.list_ports(device_id=serverid)
+        deviceport = self.ports_client.list_ports(device_id=serverid)
         body = self._associate_floating_ips(
             port_id=deviceport['ports'][0]['id'])
         floatingiptoreach = body['floatingip']['floating_ip_address']
@@ -132,8 +132,9 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             "security_groups": [group_create_body1['security_group']['id']],
             "network_id": network1['id'],
             "admin_state_up": True}
-        port_body1 = self.client.create_port(**post_body1)
-        self.addCleanup(self.client.delete_port, port_body1['port']['id'])
+        port_body1 = self.ports_client.create_port(**post_body1)
+        self.addCleanup(self.ports_client.delete_port,
+                        port_body1['port']['id'])
         network2 = self.create_network()
         sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
         subnet2 = self.create_subnet(network2, cidr=sub_cidr)
@@ -146,15 +147,16 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             "security_groups": [group_create_body2['security_group']['id']],
             "network_id": network2['id'],
             "admin_state_up": True}
-        port_body2 = self.client.create_port(**post_body2)
-        self.addCleanup(self.client.delete_port, port_body2['port']['id'])
+        port_body2 = self.ports_client.create_port(**post_body2)
+        self.addCleanup(self.ports_client.delete_port,
+                        port_body2['port']['id'])
         name = data_utils.rand_name('server-smoke')
         group_create_body, _ = self._create_security_group()
         serverid = self._create_server_multiple_nic_user_created_port(
             name, port_body1['port']['id'], port_body2['port']['id'])
         self.assertTrue(self.verify_portgroup(network1['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid))
-        deviceport = self.client.list_ports(device_id=serverid)
+        deviceport = self.ports_client.list_ports(device_id=serverid)
         body = self._associate_floating_ips(
             port_id=deviceport['ports'][0]['id'])
         floatingiptoreach = body['floatingip']['floating_ip_address']
@@ -179,7 +181,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             name, net_id, group_create_body['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid1))
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid2))
-        deviceport = self.client.list_ports(device_id=serverid1)
+        deviceport = self.ports_client.list_ports(device_id=serverid1)
         body = self._associate_floating_ips(
             port_id=deviceport['ports'][0]['id'])
         floatingiptoreach = body['floatingip']['floating_ip_address']
@@ -214,7 +216,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             group_create_body['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid))
-        deviceport = self.client.list_ports(device_id=serverid)
+        deviceport = self.ports_client.list_ports(device_id=serverid)
         body = self._associate_floating_ips(
             port_id=deviceport['ports'][0]['id'])
         floatingiptoreach = body['floatingip']['floating_ip_address']
@@ -241,15 +243,15 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         serverid = self._create_server_with_sec_group(
             name, net_id, group_create_body['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
-        deviceport = self.client.list_ports(device_id=serverid)
+        deviceport = self.ports_client.list_ports(device_id=serverid)
         body = self._associate_floating_ips(
             port_id=deviceport['ports'][0]['id'])
         floatingiptoreach = body['floatingip']['floating_ip_address']
         self._check_public_network_connectivity(floatingiptoreach)
         new_name = "New_Port"
-        body = self.client.update_port(deviceport['ports'][0]['id'],
-                                       name=new_name,
-                                       admin_state_up=False)
+        body = self.ports_client.update_port(deviceport['ports'][0]['id'],
+                                             name=new_name,
+                                             admin_state_up=False)
         updated_port = body['port']
         self.assertEqual(updated_port['name'], new_name)
         self.assertFalse(updated_port['admin_state_up'])
@@ -257,8 +259,8 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             floatingiptoreach,
             should_connect=False,
             should_check_floating_ip_status=False)
-        body = self.client.update_port(deviceport['ports'][0]['id'],
-                                       admin_state_up=True)
+        body = self.ports_client.update_port(deviceport['ports'][0]['id'],
+                                             admin_state_up=True)
         updated_port = body['port']
         self.assertTrue(updated_port['admin_state_up'])
         self._check_public_network_connectivity(floatingiptoreach)
