@@ -22,14 +22,23 @@ OVSVAPP_MODE=${OVSVAPP_MODE:-allinone}
 # OVSVAPP_MODE=allinone
 # Use this mode if you want to run OVSvApp solution in Single Node deployment.
 #
+# OVSVAPP_MODE=allinone_vmware_dvs
+# The same, but for the VMware DVS'es driver.
+#
 # OVSVAPP_MODE=server
 # Use this mode for the controller node of a multi-node devstack install.
+#
+# OVSVAPP_MODE=server_vmware_dvs
+# The same, but for teh VMware DVS'es driver.
 #
 # OVSVAPP_MODE=compute
 # Use this mode for the compute node of a multi-node devstack install.
 #
 # OVSVAPP_MODE=agent
 # Use this mode for the OVSvApp VM of a multi-node devstack install.
+#
+# OVSVAPP_MODE=agent_vmware_dvs
+# The same, but for teh VMware DVS'es driver.
 #
 # OVSVAPP_MODE=manual
 # You're on your own here, and are enabling services outside the scope of
@@ -76,6 +85,12 @@ OVSVAPP_BRIDGE_MAPPINGS=${OVSVAPP_BRIDGE_MAPPINGS:-physnet1:br-ethx}
 # Provide Security Bridge Mapping.
 OVSVAPP_SECURITY_BRIDGE_MAPPINGS=${OVSVAPP_SECURITY_BRIDGE_MAPPINGS:-br-sec:ethy}
 
+# Name of agent file
+OVSVAPP_AGENT_BINARY=${OVSVAPP_AGENT_BINARY:-$NEUTRON_BIN_DIR/neutron-ovsvapp-agent}
+
+# Name of agent config file
+OVSVAPP_CONF_FILENAME=${OVSVAPP_CONF_FILENAME:-ovsvapp_agent.ini}
+
 # Provide Integration Bridge.
 INTEGRATION_BRIDGE=${INTEGRATION_BRIDGE:-br-int}
 
@@ -87,6 +102,21 @@ SECURITY_BRIDGE=${SECURITY_BRIDGE:-br-sec}
 
 # Provide to enable Fault Tolerance for OVSvApp.
 ENABLE_OVSVAPP_MONITOR=${ENABLE_OVSVAPP_MONITOR:-False}
+
+# The name of the VMware vSphere cluster.
+VMWAREAPI_CLUSTER=${VMWAREAPI_CLUSTER:-Cluster1}
+
+# Provade DVS Uplinks map.
+VMWARE_DVS_UPLINK_MAPPING=${VMWARE_DVS_UPLINK_MAPPING:-physnet2:dvUplink1}
+
+# Enable Secuirty Group support.
+VMWARE_DVS_ENABLE_SG=${VMWARE_DVS_ENABLE_SG:-True}
+
+# Set FirewallDriver.
+VMWARE_DVS_FW_DRIVER=${VMWARE_DVS_FW_DRIVER:-networking_vsphere.agent.firewalls.vcenter_firewall.DVSFirewallDriver}
+
+# Allow to use self signed ssl certificate.
+VMWARE_DVS_USE_SS_SSL=${VMWARE_DVS_USE_SS_SSL:-True}
 
 case $OVSVAPP_MODE in
     allinone)
@@ -100,6 +130,15 @@ case $OVSVAPP_MODE in
         ;;
     agent)
         enable_service ovsvapp-agent
+        ;;
+    allinone_vmware_dvs)
+        enable_service vmware_dvs-server vmware_dvs-agent
+        ;;
+    server_vmware_dvs)
+        enable_service vmware_dvs-server
+        ;;
+    agent_vmware_dvs)
+        enable_service vmware_dvs-agent
         ;;
     manual)
         echo "Manual mode: Enabling services explicitly."
