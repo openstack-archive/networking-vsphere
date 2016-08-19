@@ -56,7 +56,10 @@ VMWARE_OPTS = [
                 help='Set host into maintenance mode.'),
     cfg.MultiStrOpt('cluster_dvs_mapping',
                     default=[''],
-                    help='vCenter cluster to DVS mapping.')
+                    help='vCenter cluster to DVS mapping.'),
+    cfg.IntOpt('connection_timeout',
+               default=120,
+	       help='Max waiting time to re-establish the connection.')
 ]
 
 # OVSvApp Agent related config read from ovsvapp_agent.ini and neutron.conf.

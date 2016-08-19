@@ -40,6 +40,7 @@ class VcenterManager(base_manager.DriverManager):
         self.cluster_switch_mapping = {}
         self.connection_thread = None
         self.https_port = cfg.CONF.VMWARE.https_port
+	self.connection_timeout = None
 
     def _parse_mapping(self, entry):
         """Parse an entry of cluster_dvs_mapping.
@@ -91,6 +92,7 @@ class VcenterManager(base_manager.DriverManager):
         self.wsdl_location = cfg.CONF.VMWARE.wsdl_location
         self.https_port = cfg.CONF.VMWARE.https_port
         self.ca_path = None
+	self.connection_timeout = cfg.CONF.VMWARE.connection_timeout
         if cfg.CONF.VMWARE.cert_check:
             if not cfg.CONF.VMWARE.cert_path:
                 LOG.error(_LE("SSL certificate path is not defined to "
@@ -113,6 +115,7 @@ class VcenterManager(base_manager.DriverManager):
                 self.vcenter_api_retry_count,
                 self.wsdl_location,
                 self.ca_path,
+		self.connection_timeout,
                 self.https_port)
             vim_session.ConnectionHandler.start()
             if self.connection_thread:
