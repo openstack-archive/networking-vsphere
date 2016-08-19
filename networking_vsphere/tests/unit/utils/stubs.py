@@ -90,12 +90,14 @@ class FakeVmware(fixtures.Fixture):
         self.api_retry_count = 2
         self.wsdl_loc = "https://192.168.1.3/sdk/fake.wsdl"
         self.ca_cert = "rui-ca-cert.pem"
+        self.connection_timeout = 120
         vim_session.ConnectionHandler.set_vc_details(self.vcenter_ip,
                                                      self.vcenter_username,
                                                      self.vcenter_password,
                                                      self.api_retry_count,
                                                      self.wsdl_loc,
-                                                     self.ca_cert)
+                                                     self.ca_cert,
+                                                     self.connection_timeout)
         self.session = vim_session.ConnectionHandler.create_connection()
         self.addCleanup(fake_vmware_api.cleanup)
 
