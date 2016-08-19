@@ -111,7 +111,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         endpoint_type = CONF.compute.endpoint_type
         build_interval = CONF.compute.build_interval
         build_timeout = CONF.compute.build_timeout
-        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        disable_ssl_cert = \
+            CONF.service_clients.disable_ssl_certificate_validation
         ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(self.auth_provider, "compute",
                                            region, endpoint_type,
@@ -612,7 +613,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         endpoint_type = CONF.compute.endpoint_type
         build_interval = CONF.compute.build_interval
         build_timeout = CONF.compute.build_timeout
-        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        disable_ssl_cert = \
+            CONF.service_clients.disable_ssl_certificate_validation
         ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(auth_provider, "compute",
                                            region, endpoint_type,
@@ -797,7 +799,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         endpoint_type = CONF.compute.endpoint_type
         build_interval = CONF.compute.build_interval
         build_timeout = CONF.compute.build_timeout
-        disable_ssl_cert = CONF.identity.disable_ssl_certificate_validation
+        disable_ssl_cert = \
+            CONF.service_clients.disable_ssl_certificate_validation
         ca_certs = CONF.identity.ca_certificates_file
         rs_client = rest_client.RestClient(auth_provider, "compute",
                                            region, endpoint_type,
