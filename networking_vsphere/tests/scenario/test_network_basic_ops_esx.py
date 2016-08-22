@@ -262,3 +262,31 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         updated_port = body['port']
         self.assertTrue(updated_port['admin_state_up'])
         self._check_public_network_connectivity(floatingiptoreach)
+
+    def test_update_admin_state_up_of_vm_network_to_false(self):
+        net_id = self.network['id']
+        name = data_utils.rand_name('server-smoke')
+        group_create_body = self._create_custom_security_group()
+        serverid = self._create_server_with_sec_group(
+            name, net_id, group_create_body['security_group']['id'])
+        self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
+        deviceport = self.ports_client.list_ports(device_id=serverid)
+        body = self._associate_floating_ips(
+            port_id=deviceport['ports'][0]['id'])
+        floatingiptoreach = body['floatingip']['floating_ip_address']
+        self._check_public_network_connectivity(floatingiptoreach)
+        body = self.networks_client.update_network(net_id,
+                                                   admin_state_up=False)
+        updated_net = body['network']
+        cont_ip = CONF.VCENTER.controller_ip
+        vapp_username = CONF.VCENTER.vapp_username
+        vapp_password = CONF.VCENTER.vapp_password
+        HOST = vapp_username + "@" + vapp_password
+        cmd = ('sudo ip netns | grep ' + net_id)
+        ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                               shell=False,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+        output = ssh.stdout.readlines()
+        self.assertEqual([], output)
+        self._check_public_network_connectivity(floatingiptoreach)
