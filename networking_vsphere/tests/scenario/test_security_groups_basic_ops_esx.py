@@ -13,6 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from tempest.lib.common.utils import test_utils
+
 from networking_vsphere.tests.scenario import manager
 
 from neutron.tests.tempest import exceptions
@@ -482,3 +484,30 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         else:
             error_msg = "Host not found"
             raise exceptions.BadRequest(error_msg)
+
+    def test_boot_vm_with_user_created_security_group_with_added_rules(self):
+        sg_name = data_utils.rand_name("sec_group-")
+        sg_desc = sg_name + " description"
+        secgroup = self.security_groups_client.create_security_group(
+            name=sg_name, description=sg_desc)['security_group']
+        self.addCleanup(
+            test_utils.call_and_ignore_notfound_exc,
+            self.security_groups_client.delete_security_group,
+            secgroup['id'])
+        self.security_group_rules_client.create_security_group_rule(
+            security_group_id=secgroup['id'],
+            protocol='icmp',
+            direction='ingress',
+            ethertype=self.ethertype
+        )
+        name = data_utils.rand_name('server-smoke')
+        serverid = self._create_server_with_sec_group(name,
+                                                      self.network['id'],
+                                                      secgroup['id'])
+        self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
+        device_port = self.ports_client.list_ports(device_id=serverid)
+        port_id = device_port['ports'][0]['id']
+        floating_ip = self._associate_floating_ips(port_id=port_id)
+        self.assertTrue(self.ping_ip_address(
+            floating_ip['floatingip']['floating_ip_address'],
+            should_succeed=True))
