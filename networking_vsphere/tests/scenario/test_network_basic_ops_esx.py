@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 import netaddr
+import subprocess
 
 from networking_vsphere.tests.scenario import manager
 
@@ -262,3 +263,83 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         updated_port = body['port']
         self.assertTrue(updated_port['admin_state_up'])
         self._check_public_network_connectivity(floatingiptoreach)
+
+    def test_update_admin_state_up_of_vm_network_to_false(self):
+        net_id = self.network['id']
+        name = data_utils.rand_name('server-smoke')
+        group_create_body = self._create_custom_security_group()
+        serverid = self._create_server_with_sec_group(
+            name, net_id, group_create_body['security_group']['id'])
+        self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
+        deviceport = self.ports_client.list_ports(device_id=serverid)
+        body = self._associate_floating_ips(
+            port_id=deviceport['ports'][0]['id'])
+        floatingiptoreach = body['floatingip']['floating_ip_address']
+        self._check_public_network_connectivity(floatingiptoreach)
+        body = self.networks_client.update_network(net_id,
+                                                   admin_state_up=False)
+        cont_ip = CONF.VCENTER.controller_ip
+        vapp_username = CONF.VCENTER.vapp_username
+        HOST = vapp_username + "@" + cont_ip
+        cmd = ('sudo ip netns | grep ' + net_id)
+        ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                               shell=False,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+        output = ssh.stdout.readlines()
+        self.assertEqual([], output)
+        self._check_public_network_connectivity(floatingiptoreach)
+
+    def test_creation_of_VM_attach_to_user_created_port(self):
+        group_create_body = self._create_custom_security_group()
+        network = self.create_network()
+        subnet = self.create_subnet(network)
+        router = self.create_router(data_utils.rand_name('router-'),
+                                    external_network_id=self.ext_net_id,
+                                    admin_state_up="true")
+        self.create_router_interface(router['id'], subnet['id'])
+        post_body = {
+            "name": data_utils.rand_name('port-'),
+            "security_groups": [group_create_body['security_group']['id']],
+            "network_id": network['id'],
+            "admin_state_up": True}
+        port = self.ports_client.create_port(**post_body)
+        self.addCleanup(self.ports_client.delete_port, port['port']['id'])
+        name = data_utils.rand_name('server-smoke')
+        group_create_body, _ = self._create_security_group()
+        serverid = self._create_server_user_created_port(
+            name, port['port']['id'])
+        self.assertTrue(self.verify_portgroup(network['id'], serverid))
+        deviceport = self.ports_client.list_ports(device_id=serverid)
+        body = self._associate_floating_ips(
+            port_id=deviceport['ports'][0]['id'])
+        floatingiptoreach = body['floatingip']['floating_ip_address']
+        self._check_public_network_connectivity(floatingiptoreach)
+
+    def test_to_verify_communication_between_two_vms_in_diff_network(self):
+        net_id = self.network['id']
+        name = data_utils.rand_name('server-smoke')
+        group_create_body = self._create_custom_security_group()
+        serverid = self._create_server_with_sec_group(
+            name, net_id, group_create_body['security_group']['id'])
+        self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
+        deviceport = self.ports_client.list_ports(device_id=serverid)
+        body = self._associate_floating_ips(
+            port_id=deviceport['ports'][0]['id'])
+        fip1 = body['floatingip']['floating_ip_address']
+        network2 = self.create_network()
+        sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
+        subnet2 = self.create_subnet(network2, cidr=sub_cidr)
+        router2 = self.create_router(data_utils.rand_name('router2-'),
+                                     external_network_id=self.ext_net_id,
+                                     admin_state_up="true")
+        self.create_router_interface(router2['id'], subnet2['id'])
+        serverid2 = self._create_server_with_sec_group(
+            name, network2['id'], group_create_body['security_group']['id'])
+        deviceport2 = self.ports_client.list_ports(device_id=serverid2)
+        body = self._associate_floating_ips(
+            port_id=deviceport2['ports'][0]['id'])
+        fip2 = body['floatingip']['floating_ip_address']
+        self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
+        self.assertTrue(self.verify_portgroup(network2['id'], serverid2))
+        self.assertTrue(self._check_remote_connectivity(fip1, fip2))
