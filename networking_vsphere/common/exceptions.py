@@ -40,31 +40,35 @@ class InvalidNetworkName(InvalidNetwork):
     message = _('Illegal network name %(name)s: %(reason)s')
 
 
-class ResourceNotFond(VMWareDVSException):
+class ResourceNotFound(VMWareDVSException):
     message = _('Resource not found')
 
 
-class DVSNotFound(ResourceNotFond):
+class ClusterNotFound(ResourceNotFound):
+    message = _('Cluster Compute Resource %(cluster_name)s not found')
+
+
+class DVSNotFound(ResourceNotFound):
     message = _('Distributed Virtual Switch %(dvs_name)s not found')
 
 
-class PortGroupNotFound(ResourceNotFond):
+class PortGroupNotFound(ResourceNotFound):
     message = _('Port Group %(pg_name)s not found')
 
 
-class PortNotFound(ResourceNotFond):
+class PortNotFound(ResourceNotFound):
     message = _('Port %(id)s not found')
 
 
-class UnboundPortNotFound(ResourceNotFond):
+class UnboundPortNotFound(ResourceNotFound):
     message = _('Unbound port not found')
 
 
-class HypervisorNotFound(ResourceNotFond):
+class HypervisorNotFound(ResourceNotFound):
     message = _('Hypervisor not found')
 
 
-class VMNotFound(ResourceNotFond):
+class VMNotFound(ResourceNotFound):
     message = _('Virtual machine not found')
 
 

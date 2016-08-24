@@ -13,9 +13,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from networking_vsphere._i18n import _LI
 from neutron.agent import firewall
 from oslo_log import log as logging
-
 
 LOG = logging.getLogger(__name__)
 
@@ -57,4 +57,7 @@ class NoopvCenterFirewallDriver(firewall.FirewallDriver):
 
     def update_security_group_rules_and_members(self, security_groups,
                                                 security_group_member_ips):
-        LOG.debug("update_security_group_rules_and_members")
+        LOG.debug("update_security_group_rules_and_members called")
+
+    def stop_all(self):
+        LOG.info(_LI("stop noop firewall engine called"))
