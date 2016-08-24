@@ -58,3 +58,6 @@ class NoopvCenterFirewallDriver(firewall.FirewallDriver):
     def update_security_group_rules_and_members(self, security_groups,
                                                 security_group_member_ips):
         LOG.debug("update_security_group_rules_and_members")
+
+    def stop_all(self):
+        LOG.info("stop noop firewall engine")

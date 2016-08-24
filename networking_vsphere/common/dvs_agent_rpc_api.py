@@ -28,6 +28,9 @@ class ExtendAPI(object):
     def delete_network(self, context, current, segment):
         self.delete_network_postcommit(current, segment)
 
+    def network_delete(self, context, network_id):
+        pass
+
     def update_network(self, context, current, segment, original):
         self.update_network_precommit(current, segment, original)
 
@@ -61,9 +64,8 @@ class DVSClientAPI(object):
                                    fanout=True)
 
     def _get_cctxt_direct(self, host):
-        return self.client.prepare(
-            version=self.ver,
-            topic=self._get_security_group_topic(host=host))
+        return self.client.prepare(version=self.ver,
+                    topic=self._get_security_group_topic(host=host))
 
     def create_network_cast(self, current, segment):
         return self._get_cctxt().cast(self.context, 'create_network',
