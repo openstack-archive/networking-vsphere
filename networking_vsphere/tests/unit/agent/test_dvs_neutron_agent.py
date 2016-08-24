@@ -23,18 +23,6 @@ from networking_vsphere.common import constants as dvs_const
 from networking_vsphere.common import exceptions
 
 
-NOT_SUPPORTED_TYPES = [
-    constants.TYPE_FLAT,
-    constants.TYPE_GRE,
-    constants.TYPE_LOCAL,
-    constants.TYPE_VXLAN,
-    constants.TYPE_NONE]
-
-
-VALID_HYPERVISOR_TYPE = 'VMware vCenter Server'
-INVALID_HYPERVISOR_TYPE = '_invalid_hypervisor_'
-
-
 class FAKE_SECURITY_GROUPS(object):
     NEW = 'new_sg'
     CONSTANT = 'constant_sg'
@@ -67,13 +55,6 @@ class DVSAgentTestCase(base.BaseTestCase):
         self.update_port_rules_mock = sg_util_patch.start()
 
     def test_look_up_dvs_failed(self):
-        for type_ in NOT_SUPPORTED_TYPES:
-            self.assertRaisesRegexp(exceptions.NotSupportedNetworkType,
-                                    "VMWare DVS driver don't support %s "
-                                    "network" % type_,
-                                    self.agent._lookup_dvs_for_context,
-                                    {'network_type': type_})
-
         segment = {'network_type': constants.TYPE_VLAN,
                    'physical_network': 'wrong_network'}
         self.assertRaisesRegexp(exceptions.NoDVSForPhysicalNetwork,
@@ -140,16 +121,34 @@ class DVSAgentTestCase(base.BaseTestCase):
 
     @mock.patch('networking_vsphere.agent.dvs_neutron_agent.DVSAgent.'
                 '_lookup_dvs_for_context')
-    def test_delete_port_postcommit(self, is_valid_dvs):
+    def test_delete_port_postcommit_without_firewall(self, is_valid_dvs):
         is_valid_dvs.return_value = self.dvs
 
-        self.agent.delete_port_postcommit(
-            self.port_context.current,
-            self.port_context.original,
-            self.port_context.network.network_segments[0]
-        )
+        with mock.patch('neutron.agent.securitygroups_rpc.is_firewall_enabled',
+                        return_value=False):
+            self.agent.delete_port_postcommit(
+                self.port_context.current,
+                self.port_context.original,
+                self.port_context.network.network_segments[0]
+            )
         self.assertTrue(is_valid_dvs.called)
         self.assertTrue(self.dvs.release_port.called)
+
+    @mock.patch('networking_vsphere.agent.dvs_neutron_agent.DVSAgent.'
+                '_lookup_dvs_for_context')
+    def test_delete_port_postcommit_with_firewall(self, is_valid_dvs):
+        is_valid_dvs.return_value = self.dvs
+
+        with mock.patch('neutron.agent.securitygroups_rpc.is_firewall_enabled',
+                        return_value=True):
+            self.agent.delete_port_postcommit(
+                self.port_context.current,
+                self.port_context.original,
+                self.port_context.network.network_segments[0]
+            )
+        self.assertTrue(is_valid_dvs.called)
+        self.assertTrue(self.dvs.remove_block.called)
+        self.assertFalse(self.dvs.release_port.called)
 
     def _create_ports(self, security_groups=None):
         ports = [
