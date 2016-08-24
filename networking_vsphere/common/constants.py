@@ -94,7 +94,8 @@ DIRECTION_IP_PREFIX = {'ingress': 'source_ip_prefix',
 # protocol number according to RFC 1700
 PROTOCOL = {'icmp': 1,
             'tcp': 6,
-            'udp': 17}
+            'udp': 17,
+            'ipv6-icmp': 58}
 
 # VMWare DVS specific
 DVS_PORTGROUP_NAME_MAXLEN = 80
@@ -113,6 +114,10 @@ LOGIN_PROBLEM_TEXT = "Cannot complete login due to an incorrect "\
 
 DELETED_TEXT = "The object has already been deleted or has not been "\
                "completely created"
+
+DUPLICATE_NAME = "oslo_vmware.exceptions.DuplicateName"
+
+RESOURCE_IN_USE = "is in use."
 
 # EPHEMERAL ports
 MIN_EPHEMERAL_PORT = 32768

@@ -19,7 +19,6 @@ import six
 
 from networking_vsphere.common import constants as dvs_const
 from networking_vsphere.tests.unit.utils import test_dvs_util
-from networking_vsphere.utils import dvs_util
 from networking_vsphere.utils import security_group_utils as sg_util
 
 
@@ -36,6 +35,7 @@ class TrafficRuleBuilderBaseTestCase(test_dvs_util.UtilBaseTestCase):
             'ns0:SingleIp',
             'ns0:DvsSingleIpPort',
             'ns0:DvsIpPortRange'))
+        self.spec_builder = sg_util.PortConfigSpecBuilder(self.spec_factory)
 
 
 class TrafficRuleBuilderTestCase(TrafficRuleBuilderBaseTestCase):
@@ -53,7 +53,7 @@ class TrafficRuleBuilderTestCase(TrafficRuleBuilderBaseTestCase):
                 pass
 
         return ConcreteTrafficRuleBuilder(
-            self.spec_factory, ethertype, protocol, name)
+            self.spec_builder, ethertype, protocol, name)
 
     def test_build_sequence(self):
         name = '_name_'
@@ -140,7 +140,7 @@ class SpecBuilderSecurityGroupsTestCase(base.BaseTestCase):
         self.spec = mock.Mock(name='spec')
         self.factory = mock.Mock(name='factory')
         self.factory.create.return_value = self.spec
-        self.builder = dvs_util.SpecBuilder(self.factory)
+        self.builder = sg_util.PortConfigSpecBuilder(self.factory)
 
     def test__create_rule_egress(self):
         rule = self._create_rule(direction='egress')
