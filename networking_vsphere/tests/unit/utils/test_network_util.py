@@ -103,6 +103,31 @@ class TestVmwareNetworkUtil(base.TestCase):
             self.session, dvs_name, port_group_name)
         self.assertIsNone(port_group)
 
+    @mock.patch.object(vim_util, 'get_properties_for_a_collection_of_objects')
+    @mock.patch.object(network_util, "get_dvs_mor_by_name")
+    @mock.patch.object(vim_util, "get_dynamic_property")
+    def test_get_portgroup_mor_by_names(self, mock_get_dy_pro,
+                                        mock_get_dvs_mor, mock_get_pro):
+        dvs_name = "test_dvs"
+        network_id = fake_api.Constants.PORTGROUP_NAME
+        cluster_id = "cluster1"
+        dvs = fake_api.DataObject()
+        dvs_config = fake_api.DataObject()
+        port_group_mors = []
+        pg1 = fake_api.create_network()
+        pg1.set("summary.name", "pg1")
+        port_group_mors.append(pg1)
+        pg2 = fake_api.create_network()
+        pg2.set("summary.name", network_id)
+        port_group_mors.append(pg2)
+        dvs_config.ManagedObjectReference = port_group_mors
+        mock_get_pro.return_value = port_group_mors
+        mock_get_dvs_mor.return_value = dvs
+        mock_get_dy_pro.return_value = dvs_config
+        port_group = network_util.get_portgroup_mor_by_names(
+            self.session, dvs_name, network_id, cluster_id)
+        self.assertEqual(port_group, network_id)
+
     def test_get_all_portgroup_mors_for_switch(self):
         port_group_mors = network_util.get_all_portgroup_mors_for_switch(
             self.session, "test_dvs")
