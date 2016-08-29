@@ -1142,7 +1142,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             raise error.OVSvAppNeutronAgentError(e)
 
     def _delete_portgroup(self, network_id, network_type):
-        network_id = str(network_id) + "-" + self.cluster_moid
+        network_id = self.net_mgr.get_driver().get_portgroup_for_network_id(
+            self.cluster_dvs_info[1], network_id, self.cluster_moid)
         network = model.Network(name=network_id,
                                 network_type=network_type)
         retry_count = MAX_RETRY_COUNT
