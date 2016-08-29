@@ -185,6 +185,15 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
 
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
+    def get_portgroup_for_network_id(self, dvs_name, network_id, cluster_id):
+        pg_name = network_util.get_portgroup_mor_by_names(self.session,
+                                                          dvs_name,
+                                                          network_id,
+                                                          cluster_id)
+        return pg_name
+
+    @utils.require_state(state=[constants.DRIVER_READY,
+                                constants.DRIVER_RUNNING])
     def delete_network(self, network, virtual_switch=None):
         if not virtual_switch:
             dvs_list = cache.VCCache.get_cluster_switch_mapping().values()
