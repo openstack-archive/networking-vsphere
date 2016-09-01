@@ -594,9 +594,9 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 sec_br.delete_flows(table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
                                     dl_dst=port['mac_address'],
                                     vlan_tci="0x%04x/0x0fff" % vlan)
-                sec_br.delete_flows(table=ovsvapp_const.SG_EGRESS_TABLE_ID,
-                                    dl_src=port['mac_address'],
-                                    vlan_tci="0x%04x/0x0fff" % vlan)
+            sec_br.delete_flows(table=ovsvapp_const.SG_EGRESS_TABLE_ID,
+                                dl_src=port['mac_address'],
+                                vlan_tci="0x%04x/0x0fff" % vlan)
         except Exception:
             LOG.exception(_LE("Unable to remove flows %s."), port['id'])
 
