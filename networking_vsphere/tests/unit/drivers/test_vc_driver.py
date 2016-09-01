@@ -132,6 +132,7 @@ class TestVmwareDriver(base.TestCase):
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
             config=network_config)
+        net_id = "net"
         port = model.Port(name=None,
                           mac_address=None,
                           ipaddresses=None,
@@ -143,7 +144,7 @@ class TestVmwareDriver(base.TestCase):
                                        nic_type=None,
                                        pg_id=None)
         with mock.patch.object(model, "VirtualSwitch") as vswitch:
-            self.vc_driver.create_port(network, port, virtual_nic)
+            self.vc_driver.create_port(network, net_id, port, virtual_nic)
             self.assertTrue(vswitch.called)
 
     def test_create_port_exc(self):
@@ -153,6 +154,7 @@ class TestVmwareDriver(base.TestCase):
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
             config=network_config)
+        net_id = "net"
         port = model.Port(name=None,
                           mac_address=None,
                           ipaddresses=None,
@@ -167,7 +169,7 @@ class TestVmwareDriver(base.TestCase):
                                return_value=None):
             exc = self.assertRaises(error.VcenterConfigurationError,
                                     self.vc_driver.create_port,
-                                    network, port, virtual_nic)
+                                    network, net_id, port, virtual_nic)
             self.assertIn("Invalid Switch", str(exc))
 
     def test_create_port_invalid_cluster(self):
@@ -177,6 +179,7 @@ class TestVmwareDriver(base.TestCase):
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
             config=network_config)
+        net_id = "net"
         port = model.Port(name=None,
                           mac_address=None,
                           ipaddresses=None,
@@ -192,7 +195,7 @@ class TestVmwareDriver(base.TestCase):
         cache.VCCache.add_cluster_mor_for_vm(vm_id, cluster_mor)
         exc = self.assertRaises(error.VcenterConfigurationError,
                                 self.vc_driver.create_port,
-                                network, port, virtual_nic)
+                                network, net_id, port, virtual_nic)
         self.assertIn("Cluster for VM %s could not be determined" %
                       vm_id, str(exc))
 

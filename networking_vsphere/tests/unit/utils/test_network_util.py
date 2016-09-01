@@ -154,6 +154,74 @@ class TestVmwareNetworkUtil(base.TestCase):
             self.session, dvs_name, network_id, cluster_id)
         self.assertEqual(port_group, network_id + "-" + cluster_id)
 
+    @mock.patch.object(vim_util, 'get_properties_for_a_collection_of_objects')
+    @mock.patch.object(network_util, "get_dvs_mor_by_name")
+    @mock.patch.object(vim_util, "get_dynamic_property")
+    def test_get_portgroup_mor_by_net_id_with_pgname(self, mock_get_dy_pro,
+                                                     mock_get_dvs_mor,
+                                                     mock_get_pro):
+        dvs_name = "test_dvs"
+        port_group_name = fake_api.Constants.PORTGROUP_NAME
+        net_id = "net"
+        dvs = fake_api.DataObject()
+        dvs_config = fake_api.DataObject()
+        port_group_mors = []
+        pg2 = fake_api.create_network()
+        pg2.set("summary.name", port_group_name)
+        port_group_mors.append(pg2)
+        dvs_config.ManagedObjectReference = port_group_mors
+        mock_get_pro.return_value = port_group_mors
+        mock_get_dvs_mor.return_value = dvs
+        mock_get_dy_pro.return_value = dvs_config
+        port_group = network_util.get_portgroup_mor_by_net_id(
+            self.session, dvs_name, port_group_name, net_id)
+        self.assertEqual(port_group.value, pg2.value)
+
+    @mock.patch.object(vim_util, 'get_properties_for_a_collection_of_objects')
+    @mock.patch.object(network_util, "get_dvs_mor_by_name")
+    @mock.patch.object(vim_util, "get_dynamic_property")
+    def test_get_portgroup_mor_by_net_id_with_net_name(self, mock_get_dy_pro,
+                                                       mock_get_dvs_mor,
+                                                       mock_get_pro):
+        dvs_name = "test_dvs"
+        port_group_name = fake_api.Constants.PORTGROUP_NAME
+        net_id = "net"
+        dvs = fake_api.DataObject()
+        dvs_config = fake_api.DataObject()
+        port_group_mors = []
+        pg2 = fake_api.create_network()
+        pg2.set("summary.name", net_id)
+        port_group_mors.append(pg2)
+        dvs_config.ManagedObjectReference = port_group_mors
+        mock_get_pro.return_value = port_group_mors
+        mock_get_dvs_mor.return_value = dvs
+        mock_get_dy_pro.return_value = dvs_config
+        port_group = network_util.get_portgroup_mor_by_net_id(
+            self.session, dvs_name, port_group_name, net_id)
+        self.assertEqual(port_group.value, pg2.value)
+
+    @mock.patch.object(vim_util, 'get_properties_for_a_collection_of_objects')
+    @mock.patch.object(network_util, "get_dvs_mor_by_name")
+    @mock.patch.object(vim_util, "get_dynamic_property")
+    def test_get_portgroup_mor_by_net_id_not_found(
+            self, mock_get_dy_pro, mock_get_dvs_mor, mock_get_pro):
+        dvs_name = "test_dvs"
+        port_group_name = fake_api.Constants.PORTGROUP_NAME
+        net_id = "net"
+        dvs = fake_api.DataObject()
+        dvs_config = fake_api.DataObject()
+        port_group_mors = []
+        pg1 = fake_api.create_network()
+        pg1.set("summary.name", "pg1")
+        port_group_mors.append(pg1)
+        dvs_config.ManagedObjectReference = port_group_mors
+        mock_get_pro.return_value = port_group_mors
+        mock_get_dvs_mor.return_value = dvs
+        mock_get_dy_pro.return_value = dvs_config
+        port_group = network_util.get_portgroup_mor_by_net_id(
+            self.session, dvs_name, port_group_name, net_id)
+        self.assertIsNone(port_group)
+
     def test_get_all_portgroup_mors_for_switch(self):
         port_group_mors = network_util.get_all_portgroup_mors_for_switch(
             self.session, "test_dvs")
@@ -192,11 +260,12 @@ class TestVmwareNetworkUtil(base.TestCase):
                 "test_invalid_dvs",
                 fake_api.Constants.PORTGROUP_NAME), constants.DEAD_VLAN)
 
-    @mock.patch.object(network_util, "get_portgroup_mor_by_name")
+    @mock.patch.object(network_util, "get_portgroup_mor_by_net_id")
     @mock.patch.object(vim_util, "get_dynamic_property")
     def test_create_port_group_existing(self, mock_get_prop, mock_mor):
         dvs_name = "test_dvs"
         pg_name = fake_api.Constants.PORTGROUP_NAME
+        net_id = "net"
         vlanid = "100"
         pg = fake_api.DataObject()
         defaultPortConfig = fake_api.DataObject()
@@ -208,15 +277,16 @@ class TestVmwareNetworkUtil(base.TestCase):
         mock_mor.return_value = pg
         mock_get_prop.return_value = port_group_config
         network_util.create_port_group(self.session, dvs_name, pg_name,
-                                       vlanid)
+                                       net_id, vlanid)
         self.assertTrue(mock_get_prop.called)
 
-    @mock.patch.object(network_util, "get_portgroup_mor_by_name")
+    @mock.patch.object(network_util, "get_portgroup_mor_by_net_id")
     @mock.patch.object(vim_util, "get_dynamic_property")
     def test_create_port_group_with_invalid_vlanid(self, mock_get_dy_prop,
                                                    mock_mor):
         dvs_name = "test_dvs"
         pg_name = fake_api.Constants.PORTGROUP_NAME
+        net_id = "net"
         vlanid = "100"
         pg = fake_api.DataObject()
         defaultPortConfig = fake_api.DataObject()
@@ -230,15 +300,16 @@ class TestVmwareNetworkUtil(base.TestCase):
         raised = self.assertRaises(error_util.RunTimeError,
                                    network_util.create_port_group,
                                    self.session,
-                                   dvs_name, pg_name, vlanid)
+                                   dvs_name, pg_name, net_id, vlanid)
         self.assertTrue(raised)
 
-    @mock.patch.object(network_util, "get_portgroup_mor_by_name")
+    @mock.patch.object(network_util, "get_portgroup_mor_by_net_id")
     @mock.patch.object(vim_util, "get_dynamic_property")
     def test_create_port_group_err_status(self, mock_get_dy_prop,
                                           mock_mor):
         dvs_name = "test_dvs"
         pg_name = fake_api.Constants.PORTGROUP_NAME
+        net_id = "net"
         vlanid = "5001"
         task_info = fake_api.DataObject()
         task_info.name = "AddDVPortgroup_Task"
@@ -250,7 +321,7 @@ class TestVmwareNetworkUtil(base.TestCase):
         raised = self.assertRaises(error_util.RunTimeError,
                                    network_util.create_port_group,
                                    self.session, dvs_name,
-                                   pg_name, vlanid)
+                                   pg_name, net_id, vlanid)
         self.assertTrue(raised)
 
     def test_wait_until_dvs_portgroup_available(self):
