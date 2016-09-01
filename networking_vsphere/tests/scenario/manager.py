@@ -31,6 +31,7 @@ from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
 from tempest.common import waiters
+from tempest import exceptions
 from tempest.lib.common import rest_client
 from tempest.lib.common import ssh
 from tempest.lib.common.utils import data_utils
@@ -351,7 +352,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
             server_status = body['server']['status']
             if server_status == 'ERROR' and not ignore_error:
-                raise lib_exc.BuildErrorException(server_id=server_id)
+                raise exceptions.BuildErrorException(server_id=server_id)
 
             time.sleep(build_interval)
 
@@ -400,10 +401,10 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 )
             if (server_status == 'ERROR') and raise_on_error:
                 if 'fault' in body:
-                    raise lib_exc.BuildErrorException(body['fault'],
-                                                      server_id=server_id)
+                    raise exceptions.BuildErrorException(body['fault'],
+                                                         server_id=server_id)
                 else:
-                    raise lib_exc.BuildErrorException(server_id=server_id)
+                    raise exceptions.BuildErrorException(server_id=server_id)
 
             timed_out = int(time.time()) - start_time >= timeout
 
