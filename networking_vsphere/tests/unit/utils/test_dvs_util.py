@@ -652,7 +652,7 @@ class UtilTestCase(base.BaseTestCase):
 
     def test_empty_map_if_config_network_maps_is_empty(self):
         CONF.set_override('network_maps', [], 'ML2_VMWARE')
-        self.assertDictEqual(
+        self.assertEqual(
             {},
             dvs_util.create_network_map_from_config(CONF.ML2_VMWARE))
 
