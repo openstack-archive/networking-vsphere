@@ -141,7 +141,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
 
     @utils.require_state(state=[constants.DRIVER_READY,
                                 constants.DRIVER_RUNNING])
-    def create_network(self, network, virtual_switch):
+    def create_network(self, network, net_id, virtual_switch):
         LOG.info(_LI("Creating portgroup %(nm)s with vlan id %(vid)s "
                      "on virtual switch %(sw)s."),
                  {'nm': network.name, 'vid': network.config.vlan.vlanIds[0],
@@ -149,6 +149,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
         network_util.create_port_group(self.session,
                                        dvs_name=virtual_switch.name,
                                        pg_name=network.name,
+                                       net_id=net_id,
                                        vlan_id=network.config.vlan.vlanIds[0])
 
     @utils.require_state(state=[constants.DRIVER_READY,
