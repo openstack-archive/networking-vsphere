@@ -1440,7 +1440,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                      network.name)
             while retry_count > 0:
                 try:
-                    self.net_mgr.get_driver().create_port(network, port, None)
+                    self.net_mgr.get_driver().create_port(network, net_id,
+                                                          port, None)
                     break
                 except Exception as e:
                     exception_str = str(e)

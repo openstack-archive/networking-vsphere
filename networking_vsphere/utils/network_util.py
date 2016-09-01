@@ -107,6 +107,21 @@ def get_portgroup_mor_by_names(session, dvs_name, network_id, cluster_id):
     return None
 
 
+def get_portgroup_mor_by_net_id(session, dvs_name, port_group_name, net_id):
+    """Get Portgroup mor by Portgroup name."""
+    port_group_mors = get_all_portgroup_mors_for_switch(session, dvs_name)
+    if port_group_mors:
+        port_groups = session._call_method(
+            vim_util, "get_properties_for_a_collection_of_objects",
+            "DistributedVirtualPortgroup", port_group_mors, ["summary.name"])
+        for port_group in port_groups:
+            if port_group.propSet[0].val == port_group_name:
+                return port_group.obj
+            elif port_group.propSet[0].val == net_id:
+                return port_group.obj
+    return None
+
+
 def _get_add_vswitch_port_group_spec(client_factory,
                                      port_group_name, vlan_id):
     """Builds DVS port group configuration spec."""
@@ -189,21 +204,22 @@ def wait_until_dvs_portgroup_available(session, vm_ref, pg_name, wait_time):
     return False
 
 
-def create_port_group(session, dvs_name, pg_name, vlan_id):
+def create_port_group(session, dvs_name, pg_name, net_id, vlan_id):
     """Creates a Portgroup on DVS with a vlan id."""
-    port_group_mor = get_portgroup_mor_by_name(session, dvs_name, pg_name)
+    port_group_mor = get_portgroup_mor_by_net_id(session, dvs_name, pg_name,
+                                                 net_id)
     if port_group_mor:
         port_group_config = session._call_method(
             vim_util, "get_dynamic_property", port_group_mor,
             "DistributedVirtualPortgroup", "config")
         if vlan_id == port_group_config.defaultPortConfig.vlan.vlanId:
             LOG.debug("Portgroup %(pg)s with vlan id %(vid)s already exists",
-                      {'pg': pg_name, 'vid': vlan_id})
+                      {'pg': net_id, 'vid': vlan_id})
             return
         else:
             LOG.info(_LI("Portgroup %(pg)s already exists "
                          "but with vlan id %(vid)s"),
-                     {'pg': pg_name,
+                     {'pg': net_id,
                       'vid': port_group_config.defaultPortConfig.vlan.vlanId})
             raise error_util.RunTimeError("Inconsistent vlan id for portgroup"
                                           " %s", pg_name)
