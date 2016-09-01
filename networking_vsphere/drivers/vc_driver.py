@@ -438,7 +438,7 @@ class VCNetworkDriver(driver.NetworkDriver):
 
     @utils.require_state(state=[constants.DRIVER_READY,
                          constants.DRIVER_RUNNING])
-    def create_port(self, network, port, virtual_nic):
+    def create_port(self, network, net_id, port, virtual_nic):
         device_id = port.vm_id
         cluster_mor, cluster_path, switch = self._find_cluster_switch_for_vm(
             device_id)
@@ -453,7 +453,7 @@ class VCNetworkDriver(driver.NetworkDriver):
         for host_mor in host_mors:
             hosts.append(model.Host(key=host_mor.value))
         vswitch = model.VirtualSwitch(switch, hosts=hosts)
-        self.create_network(network, vswitch)
+        self.create_network(network, net_id, vswitch)
 
     @utils.require_state(state=[constants.DRIVER_READY,
                          constants.DRIVER_RUNNING])

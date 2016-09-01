@@ -58,10 +58,11 @@ class TestDvsDriver(base.TestCase):
         network = model.Network(
             name="net-1234", network_type=p_const.TYPE_VLAN,
             config=network_config)
+        net_id = "net"
         vswitch = model.VirtualSwitch("test_dvs", hosts=None)
         with mock.patch.object(network_util, "get_portgroup_mor_by_name",
                                return_value=None):
-            self.vc_driver.create_network(network, vswitch)
+            self.vc_driver.create_network(network, net_id, vswitch)
             self.assertTrue(fake_vmware_api.is_task_done(
                 "AddDVPortgroup_Task"))
 
