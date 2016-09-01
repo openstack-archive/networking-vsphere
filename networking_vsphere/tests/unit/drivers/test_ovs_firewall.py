@@ -410,7 +410,7 @@ class TestOVSFirewallDriver(base.TestCase):
                                   ) as mock_del_flows:
             self.ovs_firewall._remove_all_flows(self.mock_br, "123")
             self.assertTrue(mock_get_vlan.called)
-            self.assertEqual(4, mock_del_flows.call_count)
+            self.assertEqual(5, mock_del_flows.call_count)
 
     def test_remove_all_flows(self):
         self.ovs_firewall.filtered_ports["123"] = fake_res_port
