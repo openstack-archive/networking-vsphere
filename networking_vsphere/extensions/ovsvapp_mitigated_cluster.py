@@ -19,6 +19,8 @@ from neutron.api import extensions
 from neutron.api.v2 import attributes as attr
 from neutron.api.v2 import resource_helper
 
+from neutron_lib.api import converters
+
 from networking_vsphere.common import constants
 
 RESOURCE_ATTRIBUTE_MAP = {
@@ -33,10 +35,10 @@ RESOURCE_ATTRIBUTE_MAP = {
                        'is_visible': True, 'default': ''},
         'being_mitigated': {'allow_post': True, 'allow_put': True,
                             'is_visible': True, 'default': False,
-                            'convert_to': attr.convert_to_boolean},
+                            'convert_to': converters.convert_to_boolean},
         'threshold_reached': {'allow_post': True, 'allow_put': True,
                               'is_visible': True, 'default': False,
-                              'convert_to': attr.convert_to_boolean},
+                              'convert_to': converters.convert_to_boolean},
     }
 }
 
