@@ -281,7 +281,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if self.sec_br is not None:
             flows = self.sec_br.dump_flows_for(
                 table=0, dl_dst=mac, tp_src=67, tp_dst=68)
-            if flows:
+            if mac in flows:
                 return True
         return False
 
