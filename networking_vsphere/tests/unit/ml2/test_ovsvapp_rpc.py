@@ -144,6 +144,59 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
             self.assertEqual(1, mock_log_info.call_count)
             mock_get_ports_from_devices.assert_called_with('fake_context',
                                                            set([FAKE_PORT_ID]))
+            kall = ovsvapp_db.call_args
+            args = kall[0]
+            self.assertEqual(1, len(args))
+            self.assertTrue(mock_update_port_status.called)
+            self.assertTrue(mock_sg_info_for_esx_ports.called)
+            self.assertTrue(mock_update_port_binding.called)
+
+    @mock.patch('networking_vsphere.ml2.ovsvapp_rpc.ovsvapp_db.get_local_vlan')
+    def test_get_ports_for_device_ACTIVE_PORTS(self, ovsvapp_db):
+        kwargs = {'agent_id': FAKE_AGENT_ID,
+                  'host': FAKE_HOST,
+                  'device': {'id': 1,
+                             'cluster_id': FAKE_CLUSTER_ID,
+                             'vcenter': FAKE_VCENTER}}
+
+        port = collections.defaultdict(lambda: 'fake')
+        network = collections.defaultdict(lambda: 'fake')
+        port['id'] = FAKE_PORT_ID
+        port['status'] = 'ACTIVE'
+        port['admin_state_up'] = True
+        port['security_groups'] = ['fake-sg1', 'fake-sg2']
+
+        ovsvapp_db.return_value = 1234
+        with mock.patch.object(self.plugin,
+                               'get_ports',
+                               return_value=[port]), \
+                mock.patch.object(self.plugin,
+                                  'get_network',
+                                  return_value=network), \
+                mock.patch.object(self.ovsvapp_callbacks.notifier,
+                                  'device_create') as mock_device_create, \
+                mock.patch.object(ovsvapp_rpc.LOG, 'info'
+                                  ) as mock_log_info, \
+                mock.patch.object(self.plugin, 'get_ports_from_devices'
+                                  ) as mock_get_ports_from_devices, \
+                mock.patch.object(self.plugin, 'update_port_status'
+                                  ) as mock_update_port_status, \
+                mock.patch.object(self.ovsvapp_callbacks.sg_rpc,
+                                  'security_group_info_for_esx_ports'
+                                  ) as mock_sg_info_for_esx_ports, \
+                mock.patch.object(self.ovsvapp_callbacks,
+                                  'update_port_binding',
+                                  return_value=[port]
+                                  ) as mock_update_port_binding:
+            self.assertTrue(self.ovsvapp_callbacks.get_ports_for_device(
+                            'fake_context', **kwargs))
+            self.assertTrue(mock_device_create.called)
+            self.assertEqual(1, mock_log_info.call_count)
+            mock_get_ports_from_devices.assert_called_with('fake_context',
+                                                           set([FAKE_PORT_ID]))
+            kall = ovsvapp_db.call_args
+            args = kall[0]
+            self.assertEqual(2, len(args))
             self.assertTrue(mock_update_port_status.called)
             self.assertTrue(mock_sg_info_for_esx_ports.called)
             self.assertTrue(mock_update_port_binding.called)

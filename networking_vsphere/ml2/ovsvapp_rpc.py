@@ -188,7 +188,11 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                                  'vcenter_id': vcenter_id,
                                  'cluster_id': cluster_id,
                                  'network_id': port['network_id']}
-                    lvid = ovsvapp_db.get_local_vlan(port_info)
+                    lvid = None
+                    if port['status'] != common_const.PORT_STATUS_ACTIVE:
+                        lvid = ovsvapp_db.get_local_vlan(port_info)
+                    else:
+                        lvid = ovsvapp_db.get_local_vlan(port_info, False)
                     if lvid:
                         port['lvid'] = lvid
                     else:
