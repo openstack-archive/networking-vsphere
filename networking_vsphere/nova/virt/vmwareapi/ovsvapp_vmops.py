@@ -127,8 +127,9 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
                           vi.datastore, instance.uuid, vi.ii.adapter_type)
 
         if configdrive.required_by(instance):
-            self._configure_config_drive(instance, vm_ref, vi.dc_info,
-                                         vi.datastore, injected_files,
-                                         admin_password, network_info)
+            self._configure_config_drive(context, instance, vm_ref,
+                                         vi.dc_info, vi.datastore,
+                                         injected_files, admin_password,
+                                         network_info)
         if power_on:
             vm_util.power_on_instance(self._session, instance, vm_ref=vm_ref)
