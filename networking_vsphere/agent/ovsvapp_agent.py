@@ -908,6 +908,9 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.vlan_manager.mapping = {}
             self.ovsvapp_mitigation_required = False
             self.mitigate_ovs_restart()
+        # Check if there are any pending port bindings to be made.
+        if self.ports_to_bind:
+            self._update_port_bindings()
         # Case where devices_to_filter is having some entries.
         if self.refresh_firewall_required:
             self._update_firewall()
@@ -922,9 +925,6 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.info(_LI("Finished refresh_port_filters."))
             if self.monitor_log:
                 self.monitor_log.info(_LI("ovs: ok"))
-        # Check if there are any pending port bindings to be made.
-        if self.ports_to_bind:
-            self._update_port_bindings()
 
     def check_for_updates(self):
         while self.run_check_for_updates:
