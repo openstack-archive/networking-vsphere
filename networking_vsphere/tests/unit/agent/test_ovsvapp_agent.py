@@ -45,6 +45,8 @@ FAKE_CLUSTER_MOID = 'fake_cluster_moid'
 FAKE_CLUSTER_1 = 'fake_cluster_1'
 FAKE_CLUSTER_2 = 'fake_cluster_2'
 FAKE_VCENTER = 'fake_vcenter'
+FAKE_MAC_1 = 'fake_mac_1'
+FAKE_MAC_2 = 'fake_mac_2'
 FAKE_PORT_1 = 'fake_port_1'
 FAKE_PORT_2 = 'fake_port_2'
 FAKE_PORT_3 = 'fake_port_3'
@@ -1381,15 +1383,16 @@ class TestOVSvAppAgent(base.TestCase):
 
     def test_process_event_vm_create_nics_non_host(self):
         self.agent.esx_hostname = FAKE_HOST_2
-        vm_port1 = SamplePort(FAKE_PORT_1)
-        vm_port2 = SamplePort(FAKE_PORT_2)
+        vm_port1 = SamplePort(FAKE_PORT_1, FAKE_MAC_1)
+        vm_port2 = SamplePort(FAKE_PORT_2, FAKE_MAC_2)
         vm = VM(FAKE_VM, ([vm_port1, vm_port2]))
         event = SampleEvent(ovsvapp_const.VM_CREATED,
                             FAKE_HOST_1, FAKE_CLUSTER_MOID, vm)
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         self.agent.sec_br = mock.Mock()
         with mock.patch.object(self.agent.sec_br, 'dump_flows_for',
-                               return_value='mock_flow') as mock_dump_flows:
+                               return_value=FAKE_MAC_1 + ',' + FAKE_MAC_2
+                               ) as mock_dump_flows:
             self.agent.process_event(event)
             self.assertTrue(mock_dump_flows.called)
         for vnic in vm.vnics:
@@ -1399,15 +1402,16 @@ class TestOVSvAppAgent(base.TestCase):
 
     def test_process_event_vm_create_nics_host(self):
         self.agent.esx_hostname = FAKE_HOST_1
-        vm_port1 = SamplePort(FAKE_PORT_1)
-        vm_port2 = SamplePort(FAKE_PORT_2)
+        vm_port1 = SamplePort(FAKE_PORT_1, FAKE_MAC_1)
+        vm_port2 = SamplePort(FAKE_PORT_2, FAKE_MAC_2)
         vm = VM(FAKE_VM, ([vm_port1, vm_port2]))
         event = SampleEvent(ovsvapp_const.VM_CREATED,
                             FAKE_HOST_1, FAKE_CLUSTER_MOID, vm)
         self.agent.state = ovsvapp_const.AGENT_RUNNING
         self.agent.sec_br = mock.Mock()
         with mock.patch.object(self.agent.sec_br, 'dump_flows_for',
-                               return_value='mock_flow') as mock_dump_flows:
+                               return_value=FAKE_MAC_1 + ',' + FAKE_MAC_2
+                               ) as mock_dump_flows:
             self.agent.process_event(event)
             self.assertTrue(mock_dump_flows.called)
         for vnic in vm.vnics:
