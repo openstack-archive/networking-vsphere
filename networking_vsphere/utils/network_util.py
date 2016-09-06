@@ -91,6 +91,22 @@ def get_portgroup_mor_by_name(session, dvs_name, port_group_name):
     return None
 
 
+def get_portgroup_mor_by_names(session, dvs_name, network_id, cluster_id):
+    """Get Portgroup mor by Portgroup names."""
+    port_group_mors = get_all_portgroup_mors_for_switch(session, dvs_name)
+    if port_group_mors:
+        port_groups = session._call_method(
+            vim_util, "get_properties_for_a_collection_of_objects",
+            "DistributedVirtualPortgroup", port_group_mors, ["summary.name"])
+        pg_name = str(network_id) + "-" + cluster_id
+        for port_group in port_groups:
+            if port_group.propSet[0].val == pg_name:
+                return pg_name
+            elif port_group.propSet[0].val == network_id:
+                return network_id
+    return None
+
+
 def _get_add_vswitch_port_group_spec(client_factory,
                                      port_group_name, vlan_id):
     """Builds DVS port group configuration spec."""
