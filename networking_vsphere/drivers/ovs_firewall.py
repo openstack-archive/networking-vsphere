@@ -23,7 +23,7 @@ from neutron.agent.common import ovs_lib
 from neutron.agent import firewall
 from neutron.common import constants
 
-from networking_vsphere._i18n import _LE, _LW
+from networking_vsphere._i18n import _LI, _LE, _LW
 from networking_vsphere.common import constants as ovsvapp_const
 
 LOG = log.getLogger(__name__)
@@ -367,30 +367,61 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         elif ethertype == constants.IPv6:
             return ['ipv6']
 
-    def _add_flows_to_sec_br(self, sec_br, port, flow, direction):
+    def _do_flows_action_on_sec_br(self, sec_br, port, flow,
+                                   direction, flows_action):
         if direction == EGRESS_DIRECTION:
             for ip in port['fixed_ips']:
-                sec_br.add_flow(priority=ovsvapp_const.SG_DEFAULT_PRI,
-                                table=ovsvapp_const.SG_EGRESS_TABLE_ID,
-                                dl_src=flow['dl_src'],
-                                dl_vlan=flow['dl_vlan'],
-                                proto=flow['proto'],
-                                nw_src=ip,
-                                in_port=self.phy_ofport,
-                                actions="resubmit(,%s)"
-                                % ovsvapp_const.SG_LEARN_TABLE_ID)
+                if flows_action == 'add':
+                    sec_br.add_flow(priority=ovsvapp_const.SG_DEFAULT_PRI,
+                                    table=ovsvapp_const.SG_EGRESS_TABLE_ID,
+                                    dl_src=flow['dl_src'],
+                                    dl_vlan=flow['dl_vlan'],
+                                    proto=flow['proto'],
+                                    nw_src=ip,
+                                    in_port=self.phy_ofport,
+                                    actions="resubmit(,%s)"
+                                    % ovsvapp_const.SG_LEARN_TABLE_ID)
+#                elif flows_action =='del':
+#                    sec_br.delete_flow(table=ovsvapp_const.SG_EGRESS_TABLE_ID,
+#                                    dl_src=flow['dl_src'],
+#                                    dl_vlan=flow['dl_vlan'],
+#                                    proto=flow['proto'],
+#                                    nw_src=ip,
+#                                    in_port=self.phy_ofport,
+#                                    actions="resubmit(,%s)"
+#                                    % ovsvapp_const.SG_LEARN_TABLE_ID)
                 flow['nw_src'] = ip
                 flow['table'] = ovsvapp_const.SG_EGRESS_TABLE_ID
-                LOG.debug("OVSF adding flow: %s", flow)
-                sec_br.add_flow(**flow)
+                LOG.debug("OVSF %s flow: %s", flows_action, flow)
+                if flows_action == 'add':
+                    sec_br.add_flow(**flow)
+                elif flows_action == 'del':
+                    if flow.get('priority'):
+                        del flow['priority']
+                    if flow.get('actions'):
+                        del flow['actions']
+                    if flow.get('cookie'):
+                        del flow['cookie']
+                    sec_br.delete_flows(**flow)
         elif direction == INGRESS_DIRECTION:
                 flow['table'] = ovsvapp_const.SG_DEFAULT_TABLE_ID
-                LOG.debug("OVSF adding flow: %s", flow)
-                sec_br.add_flow(**flow)
+                if flows_action == 'add':
+                    LOG.debug("OVSF adding flow: %s", flow)
+                    sec_br.add_flow(**flow)
+                elif flows_action == 'del':
+                    if flow.get('priority'):
+                        del flow['priority']
+                    if flow.get('actions'):
+                        del flow['actions']
+                    if flow.get('cookie'):
+                        del flow['cookie']
+                    LOG.debug("OVSF deleting flow: %s", flow)
+                    sec_br.delete_flows(**flow)
 
-    def _add_flow_with_range(self, sec_br, port, flow, direction,
-                             dest_port_min=None, dest_port_max=None,
-                             src_port_min=None, src_port_max=None):
+    def _do_flows_action_with_range(self, sec_br, port, flow, direction,
+                                    dest_port_min=None, dest_port_max=None,
+                                    src_port_min=None, src_port_max=None,
+                                    flow_action='add'):
         if ((dest_port_min is None and dest_port_max is None) or
                 (dest_port_min == 1 and dest_port_max == 65535)):
             dest_port_min = -1
@@ -407,14 +438,29 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 flow["tp_dst"] = dest_port
             if src_port >= 0:
                 flow["tp_src"] = src_port
-            self._add_flows_to_sec_br(sec_br, port, flow, direction)
+            self._do_flows_action_on_sec_br(sec_br, port, flow, direction,
+                                            flow_action)
 
-    def _add_flows(self, sec_br, port, cookie, for_provider=False):
+    def _add_flow_with_range(self, sec_br, port, flow, direction,
+                             dest_port_min=None, dest_port_max=None,
+                             src_port_min=None, src_port_max=None):
+        self._do_flows_action_with_range(sec_br, port, flow, direction,
+                                         dest_port_min,
+                                         dest_port_max,
+                                         src_port_min,
+                                         src_port_max,
+                                         flow_action='add')
+
+    def _do_flows_action(self, sec_br, port, cookie, for_provider=False,
+                         flow_action='add'):
         egress_action = 'normal'
         ingress_action = 'output:%s' % self.phy_ofport
 
         if not for_provider:
-            rules = port["security_group_rules"]
+            if flow_action == 'add':
+                rules = port["security_group_rules"]
+            else:
+                rules = port["security_group_rules_deleted"]
         else:
             rules = port["sg_provider_rules"]
 
@@ -467,9 +513,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 else:
                     table_id = ovsvapp_const.SG_UDP_TABLE_ID
                 flow["actions"] = ("resubmit(,%s),%s" % (table_id, action))
-                self._add_flow_with_range(sec_br, port, flow, direction,
-                                          dest_port_min, dest_port_max,
-                                          src_port_min, src_port_max)
+                self._do_flows_action_with_range(sec_br, port, flow, direction,
+                                                 dest_port_min, dest_port_max,
+                                                 src_port_min, src_port_max,
+                                                 flow_action)
                 # Since we added the required flows in the above method
                 # we just proceed to the next sg rule.
                 continue
@@ -484,7 +531,20 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 table_id = ovsvapp_const.SG_IP_TABLE_ID
 
             flow["actions"] = ("resubmit(,%s),%s" % (table_id, action))
-            self._add_flows_to_sec_br(sec_br, port, flow, direction)
+            self._do_flows_action_on_sec_br(sec_br, port, flow, direction,
+                                            flow_action)
+
+    def _add_flows(self, sec_br, port, cookie, for_provider=False,
+                   flow_action='add'):
+        self._do_flows_action(sec_br, port, cookie, for_provider, flow_action)
+
+    def _add_flows_to_sec_br(self, sec_br, port, flow, direction):
+        self._do_flows_action_on_sec_br(sec_br, port, flow,
+                                        direction, flows_action='add')
+
+    def _remove_flows(self, sec_br, port, cookie, for_provider=False,
+                      flow_action='del'):
+        self._do_flows_action(sec_br, port, cookie, for_provider, flow_action)
 
     def prepare_port_filter(self, port):
         """Method to add OVS rules for a newly created VM port."""
@@ -506,7 +566,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         except Exception:
             LOG.exception(_LE("Unable to add flows for %s."), port['id'])
 
-    def _remove_flows(self, sec_br, port_id, del_provider_rules=False):
+    def _remove_all_flows(self, sec_br, port_id, del_provider_rules=False):
         """Remove all flows for a port."""
         LOG.debug("OVSF Removing flows start for port: %s.", port_id)
         try:
@@ -519,7 +579,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             vlan = self._get_port_vlan(port_id)
             if 'mac_address' not in port or not vlan:
                 LOG.debug("Invalid mac address or vlan for port "
-                          "%s. Returning from _remove_flows.", port_id)
+                          "%s. Returning from _remove_all_flows.", port_id)
                 return
             sec_br.delete_flows(table=ovsvapp_const.SG_LEARN_TABLE_ID,
                                 dl_src=port['mac_address'],
@@ -553,10 +613,15 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                                   "which is not in filtered %s.", port_id)
                         continue
                     if not remove_port:
-                        self._remove_flows(deferred_sec_br, port_id)
+                        self._remove_all_flows(deferred_sec_br, port_id)
                     else:
-                        self._remove_flows(deferred_sec_br, port_id, True)
-                        self.provider_port_cache.remove(port_id)
+                        self._remove_all_flows(deferred_sec_br, port_id, True)
+                        if self.provider_port_cache.__contains__(port_id):
+                            self.provider_port_cache.remove(port_id)
+                        else:
+                            LOG.info(_LI("KeyError:Remove requested for "
+                                         "port_id not present: %s"),
+                                     self.provider_port_cache)
                         self.filtered_ports.pop(port_id, None)
                 except Exception:
                     LOG.exception(_LE("Unable to delete flows for"
@@ -575,14 +640,17 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             with self.sg_br.deferred(full_ordered=True, order=(
                 'del', 'mod', 'add')) as deferred_br:
                 if port['id'] not in self.provider_port_cache:
-                    self._remove_flows(deferred_br, port['id'], True)
+                    self._remove_all_flows(deferred_br, port['id'], True)
                     self._add_flows(deferred_br, port,
                                     port_provider_cookie, True)
                     self.provider_port_cache.add(port['id'])
-                else:
-                    self._remove_flows(deferred_br, port['id'])
+#                else:
+#                    self._remove_all_flows(deferred_br, port['id'])
                 self._setup_aap_flows(deferred_br, port)
                 self._add_flows(deferred_br, port, port_cookie)
+                if 'security_group_rules_deleted' in port:
+                    self._remove_flows(deferred_br, port, port_cookie)
+
             self.filtered_ports[port['id']] = self._get_compact_port(port)
         except Exception:
             LOG.exception(_LE("Unable to update flows for %s."), port['id'])
