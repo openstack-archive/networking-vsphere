@@ -102,6 +102,7 @@ class OVSvAppSecurityGroupServerRpcMixin(
                 'security_group_id': rule_in_db['security_group_id'],
                 'direction': direction,
                 'ethertype': rule_in_db['ethertype'],
+                'id': rule_in_db['id']
             }
             for key in ('protocol', 'port_range_min', 'port_range_max',
                         'remote_ip_prefix', 'remote_group_id'):

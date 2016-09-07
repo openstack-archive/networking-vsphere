@@ -53,6 +53,7 @@ CONF = cfg.CONF
 UINT64_BITMASK = (1 << 64) - 1
 MAX_RETRY_COUNT = 3
 RETRY_DELAY = 2
+REFRESH_INTERVAL_DELAY = 10
 
 # To ensure thread safety for the shared variables
 # ports_dict, devices_to_filter,
@@ -102,6 +103,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.ports_to_bind = set()
         self.devices_up_list = list()
         self.devices_down_list = list()
+        self.refresh_devices_to_filter = {}
         self.run_update_devices_loop = True
         self.ovsvapp_mitigation_required = False
         self.refresh_firewall_required = False
@@ -622,6 +624,32 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     status = self._process_port(port)
                     if status:
                         device_list.add(port['id'])
+            if len(ports) != len(devices):
+                # Remove the stale ports from update port bindings list.
+                port_ids = set([port['port_id'] for port in ports])
+                pending_ports = set(devices) - port_ids
+                time.sleep(2)
+                pports = self.ovsvapp_rpc.get_ports_details_list(
+                    self.context, pending_ports, self.agent_id,
+                    self.vcenter_id, self.cluster_id)
+                for port in pports:
+                    if port and 'port_id' in port.keys():
+                        port['id'] = port['port_id']
+                        status = self._process_port(port)
+                        if status:
+                            device_list.add(port['id'])
+                # try refresh after 10 secs
+                if len(pports) != len(pending_ports):
+                    port_ids = set([port['port_id'] for port in pports])
+                    stale_ports = set(pending_ports) - port_ids
+                    t1 = time.time()
+                    for port in stale_ports:
+                        if self.refresh_devices_to_filter.get(port) is None:
+                            self.refresh_devices_to_filter[port] = t1
+                            devices.remove(port)
+                            self.refresh_firewall_required = True
+                        else:
+                            self.refresh_devices_to_filter.pop(port)
             if device_list:
                 LOG.info(_LI("Going to update firewall for ports: "
                              "%s."), device_list)
@@ -696,6 +724,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.sg_agent.refresh_firewall(device_list)
             if self.monitor_log:
                 self.monitor_log.info(_("ovs: ok"))
+        t1 = time.time()
+        for port, ptime in six.iteritems(self.refresh_devices_to_filter):
+            if int(t1 - ptime) > REFRESH_INTERVAL_DELAY:
+                uncached_devices.add(port)
+            else:
+                self.refresh_firewall_required = True
         if uncached_devices:
             self._process_uncached_devices(uncached_devices)
 
