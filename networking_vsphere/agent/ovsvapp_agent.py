@@ -53,6 +53,8 @@ CONF = cfg.CONF
 UINT64_BITMASK = (1 << 64) - 1
 MAX_RETRY_COUNT = 3
 RETRY_DELAY = 2
+REFRESH_INTERVAL_DELAY = 10
+RETRY_COUNT = 2
 
 # To ensure thread safety for the shared variables
 # ports_dict, devices_to_filter,
@@ -79,7 +81,7 @@ class PortInfo(object):
 class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     """OVSvApp Agent."""
-
+    
     def __init__(self):
         agent.Agent.__init__(self)
         self.conf = cfg.CONF
@@ -102,6 +104,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.ports_to_bind = set()
         self.devices_up_list = list()
         self.devices_down_list = list()
+        self.refresh_devices_to_filter = {}
         self.run_update_devices_loop = True
         self.ovsvapp_mitigation_required = False
         self.refresh_firewall_required = False
@@ -639,28 +642,59 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def _process_uncached_devices_sublist(self, devices):
         device_list = set()
+        devices_ref = devices
         try:
             LOG.info(_LI("RPC get_ports_details_list is called with "
                          "port_ids: %s."), devices)
             if self.monitor_log:
                 self.monitor_log.warning(_("ovs: pending"))
-            ports = self.ovsvapp_rpc.get_ports_details_list(
-                self.context, devices, self.agent_id, self.vcenter_id,
-                self.cluster_id)
-            for port in ports:
-                if port and 'port_id' in port.keys():
-                    port['id'] = port['port_id']
-                    status = self._process_port(port)
-                    if status:
-                        device_list.add(port['id'])
+            cnt = 0
+            pending_ports = devices
+            processed_ports = []
+            while cnt < RETRY_COUNT:
+                ports = self.ovsvapp_rpc.get_ports_details_list(
+                    self.context, pending_ports, self.agent_id,
+                    self.vcenter_id, self.cluster_id)
+                for port in ports:
+                    if port and 'port_id' in port.keys():
+                        port['id'] = port['port_id']
+                        status = self._process_port(port)
+                        processed_ports.append(port)
+                        if status:
+                            device_list.add(port['id'])
+                if cnt == 0:
+                    if len(ports) != len(pending_ports):
+                        port_ids = set([port['port_id'] for port in ports])
+                        pending_ports = set(devices) - port_ids
+                    else:
+                        break
+                cnt += 1
+                time.sleep(2)
+
+            devices = devices_ref
+            # After retry 2 secs later, put remaining pending ports to retry
+            # 10 seconds later
+            if len(ports) != len(pending_ports):
+                port_ids = set([port['port_id'] for port in ports])
+                stale_ports = set(pending_ports) - port_ids
+                t1 = time.time()
+                for port in stale_ports:
+                    if self.refresh_devices_to_filter.get(port) is None:
+                        self.refresh_devices_to_filter[port] = t1
+                        # Ensure port is not blocked now.
+                        devices.remove(port)
+                        self.refresh_firewall_required = True
+                    else:
+                        self.refresh_devices_to_filter.pop(port)
             if device_list:
                 LOG.info(_LI("Going to update firewall for ports: "
                              "%s."), device_list)
                 self.sg_agent.refresh_firewall(device_list)
-            # Stale VM's ports handling.
-            if len(ports) != len(devices):
+            # Stale VM's ports handling. All failed ports after 2 and 10
+            # seconds of retry
+            if len(processed_ports) != len(devices):
                 # Remove the stale ports from update port bindings list.
-                port_ids = set([port['port_id'] for port in ports])
+                port_ids = set([port['port_id'] for port in processed_ports])
                 stale_ports = set(devices) - port_ids
                 LOG.debug("Stale ports: %s.", stale_ports)
                 self.ports_to_bind = self.ports_to_bind - stale_ports
@@ -727,6 +761,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.sg_agent.refresh_firewall(device_list)
             if self.monitor_log:
                 self.monitor_log.info(_("ovs: ok"))
+        t1 = time.time()
+        for port, ptime in six.iteritems(self.refresh_devices_to_filter):
+            if int(t1 - ptime) > REFRESH_INTERVAL_DELAY:
+                uncached_devices.add(port)
+            else:
+                self.refresh_firewall_required = True
         if uncached_devices:
             self._process_uncached_devices(uncached_devices)
 
