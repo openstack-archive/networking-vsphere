@@ -836,6 +836,8 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.cluster_host_ports.add(FAKE_PORT_1)
         self.agent.cluster_host_ports.add(FAKE_PORT_2)
         self.agent.ports_to_bind = set([FAKE_PORT_3, FAKE_PORT_4])
+        self.agent.refresh_devices_to_filter = {'fake_port_3' :
+                                                         'FAKE_TIME'}
         self.agent.vnic_info[FAKE_PORT_1] = fakeport_1
         self.agent.vnic_info[FAKE_PORT_2] = fakeport_2
         self.agent.vnic_info[FAKE_PORT_3] = fakeport_3
@@ -843,7 +845,8 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.sg_agent.remove_devices_filter = mock.Mock()
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
-                               return_value=[fakeport_1, fakeport_2]
+                               side_effect=[[fakeport_1, fakeport_2],
+                                            []]
                                ) as mock_get_ports_details_list, \
                 mock.patch.object(self.agent.sg_agent, 'add_devices_to_filter'
                                   ) as mock_add_devices_to_filter, \
@@ -858,7 +861,7 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent, '_block_stale_ports'), \
                 mock.patch.object(self.LOG, 'exception') as mock_log_exception:
             self.agent._process_uncached_devices_sublist(devices)
-            self.assertTrue(mock_get_ports_details_list.called)
+            self.assertEqual(2, mock_get_ports_details_list.call_count)
             self.assertEqual(2, mock_add_devices_to_filter.call_count)
             self.assertTrue(mock_refresh_firewall.called)
             self.assertTrue(mock_prov_local_vlan.called)
@@ -886,7 +889,7 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.cluster_id = FAKE_CLUSTER_1
         with mock.patch.object(self.agent.ovsvapp_rpc,
                                'get_ports_details_list',
-                               return_value=[fakeport_1, fakeport_2]
+                               return_value=[fakeport_2]
                                ) as mock_get_ports_details_list, \
                 mock.patch.object(self.agent.sg_agent, 'refresh_firewall'
                                   ) as mock_refresh_firewall, \
@@ -908,8 +911,7 @@ class TestOVSvAppAgent(base.TestCase):
                 self.agent.agent_id,
                 self.agent.vcenter_id,
                 self.agent.cluster_id)
-            mock_refresh_firewall.assert_called_with(set([FAKE_PORT_1,
-                                                          FAKE_PORT_2]))
+            mock_refresh_firewall.assert_called_with(set([FAKE_PORT_2]))
             self.assertEqual(2, monitor_warning.call_count)
             self.assertEqual(2, monitor_info.call_count)
 
