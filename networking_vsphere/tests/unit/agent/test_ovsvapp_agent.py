@@ -200,6 +200,40 @@ class TestOVSvAppAgentRestart(base.TestCase):
             self.assertTrue(mock_br_exists.called)
             self.assertTrue(mock_dump_flows.called)
 
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge')
+    def test_check_and_remove_stale_patch_ports(self, mock_ovs_bridge):
+        self.agent.int_br = mock.Mock()
+        mock_br = mock_ovs_bridge.return_value
+        self.agent.bridge_mappings = {'fake_physnet0': 'br-eth3'}
+        int_br_ports = ['patch-tun', 'patch-security', 'int-br-eth3']
+        results = [{u'name': u'int-br-eth3',
+                   u'options': {u'peer': u'phy-br-eth3'}},
+                   {u'name': u'patch-security',
+                   u'options': {u'peer': u'patch-integration'}},
+                   {u'name': u'patch-tun',
+                   u'options': {u'peer': u'patch-int'}}]
+        with mock.patch.object(self.agent.int_br, 'get_port_name_list',
+                               return_value=int_br_ports) as mock_br_get_ports, \
+                mock.patch.object(mock_br, 'delete_port') as mock_delete_port, \
+                mock.patch.object(self.agent.int_br,
+                                  'delete_port') as mock_int_del_port, \
+                mock.patch.object(self.agent.int_br,
+                                  'get_ports_attributes', return_value=results
+                                  ) as mock_port_attributes:
+            self.agent.check_and_remove_stale_patch_ports()
+            self.assertTrue(mock_br_get_ports.called)
+            self.assertTrue(mock_port_attributes.called)
+            self.assertFalse(mock_delete_port.called)
+            self.assertFalse(mock_int_del_port.called)
+            int_br_ports.append('int-br-eth4')
+            results.append({u'name': u'int-br-eth4',
+                            u'options': {u'peer': u'phy-br-eth4'}})
+            self.agent.check_and_remove_stale_patch_ports()
+            self.assertTrue(mock_br_get_ports.called)
+            self.assertTrue(mock_port_attributes.called)
+            self.assertTrue(mock_delete_port.called)
+            self.assertTrue(mock_int_del_port.called)
+
 
 class TestOVSvAppAgent(base.TestCase):
 
