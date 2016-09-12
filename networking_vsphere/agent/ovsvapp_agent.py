@@ -712,13 +712,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.monitor_log.warning(_LW("ovs: broken"))
             self.setup_integration_br()
             self.setup_security_br()
+            if p_const.TYPE_VLAN in self.tenant_network_types:
+                self.setup_physical_bridges(self.bridge_mappings)
+                self._init_ovs_flows(self.bridge_mappings)
             if self.enable_tunneling:
                 self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
                 self.setup_tunnel_br_flows()
                 self.tunnel_sync()
-            else:
-                self.setup_physical_bridges(self.bridge_mappings)
-                self._init_ovs_flows(self.bridge_mappings)
             # TODO(garigant): We need to add the DVR related resets
             # once it is enabled for vApp, similar to what is being
             # done in ovs_neutron_agent.
