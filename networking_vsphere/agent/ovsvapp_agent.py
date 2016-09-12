@@ -167,6 +167,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.recover_security_br()
             self.ovsvapp_agent_restarted = True
         self.setup_ovs_bridges()
+        self.check_and_remove_stale_patch_ports()
         self.setup_rpc()
         defer_apply = CONF.SECURITYGROUP.defer_apply
         self.monitor_log = self.initiate_monitor_log()
@@ -177,6 +178,36 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                                           defer_apply)
         if self.monitor_log:
             self.monitor_log.info(_LI("ovs: ok"))
+
+    def check_and_remove_stale_patch_ports(self):
+        req_ports = [cfg.CONF.OVS.int_peer_patch_port,
+                     ovsvapp_const.INT_TO_SEC_PATCH]
+        for phys_net, bridge in six.iteritems(self.bridge_mappings):
+            p = str(ovs_const.PEER_INTEGRATION_PREFIX + bridge)
+            req_ports.append(p)
+        LOG.info(_LI("Remove stale ports-required ports"
+                 "on br-int are: %s"), req_ports)
+        ports_list = self.int_br.get_port_name_list()
+        results = self.int_br.get_ports_attributes(
+            'Interface', columns=['name', 'options'], ports=ports_list,
+            if_exists=True)
+        if len(results) > 0:
+            for port in results:
+                if 'options' in port:
+                    options = port['options']
+                if 'peer' in options:
+                    peer_port = options['peer']
+                    if peer_port is not None:
+                        if port['name'] not in req_ports:
+                            LOG.info(_LI("Deleting port and peer:"
+                                     " %(port)s, %(peer)s"),
+                                     {'port': port['name'],
+                                     'peer': peer_port})
+                            self.int_br.delete_port(port['name'])
+                            br = ovs_lib.OVSBridge(port['name'].replace(
+                                ovs_const.PEER_INTEGRATION_PREFIX, ''))
+                            if br is not None:
+                                br.delete_port(peer_port)
 
     def initiate_monitor_log(self):
         try:
