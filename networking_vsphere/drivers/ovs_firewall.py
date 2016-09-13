@@ -367,6 +367,34 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         elif ethertype == constants.IPv6:
             return ['ipv6']
 
+    def _add_aap_flows_to_sec_br(self, sec_br, port, flow, direction):
+        """Add Allowed address pair flows"""
+
+        if direction == EGRESS_DIRECTION:
+            for addr_pair in port['allowed_address_pairs']:
+                sec_br.add_flow(priority=ovsvapp_const.SG_DEFAULT_PRI,
+                                table=ovsvapp_const.SG_EGRESS_TABLE_ID,
+                                dl_src=addr_pair['mac_address'],
+                                dl_vlan=flow['dl_vlan'],
+                                proto=flow['proto'],
+                                nw_src=addr_pair['ip_address'],
+                                in_port=self.phy_ofport,
+                                actions="resubmit(,%s)"
+                                % ovsvapp_const.SG_LEARN_TABLE_ID)
+
+                flow['nw_src'] = addr_pair['ip_address']
+                flow['dl_src'] = addr_pair['mac_address']
+                flow['table'] = ovsvapp_const.SG_EGRESS_TABLE_ID
+                LOG.debug("OVSF adding flow: %s", flow)
+                sec_br.add_flow(**flow)
+        elif direction == INGRESS_DIRECTION:
+            flow['table'] = ovsvapp_const.SG_DEFAULT_TABLE_ID
+            for addr_pair in port['allowed_address_pairs']:
+                if flow['dl_dst'] != addr_pair['mac_address']:
+                    flow['dl_dst'] = addr_pair['mac_address']
+                    LOG.debug("OVSF adding flow: %s", flow)
+                    sec_br.add_flow(**flow)
+
     def _add_flows_to_sec_br(self, sec_br, port, flow, direction):
         if direction == EGRESS_DIRECTION:
             for ip in port['fixed_ips']:
@@ -387,6 +415,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 flow['table'] = ovsvapp_const.SG_DEFAULT_TABLE_ID
                 LOG.debug("OVSF adding flow: %s", flow)
                 sec_br.add_flow(**flow)
+        #Add Allowed address pair flows
+        self._add_aap_flows_to_sec_br(sec_br, port, flow, direction)
 
     def _add_flow_with_range(self, sec_br, port, flow, direction,
                              dest_port_min=None, dest_port_max=None,
@@ -494,7 +524,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         try:
             with self.sg_br.deferred(full_ordered=True, order=(
                 'del', 'mod', 'add')) as deferred_br:
-                self._setup_aap_flows(deferred_br, port)
+                #self._setup_aap_flows(deferred_br, port)
                 if port['id'] not in self.provider_port_cache:
                     # Using provider string as cookie for normal rules.
                     self._add_flows(deferred_br, port,
@@ -581,7 +611,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     self.provider_port_cache.add(port['id'])
                 else:
                     self._remove_flows(deferred_br, port['id'])
-                self._setup_aap_flows(deferred_br, port)
+                #self._setup_aap_flows(deferred_br, port)
                 self._add_flows(deferred_br, port, port_cookie)
             self.filtered_ports[port['id']] = self._get_compact_port(port)
         except Exception:
