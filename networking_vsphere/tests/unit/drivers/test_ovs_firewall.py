@@ -160,29 +160,73 @@ class TestOVSFirewallDriver(base.TestCase):
         ret_port = self.ovs_firewall.filtered_ports["123"]
         self.assertEqual(fake_res_port, ret_port)
 
-    def test_setup_aap_flows(self):
+    def test_add_aap_flows(self):
         port_with_app = copy.deepcopy(fake_port)
         key = "allowed_address_pairs"
         port_with_app[key] = [{'ip_address': '10.0.0.2',
                                'mac_address': 'aa:bb:cc:dd:ee:aa'},
                               {'ip_address': '10.0.0.3',
                                'mac_address': 'aa:bb:cc:dd:ee:ab'}]
-        with mock.patch.object(self.ovs_firewall, '_get_port_vlan',
-                               return_value=100), \
-                mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
-                                  return_value=self.mock_br), \
+        flow = {'proto': "ip", 'dl_vlan': 2001,
+                'dl_dst': "11:22:33:44:55:66"}
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
                 mock.patch.object(self.mock_br, 'add_flow') as mock_add_flow:
-            self.ovs_firewall._setup_aap_flows(self.mock_br, port_with_app)
+            self.ovs_firewall._add_aap_flows_to_sec_br(self.mock_br,
+                                                       port_with_app,
+                                                       flow,
+                                                       ovs_fw.EGRESS_DIRECTION)
+            self.assertEqual(4, mock_add_flow.call_count)
+
+    def test_add_aap_flows_ingress_different_mac(self):
+        port_with_app = copy.deepcopy(fake_port)
+        key = "allowed_address_pairs"
+        port_with_app[key] = [{'ip_address': '10.0.0.2',
+                               'mac_address': 'aa:bb:cc:dd:ee:aa'},
+                              {'ip_address': '10.0.0.3',
+                               'mac_address': 'aa:bb:cc:dd:ee:ab'}]
+        flow = {'proto': "ip", 'dl_vlan': 2001,
+                'dl_dst': "11:22:33:44:55:66"}
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
+                mock.patch.object(self.mock_br, 'add_flow') as mock_add_flow:
+            self.ovs_firewall._add_aap_flows_to_sec_br(
+                    self.mock_br,
+                    port_with_app,
+                    flow,
+                    ovs_fw.INGRESS_DIRECTION)
             self.assertEqual(2, mock_add_flow.call_count)
 
-    def test_setup_aap_flows_invalid_call(self):
+    def test_add_aap_flows_ingress_same_mac(self):
         port_with_app = copy.deepcopy(fake_port)
-        with mock.patch.object(self.ovs_firewall, '_get_port_vlan',
-                               return_value=100), \
-                mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
-                                  return_value=self.mock_br), \
+        key = "allowed_address_pairs"
+        port_with_app[key] = [{'ip_address': '10.0.0.2',
+                               'mac_address': '11:22:33:44:55:66'},
+                              {'ip_address': '10.0.0.3',
+                               'mac_address': '11:22:33:44:55:66'}]
+        flow = {'proto': "ip", 'dl_vlan': 2001,
+                'dl_dst': "11:22:33:44:55:66"}
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
                 mock.patch.object(self.mock_br, 'add_flow') as mock_add_flow:
-            self.ovs_firewall._setup_aap_flows(self.mock_br, port_with_app)
+            self.ovs_firewall._add_aap_flows_to_sec_br(
+                    self.mock_br,
+                    port_with_app,
+                    flow,
+                    ovs_fw.INGRESS_DIRECTION)
+            self.assertFalse(mock_add_flow.called)
+
+    def test_add_aap_flows_invalid_call(self):
+        port_with_app = copy.deepcopy(fake_port)
+        flow = {'proto': "ip", 'dl_vlan': 2001,
+                'dl_dst': "11:22:33:44:55:66"}
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
+                mock.patch.object(self.mock_br, 'add_flow') as mock_add_flow:
+            self.ovs_firewall._add_aap_flows_to_sec_br(self.mock_br,
+                                                       port_with_app,
+                                                       flow,
+                                                       ovs_fw.EGRESS_DIRECTION)
             self.assertFalse(mock_add_flow.called)
 
     def test_get_net_prefix_len(self):
@@ -361,13 +405,10 @@ class TestOVSFirewallDriver(base.TestCase):
         self.ovs_firewall.provider_port_cache = set()
         with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                return_value=self.mock_br), \
-                mock.patch.object(self.ovs_firewall, '_setup_aap_flows'
-                                  ) as mock_aap_flow_fn, \
                 mock.patch.object(self.ovs_firewall, '_add_flows'
                                   ) as mock_add_flow_fn, \
                 mock.patch.object(self.mock_br, 'add_flow'):
             self.ovs_firewall.prepare_port_filter(fake_port)
-            mock_aap_flow_fn.assert_called_with(self.mock_br, fake_port)
             mock_add_flow_fn.assert_called_with(self.mock_br, fake_port,
                                                 cookie)
             self.assertEqual(2, mock_add_flow_fn.call_count)
@@ -378,18 +419,17 @@ class TestOVSFirewallDriver(base.TestCase):
 
     def test_prepare_port_filter_exception(self):
         self.ovs_firewall.provider_port_cache = set()
+        pr_cookie = ("0x%x" % (hash("pr123") & 0xffffffffffffffff))
         with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                return_value=self.mock_br), \
-                mock.patch.object(self.ovs_firewall, '_setup_aap_flows',
+                mock.patch.object(self.ovs_firewall, '_add_flows',
                                   side_effect=Exception()
-                                  ) as mock_aap_flow_fn, \
-                mock.patch.object(self.ovs_firewall, '_add_flows'
                                   ) as mock_add_flow_fn, \
                 mock.patch.object(self.LOG, 'exception'
                                   ) as mock_exception_log:
             self.ovs_firewall.prepare_port_filter(fake_port)
-            mock_aap_flow_fn.assert_called_with(self.mock_br, fake_port)
-            self.assertFalse(mock_add_flow_fn.called)
+            mock_add_flow_fn.assert_called_with(self.mock_br, fake_port,
+                                                pr_cookie, True)
             self.assertTrue(mock_exception_log.called)
             self.assertEqual(set(), self.ovs_firewall.provider_port_cache)
 
@@ -478,13 +518,10 @@ class TestOVSFirewallDriver(base.TestCase):
                                return_value=self.mock_br), \
                 mock.patch.object(self.ovs_firewall, '_remove_flows'
                                   ) as mock_rem_flow, \
-                mock.patch.object(self.ovs_firewall, '_setup_aap_flows'
-                                  ) as mock_aap_flow_fn, \
                 mock.patch.object(self.ovs_firewall, '_add_flows'
                                   ) as mock_add_flow_fn:
             self.ovs_firewall.update_port_filter(fake_port)
             mock_rem_flow.assert_called_with(self.mock_br, "123")
-            mock_aap_flow_fn.assert_called_with(self.mock_br, fake_port)
             mock_add_flow_fn.assert_called_with(self.mock_br, fake_port,
                                                 cookie)
             self.assertEqual(1, mock_add_flow_fn.call_count)
@@ -497,13 +534,10 @@ class TestOVSFirewallDriver(base.TestCase):
                                return_value=self.mock_br), \
                 mock.patch.object(self.ovs_firewall, '_remove_flows'
                                   ) as mock_rem_flow, \
-                mock.patch.object(self.ovs_firewall, '_setup_aap_flows'
-                                  ) as mock_aap_flow_fn, \
                 mock.patch.object(self.ovs_firewall, '_add_flows'
                                   ) as mock_add_flow_fn:
             self.ovs_firewall.update_port_filter(fake_port)
             mock_rem_flow.assert_called_with(self.mock_br, "123", True)
-            mock_aap_flow_fn.assert_called_with(self.mock_br, fake_port)
             mock_add_flow_fn.assert_called_with(self.mock_br, fake_port,
                                                 cookie)
             self.assertEqual(2, mock_add_flow_fn.call_count)
