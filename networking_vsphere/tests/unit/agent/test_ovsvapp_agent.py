@@ -533,6 +533,7 @@ class TestOVSvAppAgent(base.TestCase):
 
     def test_mitigate_ovs_restart_vxlan(self):
         self.agent.enable_tunneling = True
+        self.agent.tenant_network_types = 'vxlan'
         self.agent.refresh_firewall_required = False
         self.agent.devices_to_filter = set(['1111'])
         self.agent.cluster_host_ports = set(['1111'])
@@ -559,6 +560,17 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(mock_setup_tunnel_br.called)
             self.assertTrue(mock_setup_tunnel_br_flows.called)
             self.assertFalse(mock_phys_brs.called)
+            self.assertTrue(mock_tun_sync.called)
+            self.assertTrue(self.agent.refresh_firewall_required)
+            self.assertEqual(len(self.agent.devices_to_filter), 2)
+            monitor_warning.assert_called_with("ovs: broken")
+            monitor_info.assert_called_with("ovs: ok")
+            self.assertTrue(mock_logger_info.called)
+            self.agent.tenant_network_types = 'vlan,vxlan'
+            self.agent.mitigate_ovs_restart()
+            self.assertTrue(mock_setup_tunnel_br.called)
+            self.assertTrue(mock_setup_tunnel_br_flows.called)
+            self.assertTrue(mock_phys_brs.called)
             self.assertTrue(mock_tun_sync.called)
             self.assertTrue(self.agent.refresh_firewall_required)
             self.assertEqual(len(self.agent.devices_to_filter), 2)
