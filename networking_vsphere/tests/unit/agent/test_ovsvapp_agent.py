@@ -186,19 +186,67 @@ class TestOVSvAppAgentRestart(base.TestCase):
         self.LOG = ovsvapp_agent.LOG
         self.agent.monitor_log = logging.getLogger('monitor')
 
+    @mock.patch('neutron.agent.common.ovs_lib.OVSBridge')
+    def test_reconfigure_interface(self, mock_ovs_bridge):
+        cfg.CONF.set_override('security_bridge_mapping',
+                              "fake_sec_br:fake_if", 'SECURITYGROUP')
+        self.agent.bridge_mappings = {'fake_physnet0': 'br-eth3'}
+        results = ['fake_sec_br', 'br-eth3']
+        mock_br = mock_ovs_bridge.return_value
+        with mock.patch.object(mock_br, 'get_bridge_for_iface',
+                               return_value=results) as mock_get_br_iface, \
+                mock.patch.object(mock_br, 'delete_port') as mock_delete_port, \
+                mock.patch.object(mock_br,
+                                  'add_port') as mock_add_port:
+            self.agent._reconfigure_interface()
+            self.assertTrue(mock_get_br_iface.called)
+            self.assertTrue(mock_delete_port.called)
+            self.assertTrue(mock_add_port.called)
+
+    def test_check_for_patch_ports(self):
+        self.agent.sec_br = mock.Mock()
+        self.agent.int_br = mock.Mock()
+        self.agent.tenant_network_types = 'vlan,vxlan'
+        self.agent.bridge_mappings = {'fake_physnet0': 'br-eth3'}
+        int_br_ports = ['patch-tun', 'patch-security', 'int-br-eth3']
+        with mock.patch.object(self.agent.int_br, 'get_port_name_list',
+                               return_value=int_br_ports) as mock_br_get_ports:
+            self.assertTrue(self.agent.check_for_patch_ports())
+            self.assertTrue(mock_br_get_ports.called)
+
+    def test_check_for_patch_ports_not_found(self):
+        self.agent.sec_br = mock.Mock()
+        self.agent.int_br = mock.Mock()
+        self.agent.tenant_network_types = 'vlan,vxlan'
+        self.agent.bridge_mappings = {'fake_physnet0': 'br-eth3'}
+        int_br_ports = ['patch-tun', 'patch-security']
+        with mock.patch.object(self.agent.int_br, 'get_port_name_list',
+                               return_value=int_br_ports) as mock_br_get_ports:
+            self.assertFalse(self.agent.check_for_patch_ports())
+            self.assertTrue(mock_br_get_ports.called)
+
     def test_check_ovsvapp_agent_restart(self):
         self.agent.int_br = mock.Mock()
+        self.agent.sec_br = mock.Mock()
+        self.agent.tenant_network_types = 'vlan,vxlan'
+        self.agent.bridge_mappings = {'fake_physnet0': 'br-eth3'}
+        int_br_ports = ['patch-tun', 'patch-security', 'int-br-eth3']
         with mock.patch.object(self.agent.int_br, 'bridge_exists',
                                return_value=True) as mock_br_exists, \
                 mock.patch.object(self.agent.int_br, 'dump_flows_for_table',
-                                  return_value='') as mock_dump_flows:
+                                  return_value='') as mock_dump_flows, \
+                mock.patch.object(self.agent.int_br, 'get_port_name_list',
+                                  return_value=int_br_ports
+                                  ) as mock_br_get_ports:
             self.assertFalse(self.agent.check_ovsvapp_agent_restart())
             self.assertTrue(mock_br_exists.called)
             self.assertTrue(mock_dump_flows.called)
+            self.assertFalse(mock_br_get_ports.called)
             mock_dump_flows.return_value = 'cookie = 0x0'
             self.assertTrue(self.agent.check_ovsvapp_agent_restart())
             self.assertTrue(mock_br_exists.called)
             self.assertTrue(mock_dump_flows.called)
+            self.assertTrue(mock_br_get_ports.called)
 
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge')
     def test_check_and_remove_stale_patch_ports(self, mock_ovs_bridge):
