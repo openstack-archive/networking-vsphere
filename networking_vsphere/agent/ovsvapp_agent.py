@@ -212,6 +212,44 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                             if br is not None:
                                 br.delete_port(peer_port)
 
+    def check_for_patch_ports(self):
+        ports_list = self.int_br.get_port_name_list()
+        secbr_list = (CONF.SECURITYGROUP.security_bridge_mapping).split(':')
+        secbr_name = secbr_list[0]
+        self.sec_br = ovs_lib.OVSBridge(secbr_name)
+        if self.sec_br.bridge_exists(secbr_name):
+            if 'patch-security' in ports_list:
+                for phys_net, bridge in six.iteritems(self.bridge_mappings):
+                    p = str(ovs_const.PEER_INTEGRATION_PREFIX + bridge)
+                    if p not in ports_list:
+                        return False
+            else:
+                return False
+        else:
+            return False
+        return True
+
+    def _reconfigure_interface(self):
+        secbr_list = (CONF.SECURITYGROUP.security_bridge_mapping).split(':')
+        secbr_name = secbr_list[0]
+        secbr_phyname = secbr_list[1]
+        sec_br = ovs_lib.OVSBridge(secbr_name)
+        br_name = sec_br.get_bridge_for_iface(
+            secbr_phyname)
+        if br_name is not None:
+            if br_name != secbr_name:
+                br = ovs_lib.OVSBridge(br_name)
+                br.delete_port(secbr_phyname)
+                sec_br.add_port(secbr_phyname)
+        for phys_net, bridge in six.iteritems(self.bridge_mappings):
+            phys_br = ovs_lib.OVSBridge(bridge)
+            phys_br_name = phys_br.get_bridge_for_iface(phys_net)
+            if phys_br_name is not None:
+                if phys_br_name != bridge:
+                    br1 = ovs_lib.OVSBridge(phys_br_name)
+                    br1.delete_port(phys_net)
+                    phys_br.add_port(phys_net)
+
     def initiate_monitor_log(self):
         try:
             logger = logging.getLogger('monitor')
@@ -233,6 +271,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                     if 'OFPST_FLOW' not in item)
         if canary_flow != '':
             retval = True
+            if 'vlan' in self.tenant_network_types:
+                retval = self.check_for_patch_ports() & retval
         return retval
 
     def check_flows_for_mac(self, mac):
@@ -278,6 +318,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "Security bridge %s. Terminating the "
                           "agent!"), secbr_name)
             raise SystemExit(1)
+        br_name = self.sec_br.get_bridge_for_iface(
+            ovsvapp_const.SEC_TO_INT_PATCH)
+        if br_name is not None:
+            if br_name != secbr_name:
+                br = ovs_lib.OVSBridge(br_name)
+                br.delete_port(ovsvapp_const.SEC_TO_INT_PATCH)
         # br-sec patch port to br-int.
         patch_sec_int_ofport = self.sec_br.add_patch_port(
             ovsvapp_const.SEC_TO_INT_PATCH, ovsvapp_const.INT_TO_SEC_PATCH)
