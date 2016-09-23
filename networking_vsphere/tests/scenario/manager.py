@@ -30,6 +30,9 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
+
+from networking_vsphere._i18n import _LI
+
 from tempest.common import waiters
 from tempest.lib.common import rest_client
 from tempest.lib.common import ssh
@@ -154,7 +157,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         vcenter_username = CONF.VCENTER.vcenter_username
         vcenter_password = CONF.VCENTER.vcenter_password
         try:
-            msg = "Trying to connect %s vCenter" % vcenter_ip
+            msg = (_LI("Trying to connect %s vCenter") % vcenter_ip)
             LOG.info(msg)
             connection = connect.Connect(vcenter_ip, 443,
                                          vcenter_username,
