@@ -154,7 +154,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         vcenter_username = CONF.VCENTER.vcenter_username
         vcenter_password = CONF.VCENTER.vcenter_password
         try:
-            msg = "Trying to connect %s vCenter" % vcenter_ip
+            msg = (_LI("Trying to connect %s vCenter") % vcenter_ip)
             LOG.info(msg)
             connection = connect.Connect(vcenter_ip, 443,
                                          vcenter_username,
