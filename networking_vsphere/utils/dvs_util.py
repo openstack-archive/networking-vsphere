@@ -204,7 +204,7 @@ class DVSController(object):
                         LOG.info(_LI('Concurrent modification on '
                                      'increase port group.'))
                         continue
-                    raise e
+                    raise
         return port_info
 
     def book_port(self, network, port_name, segment, net_name=None):
@@ -560,7 +560,7 @@ class DVSControllerWithCache(DVSController):
                 pg = super(DVSControllerWithCache, self)._get_pg_by_name(name)
             else:
                 self._pg_cache.pop(name)
-                raise e
+                raise
         self._pg_cache[name].update({
             'item': pg,
             'status': READY_PG_STATUS,
@@ -582,7 +582,7 @@ class DVSControllerWithCache(DVSController):
         except Exception as e:
             if dvs_const.DELETED_TEXT not in str(e):
                 self._pg_cache[name].update({'status': READY_PG_STATUS})
-                raise e
+                raise
         self._pg_cache.pop(name, None)
 
     def _get_pg_by_name(self, pg_name):
