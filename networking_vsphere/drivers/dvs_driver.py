@@ -132,7 +132,7 @@ class DvsNetworkDriver(vc_driver.VCNetworkDriver):
             LOG.exception(_LE("Exception while waiting for VM %(vm)s "
                               "to connect to port group %(pg)s: %(err)s."),
                           {'vm': vm_mor.value, 'pg': pgmor.value, 'err': e})
-            raise e
+            raise
         finally:
             LOG.debug("Destroying the property collector created.")
             self.session._call_method(vim_util,
