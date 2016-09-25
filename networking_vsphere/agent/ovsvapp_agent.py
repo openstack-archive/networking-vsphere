@@ -445,6 +445,12 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.phys_brs[phys_net]['eth_ofport'] = eth_ofport
         LOG.info(_LI("Physical bridges successfully recovered."))
 
+    def _add_rarp_flow_to_int_br(self):
+        self.int_br.add_flow(priority=10,
+                             proto="rarp",
+                             in_port=self.patch_sec_ofport,
+                             actions="normal")
+
     def _init_ovs_flows(self, bridge_mappings):
         """Add the integration and physical bridge base flows."""
 
@@ -484,6 +490,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.setup_physical_bridges(self.bridge_mappings)
                 LOG.info(_LI("Physical bridges successfully setup."))
                 self._init_ovs_flows(self.bridge_mappings)
+                self._add_rarp_flow_to_int_br()
             else:
                 self.recover_physical_bridges(self.bridge_mappings)
 
@@ -500,6 +507,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             if not self.ovsvapp_agent_restarted:
                 self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
                 self.setup_tunnel_br_flows()
+                self._add_rarp_flow_to_int_br()
                 LOG.info(_LI("Tunnel bridge successfully set."))
             else:
                 self.recover_tunnel_bridge()
@@ -832,9 +840,11 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             if p_const.TYPE_VLAN in self.tenant_network_types:
                 self.setup_physical_bridges(self.bridge_mappings)
                 self._init_ovs_flows(self.bridge_mappings)
+                self._add_rarp_flow_to_int_br()
             if self.enable_tunneling:
                 self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
                 self.setup_tunnel_br_flows()
+                self._add_rarp_flow_to_int_br()
                 self.tunnel_sync()
             # TODO(garigant): We need to add the DVR related resets
             # once it is enabled for vApp, similar to what is being

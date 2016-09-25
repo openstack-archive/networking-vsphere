@@ -540,11 +540,14 @@ class TestOVSvAppAgent(base.TestCase):
                               ["physnet1:br-eth1"], 'OVSVAPP')
         with mock.patch.object(self.agent, 'setup_physical_bridges'
                                ) as mock_phys_brs, \
+                mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'
+                                  ) as mock_rarp_flow, \
                 mock.patch.object(self.agent, '_init_ovs_flows'
                                   ) as mock_init_ovs_flows:
             self.agent.setup_ovs_bridges()
             mock_phys_brs.assert_called_with(self.agent.bridge_mappings)
             mock_init_ovs_flows.assert_called_with(self.agent.bridge_mappings)
+            self.assertTrue(mock_rarp_flow.called)
 
     @mock.patch('neutron.agent.ovsdb.api.'
                 'API.get')
@@ -553,11 +556,14 @@ class TestOVSvAppAgent(base.TestCase):
         self.agent.tenant_network_types = [p_const.TYPE_VXLAN]
         with mock.patch.object(self.agent, 'setup_tunnel_br'
                                ) as mock_setup_tunnel_br, \
+                mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'
+                                  ) as mock_rarp_flow, \
                 mock.patch.object(self.agent, 'setup_tunnel_br_flows'
                                   ) as mock_setup_tunnel_br_flows:
             self.agent.setup_ovs_bridges()
             mock_setup_tunnel_br.assert_called_with("br-tun")
             self.assertTrue(mock_setup_tunnel_br_flows.called)
+            self.assertTrue(mock_rarp_flow.called)
 
     def test_setup_ovs_bridges_vxlan_ofport(self):
         cfg.CONF.set_override('tenant_network_types',
@@ -576,6 +582,7 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent.int_br,
                                   "add_patch_port",
                                   return_value=6), \
+                mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'), \
                 mock.patch.object(self.agent, 'setup_tunnel_br_flows'
                                   ) as mock_setup_tunnel_br_flows:
             self.agent.setup_ovs_bridges()
@@ -598,6 +605,8 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_sec_br, \
                 mock.patch.object(self.agent.sg_agent, "init_firewall"
                                   ) as mock_init_fw, \
+                mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'
+                                  ) as mock_rarp_flow, \
                 mock.patch.object(self.agent, "setup_tunnel_br"
                                   ) as mock_setup_tunnel_br,\
                 mock.patch.object(self.agent, 'setup_tunnel_br_flows'
@@ -621,6 +630,7 @@ class TestOVSvAppAgent(base.TestCase):
             monitor_warning.assert_called_with("ovs: broken")
             monitor_info.assert_called_with("ovs: ok")
             self.assertTrue(mock_logger_info.called)
+            self.assertTrue(mock_rarp_flow.called)
 
     def test_mitigate_ovs_restart_vxlan(self):
         self.agent.enable_tunneling = True
@@ -640,6 +650,8 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_setup_tunnel_br,\
                 mock.patch.object(self.agent, 'setup_tunnel_br_flows'
                                   ) as mock_setup_tunnel_br_flows, \
+                mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'
+                                  ) as mock_rarp_flow, \
                 mock.patch.object(self.agent, "tunnel_sync"
                                   ) as mock_tun_sync, \
                 mock.patch.object(self.agent, "_init_ovs_flows"), \
@@ -668,6 +680,7 @@ class TestOVSvAppAgent(base.TestCase):
             monitor_warning.assert_called_with("ovs: broken")
             monitor_info.assert_called_with("ovs: ok")
             self.assertTrue(mock_logger_info.called)
+            self.assertTrue(mock_rarp_flow.called)
 
     def test_mitigate_ovs_restart_exception(self):
         self.agent.enable_tunneling = False
