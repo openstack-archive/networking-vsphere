@@ -632,8 +632,9 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                     update_pending = False
                     rules = self.sgid_rules_dict.get(group)
                     for rule in sg_rules:
-                        update_pending = self._check_and_process_rule(
-                            group, rule, new_rules, rules, rules_map)
+                        if self._check_and_process_rule(
+                            group, rule, new_rules, rules, rules_map):
+                            update_pending = True
                     if len(new_rules) > 0:
                         added_rules.extend(new_rules)
                         LOG.debug("01.Fol. rules are added for port: %s %s",
