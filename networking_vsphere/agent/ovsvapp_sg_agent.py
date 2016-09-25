@@ -40,6 +40,7 @@ ADD_KEY = 'add'
 DEL_KEY = 'del'
 OVSVAPP_ID = 'OVSVAPP-'
 DELETE_TIMEOUT_INTERVAL = 600
+OVSVAPP_DEBUG_ENABLED = False
 
 
 class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
@@ -110,10 +111,10 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                 self._update_device_port_sg_map(port_with_rules, port_id)
                 self.firewall.prepare_port_filter(port_with_rules[port_id])
         LOG.debug("Port Cache 01: %s",
-                  pformat(port_with_rules[port_id]))
+                  port_with_rules[port_id])
 
     def _expand_rules(self, rules):
-        LOG.debug("_expand_rules: %s", pformat(rules))
+        LOG.debug("_expand_rules: %s", rules)
         rules_list = []
         for rule in rules:
             remote = rule['remote_group_id']
@@ -207,7 +208,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                     self._update_device_port_sg_map(port_sg_rules,
                                                     port_id, update)
                     LOG.debug("Port Cache: %s",
-                              pformat(port_sg_rules[port_id]))
+                              port_sg_rules[port_id])
                     if len(port_sg_rules[port_id]['security_group_rules']) > 0 \
                         or \
                        port_sg_rules[port_id].get('security_group_rules_deleted') \
@@ -232,6 +233,8 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             self.t_pool.spawn_n(self._fetch_and_apply_rules, dev_ids, update)
 
     def _print_rules_cache(self, msg):
+        if not OVSVAPP_DEBUG_ENABLED:
+            return
         LOG.debug("=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
         LOG.debug(msg)
         LOG.debug("sgid_devices_dict: %s", pformat(self.sgid_devices_dict))
@@ -450,7 +453,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                         # New rules to be added
                         LOG.debug("Pending rules will be processed(add)")
                         LOG.debug("02.Fol. rules are added for port: %s %s",
-                                  port_id, pformat(prules[ADD_KEY]))
+                                  port_id, prules[ADD_KEY])
                         for r in prules[ADD_KEY]:
                             if r not in added_rules:
                                 added_rules.append(r)
@@ -461,7 +464,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                     if len(prules[DEL_KEY]) > 0:
                         LOG.debug("Pending rules will be processed(delete)")
                         LOG.debug("02.Fol. rules are deleted for port: %s %s",
-                                  port_id, pformat(prules[DEL_KEY]))
+                                  port_id, prules[DEL_KEY])
                         for r in prules[DEL_KEY]:
                             if r not in deleted_rules:
                                 deleted_rules.append(r)
@@ -518,7 +521,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                 if ip_device not in devices:
                     LOG.debug("_check_and_process_rule \
                         - New member added to our group: %s,\
-                        %s", group, pformat(rule))
+                        %s", group, rule)
                     new_rules.append(rule)
             elif sgid == group and srgid != group:
                 devices = self.sgid_devices_dict.get(srgid)
@@ -539,9 +542,9 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             if group == sgid:
                 if rule['id'] not in mapped_rules:
                     new_rules.append(rule)
-                    LOG.debug("_update_device_port_sg_map - \
+                    LOG.debug("_check_and_process_rule - \
                     NEW RULE ADDED TO SG: %s,\
-                    %s", group, pformat(rule))
+                    %s", group, rule)
                     update_pending = True
                 else:
                     mapped_rules.pop(rule['id'])
@@ -577,14 +580,14 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         if len(new_remote_rules) > 0:
             LOG.debug("_process_remote_group_rules:\
                 NEW REMOTE SG RULES ADDED:\
-                %s", pformat(new_remote_rules))
+                %s", new_remote_rules)
             added_rules.extend(
                 self._expand_rules(new_remote_rules)
             )
         if len(remote_rules) > 0:
             LOG.debug("_process_remote_group_rules:\
                 REMOTE SG RULES REMOVED: \
-                %s", pformat(remote_rules))
+                %s", remote_rules)
             deleted_rules.extend(self._expand_rules(remote_rules))
         self._check_and_update_pending_rules(
             group, port_id, added_rules, deleted_rules,
@@ -596,7 +599,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
     def _update_device_port_sg_map(self, port_info, port_id, update=False):
         sg_datalock.acquire()
         try:
-            LOG.info(_LI("_process_remote_group_rules: %(update)s"
+            LOG.info(_LI("_update_device_port_sg_map: %(update)s"
                          " %(port_id)s"),
                      {'update': update, 'port_id': port_id})
             self._print_rules_cache("Before: _update_device_port_sg_map")
@@ -635,10 +638,10 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                     if len(new_rules) > 0:
                         added_rules.extend(new_rules)
                         LOG.debug("01.Fol. rules are added for port: %s %s",
-                                  port_id, pformat(new_rules))
+                                  port_id, new_rules)
                     if len(rules) > 0:
                         LOG.debug("01.Fol. rules are deleted for port: %s %s",
-                                  port_id, pformat(rules))
+                                  port_id, rules)
                         deleted_rules.extend(rules.values())
                         update_pending = True
                     # add new rules to map
@@ -654,7 +657,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                         )
                     if len(rules) > 0 or len(new_rules) > 0:
                         LOG.debug("Foll ports need to be updated with above \
-                            rules: %s", pformat(self.pending_rules_dict))
+                            rules: %s", self.pending_rules_dict)
 
                     # Now process remote group rules
                     self._process_remote_group_rules(group, port_id,
@@ -663,9 +666,9 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                                                      deleted_rules)
 
             LOG.debug("_update_device_port_sg_map - \
-                Added Rules %s", pformat(added_rules))
+                Added Rules %s", added_rules)
             LOG.debug("_update_device_port_sg_map - \
-                Removed Rules %s", pformat(deleted_rules))
+                Removed Rules %s", deleted_rules)
             self._print_rules_cache("After: _update_device_port_sg_map")
             t1 = time.time()
             # We maintain deleted devices dict to prevent spurious re-addition
