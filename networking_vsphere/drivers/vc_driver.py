@@ -190,7 +190,10 @@ class VCNetworkDriver(driver.NetworkDriver):
         self.cluster_id_to_filter[cluster_mor.value] = property_filter_obj
         cache.VCCache.add_switch_for_cluster_path(cluster_path,
                                                   switch_name)
-        self.delete_stale_portgroups(switch_name)
+        try:
+            self.delete_stale_portgroups(switch_name)
+        except Exception:
+            LOG.error(_LE("Exception wile deleting stale port groups: %s"), switch_name)
         if self.state != constants.DRIVER_RUNNING and self.is_connected():
             self.state = constants.DRIVER_READY
 
