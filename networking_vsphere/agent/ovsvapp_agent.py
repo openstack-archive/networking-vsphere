@@ -450,6 +450,27 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                              in_port=self.patch_sec_ofport,
                              actions="normal")
 
+    def _set_openflow_versions(self):
+        try:
+            if self.sec_br is not None:
+                self.sec_br.set_protocols(
+                    ["OpenFlow%d" % i for i in range(10, 15)])
+            if self.int_br is not None:
+                self.int_br.set_protocols(
+                    ["OpenFlow%d" % i for i in range(10, 15)])
+            if p_const.TYPE_VXLAN in self.tenant_network_types:
+                if self.tun_br is not None:
+                    self.tun_br.set_protocols(
+                        ["OpenFlow%d" % i for i in range(10, 15)])
+            if p_const.TYPE_VLAN in self.tenant_network_types:
+                for phys_net, bridge in six.iteritems(self.bridge_mappings):
+                    br = self.br_phys_cls(bridge)
+                    if br is not None:
+                        br.set_protocols(
+                            ["OpenFlow%d" % i for i in range(10, 15)])
+        except RuntimeError as e:
+            LOG.error(_LE("Unable to set openflow version: %s"), e)
+
     def _init_ovs_flows(self, bridge_mappings):
         """Add the integration and physical bridge base flows."""
 
@@ -510,6 +531,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 LOG.info(_LI("Tunnel bridge successfully set."))
             else:
                 self.recover_tunnel_bridge()
+        self._set_openflow_versions()
 
     def _ofport_set_to_str(self, ofport_set):
         return ",".join(map(str, ofport_set))
