@@ -291,6 +291,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "Terminating the agent!"),
                       {'bridge': CONF.OVSVAPP.integration_bridge})
             raise SystemExit(1)
+        if self.int_br is not None:
+            self.set_openflow_version(self.int_br)
 
     # TODO(sudhakar-gariganti): Refactor setup/recover security bridges
     # by merging into one method with internal if blocks.
@@ -310,6 +312,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.error(_LE("Security bridge does not exist. Terminating the "
                           "agent!"))
             raise SystemExit(1)
+        if self.sec_br is not None:
+            self.set_openflow_version(self.sec_br)
         self.sec_br.remove_all_flows()
         self.int_br.delete_port(ovsvapp_const.INT_TO_SEC_PATCH)
         self.sec_br.delete_port(ovsvapp_const.SEC_TO_INT_PATCH)
@@ -359,6 +363,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.error(_LE("Security bridge does not exist. Terminating the "
                           "agent!"))
             raise SystemExit(1)
+        if self.sec_br is not None:
+            self.set_openflow_version(self.sec_br)
         self.phy_ofport = self.sec_br.get_port_ofport(secbr_phyname)
         if not self.phy_ofport:
             LOG.error(_LE("Physical bridge patch port not available on "
@@ -386,6 +392,14 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "Terminating the agent!"))
             raise SystemExit(1)
         LOG.info(_LI("Security bridge successfully recovered."))
+
+    def set_openflow_version(self, bridge):
+        try:
+            if bridge is not None:
+                bridge.set_protocols(
+                    ["OpenFlow%d" % i for i in range(10, 15)])
+        except RuntimeError as e:
+            LOG.error(_LE("Unable to set openflow version: %s"), e)
 
     def recover_tunnel_bridge(self):
         """Recover the tunnel bridge."""
@@ -422,6 +436,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                               'bridge': bridge})
                 raise SystemExit(1)
             br = self.br_phys_cls(bridge)
+            if br is not None:
+                self.set_protocol_version(br)
             # Interconnect physical and integration bridges using veth/patch
             # ports.
             int_if_name = p_utils.get_interface_name(
