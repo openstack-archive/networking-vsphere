@@ -240,13 +240,17 @@ class TestOVSvAppAgentRestart(base.TestCase):
                                   return_value='') as mock_dump_flows, \
                 mock.patch.object(self.agent.int_br, 'get_port_name_list',
                                   return_value=int_br_ports
-                                  ) as mock_br_get_ports:
+                                  ) as mock_br_get_ports, \
+                mock.patch.object(self.agent.int_br, "set_protocols"
+                                  ) as mock_set_protocols:
             self.assertFalse(self.agent.check_ovsvapp_agent_restart())
             self.assertTrue(mock_br_exists.called)
             self.assertTrue(mock_dump_flows.called)
             self.assertFalse(mock_br_get_ports.called)
+            self.assertTrue(mock_set_protocols.called)
             mock_dump_flows.return_value = 'cookie = 0x0'
             self.assertTrue(self.agent.check_ovsvapp_agent_restart())
+            self.assertTrue(mock_set_protocols.called)
             self.assertTrue(mock_br_exists.called)
             self.assertTrue(mock_dump_flows.called)
             self.assertTrue(mock_br_get_ports.called)
@@ -390,9 +394,13 @@ class TestOVSvAppAgent(base.TestCase):
                                   return_value=5), \
                 mock.patch.object(self.agent.int_br,
                                   "add_patch_port",
-                                  return_value=6):
+                                  return_value=6), \
+                mock.patch.object(mock_ovs_br.return_value,
+                                  "set_protocols"
+                                  ) as mock_set_protocols:
             self.agent.setup_security_br()
             self.assertTrue(mock_ovs_br.called)
+            self.assertTrue(mock_set_protocols.called)
             self.assertTrue(self.agent.sec_br.add_patch_port.called)
             self.assertTrue(mock_logger_info.called)
 
@@ -453,6 +461,9 @@ class TestOVSvAppAgent(base.TestCase):
                                   ), \
                 mock.patch.object(p_utils, 'get_interface_name'
                                   ) as mock_int_name, \
+                mock.patch.object(mock_ovs_br.return_value,
+                                  "set_protocols"
+                                  ) as mock_set_protocol, \
                 mock.patch.object(self.agent.int_br,
                                   "get_port_ofport",
                                   return_value=6) as mock_get_ofport:
@@ -460,9 +471,18 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(mock_logger_info.called)
             self.assertFalse(mock_logger_error.called)
             self.assertTrue(mock_ovs_br.called)
+            self.assertTrue(mock_set_protocol.called)
             self.assertTrue(mock_get_ofport.called)
             self.assertTrue(mock_int_name.called)
             self.assertEqual(self.agent.int_ofports['physnet1'], 6)
+
+    def test_set_openflow_versions(self):
+        bridge = mock.Mock()
+        with mock.patch.object(bridge,
+                               "set_protocols"
+                               ) as mock_set_protocol:
+            self.agent.set_openflow_version(bridge)
+            self.assertTrue(mock_set_protocol.called)
 
     def test_init_ovs_flows(self):
         cfg.CONF.set_override('bridge_mappings',

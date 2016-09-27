@@ -265,6 +265,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         # at the start. we can use this to check if OVSvApp Agent restarted.
         if not self.int_br.bridge_exists(CONF.OVSVAPP.integration_bridge):
             return False
+        self.set_openflow_version(self.int_br)
         canary_flow = self.int_br.dump_flows_for_table(ovs_const.CANARY_TABLE)
         retval = False
         if canary_flow:
@@ -291,6 +292,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "Terminating the agent!"),
                       {'bridge': CONF.OVSVAPP.integration_bridge})
             raise SystemExit(1)
+        if self.int_br is not None:
+            self.set_openflow_version(self.int_br)
 
     # TODO(sudhakar-gariganti): Refactor setup/recover security bridges
     # by merging into one method with internal if blocks.
@@ -310,6 +313,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.error(_LE("Security bridge does not exist. Terminating the "
                           "agent!"))
             raise SystemExit(1)
+        if self.sec_br is not None:
+            self.set_openflow_version(self.sec_br)
         self.sec_br.remove_all_flows()
         self.int_br.delete_port(ovsvapp_const.INT_TO_SEC_PATCH)
         self.sec_br.delete_port(ovsvapp_const.SEC_TO_INT_PATCH)
@@ -359,6 +364,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.error(_LE("Security bridge does not exist. Terminating the "
                           "agent!"))
             raise SystemExit(1)
+        if self.sec_br is not None:
+            self.set_openflow_version(self.sec_br)
         self.phy_ofport = self.sec_br.get_port_ofport(secbr_phyname)
         if not self.phy_ofport:
             LOG.error(_LE("Physical bridge patch port not available on "
@@ -387,8 +394,17 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             raise SystemExit(1)
         LOG.info(_LI("Security bridge successfully recovered."))
 
+    def set_openflow_version(self, bridge):
+        try:
+            if bridge is not None:
+                bridge.set_protocols(
+                    ["OpenFlow%d" % i for i in range(10, 15)])
+        except RuntimeError as e:
+            LOG.error(_LE("Unable to set openflow version: %s"), e)
+
     def recover_tunnel_bridge(self):
         """Recover the tunnel bridge."""
+        self.set_openflow_version(self.tun_br)
         self.patch_tun_ofport = self.int_br.get_port_ofport(
             cfg.CONF.OVS.int_peer_patch_port)
         self.patch_int_ofport = self.tun_br.get_port_ofport(
@@ -422,6 +438,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                               'bridge': bridge})
                 raise SystemExit(1)
             br = self.br_phys_cls(bridge)
+            if br is not None:
+                self.set_openflow_version(br)
             # Interconnect physical and integration bridges using veth/patch
             # ports.
             int_if_name = p_utils.get_interface_name(
@@ -502,6 +520,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 raise SystemExit(1)
             if not self.tun_br:
                 self.tun_br = self.br_tun_cls(CONF.OVSVAPP.tunnel_bridge)
+            if self.tun_br is not None:
+                self.set_openflow_version(self.tun_br)
             self.agent_state['configurations']['tunneling_ip'] = self.local_ip
             self.agent_state['configurations']['l2_population'] = self.l2_pop
             if not self.ovsvapp_agent_restarted:
