@@ -32,10 +32,12 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
-        device_port = self.admin_client.list_ports(device_id=server_id)
+        device_port = self.admin_manager.ports_client.list_ports(
+            device_id=server_id)
         binding_host = device_port['ports'][0]['binding:host_id']
         mac_addr = device_port['ports'][0]['mac_address']
-        network = self.admin_client.show_network(self.network['id'])
+        network = self.admin_manager.networks_client.show_network(self.network[
+                                                                  'id'])
         segment_id = network['network']['provider:segmentation_id']
         host_dic = self._get_host_name(server_id)
         host_name = host_dic['host_name']
@@ -53,17 +55,18 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
                                                         should_succeed), msg)
 
     def _create_server_associate(self, test_sever, access_server):
-        device_port1 = self.client.list_ports(device_id=test_sever)
+        device_port1 = self.ports_client.list_ports(device_id=test_sever)
         port_id1 = device_port1['ports'][0]['id']
         sg_test_sever = device_port1['ports'][0]['security_groups'][0]
-        device_port2 = self.client.list_ports(device_id=access_server)
+        device_port2 = self.ports_client.list_ports(
+            device_id=access_server)
         port_id2 = device_port2['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id2)
         fip = floating_ip['floatingip']['floating_ip_address']
         sg_access_server = device_port2['ports'][0]['security_groups'][0]
-        dest_ip = device_port2['ports'][0]['fixed_ips'][0]['ip_address']
+        dest_ip = device_port1['ports'][0]['fixed_ips'][0]['ip_address']
         # Add tcp rule to ssh to first server.
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=sg_access_server,
             protocol='tcp',
             direction='ingress',
@@ -89,7 +92,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
-        device_port = self.client.list_ports(device_id=server_id)
+        device_port = self.ports_client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
         self.assertTrue(self.ping_ip_address(
@@ -97,7 +100,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             should_succeed=False))
 
         # Update security group rule for the existing security group
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=group_create_body_update['security_group']['id'],
             protocol='icmp',
             direction='ingress',
@@ -114,7 +117,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         """
         # Create security group to update the server
         sg_body, _ = self._create_security_group()
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=sg_body['security_group']['id'], protocol='icmp',
             direction='ingress', ethertype=self.ethertype)
 
@@ -123,7 +126,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         server_id = self._create_server(name,
                                         self.network['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
-        device_port = self.client.list_ports(device_id=server_id)
+        device_port = self.ports_client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
         self.assertTrue(self.ping_ip_address(
@@ -131,7 +134,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             should_succeed=False))
         # update port with new security group and check connectivity
         update_body = {"security_groups": [sg_body['security_group']['id']]}
-        self.client.update_port(port_id, **update_body)
+        self.ports_client.update_port(port_id, **update_body)
         self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
             should_succeed=True))
@@ -153,14 +156,14 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             "admin_state_up": True}
 
         # Create port with multiple security group
-        body = self.client.create_port(**post_body)
-        self.addCleanup(self.client.delete_port, body['port']['id'])
-        self.client.create_security_group_rule(
+        body = self.ports_client.create_port(**post_body)
+        self.addCleanup(self.ports_client.delete_port, body['port']['id'])
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=first_security_group['security_group']['id'],
             protocol='icmp',
             direction='ingress',
             ethertype=self.ethertype)
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=second_security_group['security_group']['id'],
             protocol='tcp',
             direction='ingress',
@@ -194,7 +197,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
                                                       self.network['id'],
                                                       group_id)
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
-        device_port = self.client.list_ports(device_id=serverid)
+        device_port = self.ports_client.list_ports(device_id=serverid)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
 
@@ -208,14 +211,14 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
 
         protocols = ['icmp', 'tcp']
         for protocol in protocols:
-            self.client.create_security_group_rule(
+            self.security_group_rules_client.create_security_group_rule(
                 security_group_id=sg_body['security_group']['id'],
                 protocol=protocol,
                 direction='ingress',
                 ethertype=self.ethertype
             )
         update_body = {"security_groups": [sg_body['security_group']['id']]}
-        self.client.update_port(port_id, **update_body)
+        self.ports_client.update_port(port_id, **update_body)
 
         # Now ping & SSH to recheck the connectivity & verify.
         self.assertTrue(self.ping_ip_address(
@@ -239,12 +242,12 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
-        device_port = self.client.list_ports(device_id=server_id)
+        device_port = self.ports_client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
 
         # Update security group rule for the existing security group
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=group_create_body_update['security_group']['id'],
             protocol='icmp',
             direction='ingress',
@@ -253,7 +256,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
             should_succeed=True))
-        self.client.update_port(port_id, security_groups=[])
+        self.ports_client.update_port(port_id, security_groups=[])
         self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
             should_succeed=False))
@@ -269,7 +272,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         server_id = self._create_server(
             name, self.network['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
-        device_port = self.client.list_ports(device_id=server_id)
+        device_port = self.ports_client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         sec_grp_id = device_port['ports'][0]['security_groups'][0]
         floating_ip = self._associate_floating_ips(port_id=port_id)
@@ -278,7 +281,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             should_succeed=False))
 
         # Update security group rule for the default security group.
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=sec_grp_id,
             protocol='icmp',
             direction='ingress',
@@ -300,7 +303,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         sg_test_sever, sg_access_server, dest_ip, fip, port1, port2, rp_ip = \
             self._create_server_associate(test_sever, access_server)
         # Add group id of first sg to second sg.
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=sg_test_sever,
             direction='ingress',
             remote_group_id=sg_access_server,
@@ -310,7 +313,6 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         self.assertTrue(self._check_remote_connectivity(fip, dest_ip))
 
     def test_validate_addition_of_sec_with_remote_ip_prefix_as_dest_ip(self):
-
         """Validate security group rule with remote security group.
 
         This test verifies the traffic after adding the remote prefix
@@ -323,9 +325,9 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         sg_test_sever, sg_access_server, dest_ip, fip, port1, port2, rp_ip = \
             self._create_server_associate(test_sever, access_server)
         update_body = {"security_groups": []}
-        self.client.update_port(port1, **update_body)
+        self.ports_client.update_port(port1, **update_body)
         # Add remote_ip_prefix as dest_ip
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=sg_body['security_group']['id'],
             direction='ingress',
             ethertype=self.ethertype,
@@ -334,12 +336,11 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         )
 
         update_body = {"security_groups": [sg_body['security_group']['id']]}
-        self.client.update_port(port1, **update_body)
+        self.ports_client.update_port(port1, **update_body)
         # Ping second server from first server.
         self.assertTrue(self._check_remote_connectivity(fip, dest_ip))
 
     def test_validate_addition_of_sec_with_remote_ip_prefix_as_0_0_0_0(self):
-
         """Validate security group rule with remote security group.
 
         This test verifies the traffic after adding the remote prefix
@@ -352,9 +353,9 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         sg_test_sever, sg_access_server, dest_ip, fip, port1, port2, rp_ip = \
             self._create_server_associate(test_sever, access_server)
         update_body = {"security_groups": []}
-        self.client.update_port(port1, **update_body)
+        self.ports_client.update_port(port1, **update_body)
         # Add remote_ip_prefix as 0.0.0.0
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=sg_body['security_group']['id'],
             direction='ingress',
             ethertype=self.ethertype,
@@ -363,7 +364,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         )
 
         update_body = {"security_groups": [sg_body['security_group']['id']]}
-        self.client.update_port(port1, **update_body)
+        self.ports_client.update_port(port1, **update_body)
         # Ping second server from first server.
         self.assertTrue(self._check_remote_connectivity(fip, dest_ip))
 
@@ -375,19 +376,18 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         """
         security_group, vapp_ipadd, segment_id, mac_addr, net_id = \
             self._create_security_group_rule_with_specified_port_range()
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=security_group,
             protocol='udp',
             direction='ingress',
             ethertype=self.ethertype,
             port_range_min=22,
             port_range_max=22,
-            )
+        )
         self._dump_flows_on_br_sec(vapp_ipadd, 'udp',
                                    segment_id, mac_addr, '22', net_id)
 
     def test_create_security_group_rule_with_specified_tcp_port_range(self):
-
         """Validate secgroup rules for tcp protocol with specified port-range.
 
         This test verifies the tcp rules for a given range based on the flow
@@ -396,14 +396,14 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         security_group, vapp_ipadd, segment_id, mac_addr, net_id = \
             self._create_security_group_rule_with_specified_port_range()
 
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=security_group,
             protocol='tcp',
             direction='ingress',
             ethertype=self.ethertype,
             port_range_min=20,
             port_range_max=23,
-            )
+        )
         for key in range(20, 24):
             self._dump_flows_on_br_sec(vapp_ipadd, 'tcp', segment_id,
                                        mac_addr, key, net_id)
@@ -416,14 +416,14 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         """
         security_group, vapp_ipadd, segment_id, mac_addr, net_id = \
             self._create_security_group_rule_with_specified_port_range()
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=security_group,
             protocol='icmp',
             direction='ingress',
             ethertype=self.ethertype,
             port_range_min=22,
             port_range_max=23,
-            )
+        )
         self._dump_flows_on_br_sec_for_icmp_rule(vapp_ipadd, 'icmp',
                                                  segment_id, mac_addr, '22',
                                                  '23', net_id)
@@ -436,7 +436,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         net_id = self.network['id']
         name = data_utils.rand_name('server-smoke')
         group_create_body_update, _ = self._create_security_group()
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=group_create_body_update['security_group']['id'],
             protocol='icmp',
             direction='ingress',
@@ -447,10 +447,12 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         serverid = self._create_server_with_sec_group(
             name, net_id, group_create_body_update['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
-        device_port = self.admin_client.list_ports(device_id=serverid)
+        device_port = self.admin_manager.ports_client.list_ports(
+            device_id=serverid)
         binding_host = device_port['ports'][0]['binding:host_id']
         mac_addr = device_port['ports'][0]['mac_address']
-        network = self.admin_client.show_network(self.network['id'])
+        network = self.admin_manager.networks_client.show_network(self.network[
+                                                                  'id'])
         segment_id = network['network']['provider:segmentation_id']
         host_dic = self._get_host_name(serverid)
         host_name = host_dic['host_name']
@@ -464,17 +466,18 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         self._dump_flows_on_br_sec_for_icmp_type(vapp_ipadd, 'icmp',
                                                  segment_id, mac_addr, '8',
                                                  net_id)
-        body = self.admin_client.list_agents(agent_type='OVSvApp Agent')
+        body = self.admin_manager.network_agents_client.list_agents(
+            agent_type='OVSvApp Agent')
         agents = body['agents']
         vapp_ipadd_of_host = ""
         for agent in agents:
-                if binding_host != agent['host']:
-                        agent_alive_status = agent['alive']
-                        if agent_alive_status is True:
-                                vapp_agent_name = agent['host']
-                                vapp_ipadd_of_host = \
-                                    self._get_vapp_ip_from_agent_list(
-                                        str(vapp_agent_name))
+            if binding_host != agent['host']:
+                agent_alive_status = agent['alive']
+                if agent_alive_status is True:
+                    vapp_agent_name = agent['host']
+                    vapp_ipadd_of_host = \
+                        self._get_vapp_ip_from_agent_list(
+                            str(vapp_agent_name))
         if vapp_ipadd_of_host:
             self._dump_flows_on_br_sec_for_icmp_type(vapp_ipadd_of_host,
                                                      'icmp', segment_id,
