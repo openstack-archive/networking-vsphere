@@ -360,7 +360,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             direction='ingress',
             ethertype=self.ethertype,
             protocol='icmp',
-            remote_ip_prefix=str("0.0.0.0")
+            remote_ip_prefix=str("0.0.0.0/0")
         )
 
         update_body = {"security_groups": [sg_body['security_group']['id']]}
