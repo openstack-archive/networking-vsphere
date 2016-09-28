@@ -566,17 +566,19 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         remote_rules = []
         remote_list = []
         for rule in sg_normal_rules:
-            if rule.get('remote_group_id') is not None:
-                sgid = rule['security_group_id']
-                if group == sgid:
-                    remote_rules = \
-                        self.sgid_remote_rules_dict[sgid]
-                    if remote_rules is not None:
-                        if rule not in remote_rules:
-                            new_remote_rules.append(rule)
-                        else:
-                            remote_rules.remove(rule)
-                            remote_list.append(rule)
+            rgroup = rule.get('remote_group_id')
+            if rgroup is None:
+                continue
+            sgid = rule['security_group_id']
+            if group == sgid:
+                remote_rules = \
+                    self.sgid_remote_rules_dict[sgid]
+                if remote_rules is not None:
+                    if rule not in remote_rules:
+                        new_remote_rules.append(rule)
+                    else:
+                        remote_rules.remove(rule)
+                        remote_list.append(rule)
         if len(new_remote_rules) > 0:
             LOG.debug("_process_remote_group_rules:\
                 NEW REMOTE SG RULES ADDED:\
@@ -609,6 +611,11 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             sg_rules = port_info[port_id]['security_group_rules']
             sg_normal_rules = port_info[port_id]['sg_normal_rules']
             sg_devices = port_info[port_id]['fixed_ips']
+            if len(sgroups) == 0 and len(sg_rules) == 0:
+                LOG.info(_LI("_update_device_port_sg_map:"
+                         "Security groups cleared for device."))
+                self._remove_devices_filter(port_id, False)
+                return
             for group in sgroups:
                 new_rules = []
                 rules_map = {}
@@ -659,11 +666,11 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                         LOG.debug("Foll ports need to be updated with above \
                             rules: %s", self.pending_rules_dict)
 
-                    # Now process remote group rules
-                    self._process_remote_group_rules(group, port_id,
-                                                     sg_normal_rules,
-                                                     added_rules,
-                                                     deleted_rules)
+                # Now process remote group rules
+                self._process_remote_group_rules(group, port_id,
+                                                 sg_normal_rules,
+                                                 added_rules,
+                                                 deleted_rules)
 
             LOG.debug("_update_device_port_sg_map - \
                 Added Rules %s", added_rules)
@@ -702,6 +709,12 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                         sg_devices.pop(deleted_dev)
         finally:
             sg_datalock.release()
+
+    def _remove_devices_filter(self, device_id, deleted):
+        if not device_id:
+            return
+        self.firewall.clean_port_filters([device_id])
+        self._remove_device_sg_mapping(device_id, deleted)
 
     def remove_devices_filter(self, device_id):
         if not device_id:
