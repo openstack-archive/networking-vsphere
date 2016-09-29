@@ -54,6 +54,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self.sgid_rules_dict = {}
         self.sgid_remote_rules_dict = {}
         self.sgid_devices_dict = {}
+        self.device_sgids_dict = {}
         self.pending_rules_dict = {}
         self.deleted_devices_dict = {}
         self.init_firewall(defer_apply)
@@ -238,6 +239,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         LOG.debug("=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
         LOG.debug(msg)
         LOG.debug("sgid_devices_dict: %s", pformat(self.sgid_devices_dict))
+        LOG.debug("device_sgids_dict: %s", pformat(self.device_sgids_dict))
         LOG.debug("sgid_rules_dict: %s", pformat(self.sgid_rules_dict))
         LOG.debug("sgid_remote_rules_dict: %s",
                   pformat(self.sgid_remote_rules_dict))
@@ -264,6 +266,12 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                 self.sgid_devices_dict.pop(group)
                 self.sgid_rules_dict.pop(group)
                 self.sgid_remote_rules_dict.pop(group)
+                dev_groups = self.device_sgids_dict.get(port_id)
+                if dev_groups is not None:
+                    if group in dev_groups:
+                        dev_groups.remove(group)
+                    if len(dev_groups) == 0:
+                        self.device_sgids_dict.pop(port_id)
             if deleted:
                 self.deleted_devices_dict[port_id] = time.time()
             self._print_rules_cache("After _remove_device_sg_mapping")
@@ -328,6 +336,12 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                               'deleted_dev': deleted_dev})
             if len(devices_dict) == 0:
                 remove_list.append(group)
+            dev_groups = self.device_sgids_dict.get(port_id)
+            if dev_groups is not None:
+                if deleted_dev_group in dev_groups:
+                    dev_groups.remove(deleted_dev_group)
+                if len(dev_groups) == 0:
+                    self.device_sgids_dict.pop(port_id)
             if self.pending_rules_dict.get(port_id) is not None:
                 self.pending_rules_dict.pop(port_id)
                 LOG.debug("Deleted device ip and group are: %s, %s",
@@ -372,11 +386,19 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         new_device = None
         if self.sgid_devices_dict.get(group) is None:
             self.sgid_devices_dict[group] = devices = {}
+            dev_groups = self.device_sgids_dict.get(port_id)
+            if dev_groups is None:
+                self.device_sgids_dict[port_id] = dev_groups = []
+            dev_groups.append(group)
             for device in sg_devices:
                 devices[device] = port_id
                 new_device = device
         else:
             devices = self.sgid_devices_dict[group]
+            dev_groups = self.device_sgids_dict.get(port_id)
+            if dev_groups is None:
+                self.device_sgids_dict[port_id] = dev_groups = []
+            dev_groups.append(group)
             for device in sg_devices:
                 if device not in devices:
                     devices[device] = port_id
@@ -551,6 +573,28 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                     rules_map[rule['id']] = rule
         return update_pending
 
+    def _is_groups_deleted(self, groups, port_id, deleted_groups):
+        """check if any groups are removed for the port.
+
+        :param groups: list of groups received in refresh
+        :param port_id: port's id
+        :param deleted_groups: return list containing deleted groups
+        :return: True if groups deleted
+        """
+        deleted = False
+        sgroups = []
+        dev_groups = self.device_sgids_dict.get(port_id)
+        if dev_groups is not None:
+            for group in groups:
+                if group in dev_groups:
+                    sgroups.append(group)
+                    dev_groups.remove(group)
+            if len(dev_groups) > 0:
+                deleted = True
+                deleted_groups.extend(dev_groups)
+            dev_groups.extend(sgroups)
+        return deleted
+
     def _process_remote_group_rules(self, group, port_id, sg_normal_rules,
                                     added_rules, deleted_rules):
         """Check for remote group rule changes and update map accordingly.
@@ -616,6 +660,12 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                          "Security groups cleared for device."))
                 self._remove_devices_filter(port_id, False)
                 return
+            del_groups = []
+            if self._is_groups_deleted(sgroups, port_id, del_groups):
+                LOG.info(_LI("_update_device_port_sg_map:"
+                         "Groups removed from port: %s"), del_groups)
+                for group in del_groups:
+                    self._remove_devices_filter(port_id, False)
             for group in sgroups:
                 new_rules = []
                 rules_map = {}
