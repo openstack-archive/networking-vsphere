@@ -389,7 +389,8 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             dev_groups = self.device_sgids_dict.get(port_id)
             if dev_groups is None:
                 self.device_sgids_dict[port_id] = dev_groups = []
-            dev_groups.append(group)
+            if not dev_groups.contains(group):
+                dev_groups.append(group)
             for device in sg_devices:
                 devices[device] = port_id
                 new_device = device
@@ -398,7 +399,8 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             dev_groups = self.device_sgids_dict.get(port_id)
             if dev_groups is None:
                 self.device_sgids_dict[port_id] = dev_groups = []
-            dev_groups.append(group)
+            if not dev_groups.contains(group):
+                dev_groups.append(group)
             for device in sg_devices:
                 if device not in devices:
                     devices[device] = port_id
