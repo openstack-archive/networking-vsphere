@@ -86,7 +86,7 @@ class TestVmwareResourceUtil(base.TestCase):
         host_mor = resource_util.get_host_mors_for_cluster(
             self.session, cluster_mor)
         self.assertTrue(host_mor)
-        self.assertTrue(isinstance(host_mor, list))
+        self.assertIsInstance(host_mor, list)
 
     def test_get_host_mors_for_cluster_with_invalid_mor(self):
         host_mor = resource_util.get_host_mors_for_cluster(self.session, None)

@@ -158,7 +158,7 @@ class TestVmwareNetworkUtil(base.TestCase):
         port_group_mors = network_util.get_all_portgroup_mors_for_switch(
             self.session, "test_dvs")
         self.assertTrue(port_group_mors)
-        self.assertTrue(isinstance(port_group_mors, list))
+        self.assertIsInstance(port_group_mors, list)
 
     def test_get_all_portgroup_mors_for_invalid_switch(self):
         dvs_name = "test_invalid_dvs"

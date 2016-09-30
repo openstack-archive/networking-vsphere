@@ -43,7 +43,7 @@ class CommonUtilsTestCase(base.TestCase):
     def test_load_object(self):
         driver_obj = utils.load_object(
             self.fake_network_driver, driver.NetworkDriver)
-        self.assertTrue(isinstance(driver_obj, fake_driver.FakeNetworkDriver))
+        self.assertIsInstance(driver_obj, fake_driver.FakeNetworkDriver)
 
     def test_non_loadable_object(self):
         load_object_fn = utils.load_object
