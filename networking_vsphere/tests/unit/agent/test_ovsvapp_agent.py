@@ -563,11 +563,14 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'
                                   ) as mock_rarp_flow, \
                 mock.patch.object(self.agent, '_init_ovs_flows'
-                                  ) as mock_init_ovs_flows:
+                                  ) as mock_init_ovs_flows, \
+                mock.patch.object(self.agent, '_set_interface_mtus'
+                                  ) as mock_set_interface_mtus:
             self.agent.setup_ovs_bridges()
             mock_phys_brs.assert_called_with(self.agent.bridge_mappings)
             mock_init_ovs_flows.assert_called_with(self.agent.bridge_mappings)
             self.assertTrue(mock_rarp_flow.called)
+            self.assertTrue(mock_set_interface_mtus.called)
 
     @mock.patch('neutron.agent.ovsdb.api.'
                 'API.get')
@@ -579,11 +582,14 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'
                                   ) as mock_rarp_flow, \
                 mock.patch.object(self.agent, 'setup_tunnel_br_flows'
-                                  ) as mock_setup_tunnel_br_flows:
+                                  ) as mock_setup_tunnel_br_flows, \
+                mock.patch.object(self.agent, '_set_interface_mtus'
+                                  ) as mock_set_interface_mtus:
             self.agent.setup_ovs_bridges()
             mock_setup_tunnel_br.assert_called_with("br-tun")
             self.assertTrue(mock_setup_tunnel_br_flows.called)
             self.assertTrue(mock_rarp_flow.called)
+            self.assertTrue(mock_set_interface_mtus.called)
 
     def test_setup_ovs_bridges_vxlan_ofport(self):
         cfg.CONF.set_override('tenant_network_types',
@@ -604,12 +610,15 @@ class TestOVSvAppAgent(base.TestCase):
                                   return_value=6), \
                 mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'), \
                 mock.patch.object(self.agent, 'setup_tunnel_br_flows'
-                                  ) as mock_setup_tunnel_br_flows:
+                                  ) as mock_setup_tunnel_br_flows, \
+                mock.patch.object(self.agent, '_set_interface_mtus'
+                                  ) as mock_set_interface_mtus:
             self.agent.setup_ovs_bridges()
             self.assertTrue(self.agent.tun_br.add_patch_port.called)
             self.assertEqual(self.agent.patch_tun_ofport, 6)
             self.assertEqual(self.agent.patch_int_ofport, 5)
             self.assertTrue(mock_setup_tunnel_br_flows.called)
+            self.assertTrue(mock_set_interface_mtus.called)
 
     def test_mitigate_ovs_restart_vlan(self):
         self.agent.refresh_firewall_required = False

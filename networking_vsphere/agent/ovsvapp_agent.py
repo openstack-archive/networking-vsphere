@@ -26,6 +26,7 @@ from oslo_service import loopingcall
 import six
 
 from neutron.agent.common import ovs_lib
+from neutron.agent.linux import ip_lib
 from neutron.agent import rpc as agent_rpc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
@@ -500,9 +501,18 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.phys_brs[phys_net]['eth_ofport'] = eth_ofport
         LOG.info(_LI("OVS flows set on physical bridges."))
 
+    def _set_interface_mtus(self):
+        try:
+            ip_lib.IPDevice(CONF.OVSVAPP.bridge_mtu_name).link.set_mtu(
+                CONF.OVSVAPP.bridge_mtu_value)
+        except Exception:
+            LOG.error(_LE("Unable to configure interface MTU for %s:"),
+                      CONF.OVSVAPP.bridge_mtu_name)
+
     def setup_ovs_bridges(self):
         LOG.info(_LI("Network type supported by agent: %s."),
                  self.tenant_network_types)
+        self._set_interface_mtus()
         if p_const.TYPE_VLAN in self.tenant_network_types:
             if not self.ovsvapp_agent_restarted:
                 self.setup_physical_bridges(self.bridge_mappings)

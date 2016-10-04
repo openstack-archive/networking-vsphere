@@ -110,7 +110,13 @@ OVSVAPP_OPTS = [
                help='Local IP address of VXLAN tunnel endpoint.'),
     cfg.StrOpt('monitoring_ip',
                default='',
-               help='IP address for monitoring OVS Status.')
+               help='IP address for monitoring OVS Status.'),
+    cfg.StrOpt('bridge_mtu_name',
+               default='br-int',
+               help='Name of the bridge on which to set MTU'),
+    cfg.StrOpt('bridge_mtu_value',
+               default='1500',
+               help='MTU value for interface')
 ]
 
 # OVSvApp Security Group related config read from ovsvapp_agent.ini.
