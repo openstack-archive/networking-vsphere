@@ -1,0 +1,8 @@
+Code-Review+2: Raghuveer Shenoy <rshenoy@hpe.com>
+Workflow+1: Raghuveer Shenoy <rshenoy@hpe.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 05 Oct 2016 10:40:27 +0000
+Reviewed-on: https://review.openstack.org/381121
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
