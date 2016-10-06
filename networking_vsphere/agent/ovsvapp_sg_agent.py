@@ -611,12 +611,14 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         new_remote_rules = []
         remote_rules = []
         remote_list = []
+        changed = False
         for rule in sg_normal_rules:
             rgroup = rule.get('remote_group_id')
             if rgroup is None:
                 continue
             sgid = rule['security_group_id']
             if group == sgid:
+                changed = True
                 remote_rules = \
                     self.sgid_remote_rules_dict[sgid]
                 if remote_rules is not None:
@@ -637,6 +639,11 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                 REMOTE SG RULES REMOVED: \
                 %s", remote_rules)
             deleted_rules.extend(self._expand_rules(remote_rules))
+        if not changed and len(remote_rules) == 0:
+            remote_rules = self.sgid_remote_rules_dict[group]
+            if remote_rules is not None and \
+                len(remote_rules) == 1:
+                    deleted_rules.extend(self._expand_rules(remote_rules))
         self._check_and_update_pending_rules(
             group, port_id, added_rules, deleted_rules,
             new_remote_rules, remote_rules, True
@@ -674,7 +681,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                 new_device = self._update_sgid_devices_dict(
                     group, sg_devices, port_id)
                 if new_device is not None:
-                    LOG.debug("_process_remote_group_rules: NEW DEVICE: %s",
+                    LOG.debug("_update_device_port_sg_map: NEW DEVICE: %s",
                               new_device)
                     # This is a new device, all the rules have to be
                     # applied to security bridge
