@@ -117,6 +117,31 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
             self.agent.add_devices_to_filter([])
             self.assertFalse(mock_add.called)
 
+    def test_check_for_remote_rules_with_remote_rules(self):
+        sgroups = ['SG_01']
+        port_id = 'FAKE_PORT_ID'
+        sg_rules = [{u'ethertype': u'IPv6', u'direction': u'egress',
+                     u'id': u'RULE_ID', u'security_group_id': u'SG_01'},
+                    {u'remote_group_id': u'SG_02', u'direction': u'ingress',
+                     'source_ip_prefix': '1.1.1.17/32',
+                     u'protocol': u'icmp', u'ethertype': u'IPv4',
+                     u'id': u'OVSVAPP-1.1.1.17',
+                     u'security_group_id': u'SG_01'},
+                    {u'remote_group_id': u'SG_02', u'direction': u'ingress',
+                     'source_ip_prefix': '1.1.1.11/32', u'protocol': u'icmp',
+                     u'ethertype': u'IPv4', u'id': u'OVSVAPP-1.1.1.11',
+                     u'security_group_id': u'SG_01'}]
+        self.assertTrue(self.agent._has_remote_rules(
+                        sgroups, port_id, sg_rules))
+
+    def test_check_for_remote_rules_without_remote_rules(self):
+        sgroups = ['SG_01']
+        port_id = 'FAKE_PORT_ID'
+        sg_rules = [{u'ethertype': u'IPv6', u'direction': u'egress',
+                     u'id': u'RULE_ID', u'security_group_id': u'SG_01'}]
+        self.assertFalse(self.agent._has_remote_rules(
+                         sgroups, port_id, sg_rules))
+
     def test_ovsvapp_sg_update(self):
         ports = {"123": fake_port['security_group_rules']}
         self.agent.firewall.filtered_ports["123"] = fake_port
@@ -228,7 +253,7 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
             self.agent._fetch_and_apply_rules(set(port_ids), True)
             self.assertEqual(1, mock_ovsvapp_sg_rpc.call_count)
             self.assertEqual(2, mock_expand_sg_rules.call_count)
-            self.assertEqual(1, mock_update.call_count)
+            self.assertEqual(2, mock_update.call_count)
             self.assertFalse(mock_prep.called)
 
     def test_process_port_set(self):
