@@ -276,6 +276,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                                                       filters={'device_id':
                                                                [device_id]})
                     else:
+                        port['status'] = common_const.PORT_STATUS_ACTIVE
                         break
                 if retry_count == 0:
                     LOG.error(_LE("Failed to update binding for device %s, "
