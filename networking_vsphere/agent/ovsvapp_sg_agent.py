@@ -611,12 +611,14 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         new_remote_rules = []
         remote_rules = []
         remote_list = []
+        changed = False
         for rule in sg_normal_rules:
             rgroup = rule.get('remote_group_id')
             if rgroup is None:
                 continue
             sgid = rule['security_group_id']
             if group == sgid:
+                changed = True
                 remote_rules = \
                     self.sgid_remote_rules_dict[sgid]
                 if remote_rules is not None:
@@ -637,12 +639,36 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                 REMOTE SG RULES REMOVED: \
                 %s", remote_rules)
             deleted_rules.extend(self._expand_rules(remote_rules))
+        if not changed and len(remote_rules) == 0:
+            remote_rules = self.sgid_remote_rules_dict[group]
+            if remote_rules is not None and \
+                len(remote_rules) == 1:
+                    deleted_rules.extend(self._expand_rules(remote_rules))
         self._check_and_update_pending_rules(
             group, port_id, added_rules, deleted_rules,
             new_remote_rules, remote_rules, True
         )
         remote_list.extend(new_remote_rules)
         self.sgid_remote_rules_dict[group] = remote_list
+
+    def _has_remote_rules(self, sgroups, port_id, sg_rules):
+        try:
+            for group in sgroups:
+                for rule in sg_rules:
+                    if OVSVAPP_ID in rule['id']:
+                        remote_g = rule.get('remote_group_id')
+                        if remote_g is not None and remote_g != group:
+                            return True
+            remote_rules = self.sgid_remote_rules_dict.get(group)
+            if remote_rules is not None and \
+                len(remote_rules) > 0:
+                    return True
+        except Exception as e:
+            LOG.error(_LE("Exception in _has_remote_rules: %s"), e)
+            # In case of exceptions better to clear and reapply rules to the
+            # security bridge so return True.
+            return True
+        return False
 
     def _update_device_port_sg_map(self, port_info, port_id, update=False):
         sg_datalock.acquire()
@@ -668,13 +694,15 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                          "Groups removed from port: %s"), del_groups)
                 for group in del_groups:
                     self._remove_devices_filter(port_id, False)
+            if self._has_remote_rules(sgroups, port_id, sg_rules):
+                self._remove_devices_filter(port_id, False)
             for group in sgroups:
                 new_rules = []
                 rules_map = {}
                 new_device = self._update_sgid_devices_dict(
                     group, sg_devices, port_id)
                 if new_device is not None:
-                    LOG.debug("_process_remote_group_rules: NEW DEVICE: %s",
+                    LOG.debug("_update_device_port_sg_map: NEW DEVICE: %s",
                               new_device)
                     # This is a new device, all the rules have to be
                     # applied to security bridge
