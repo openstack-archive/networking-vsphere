@@ -1,0 +1,9 @@
+Code-Review+1: Arun Kumar <madheven-arun.kumar@hpe.com>
+Code-Review+2: Sonu <sonu.sudhakaran@gmail.com>
+Workflow+1: Sonu <sonu.sudhakaran@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 06 Oct 2016 13:00:30 +0000
+Reviewed-on: https://review.openstack.org/382847
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/mitaka
