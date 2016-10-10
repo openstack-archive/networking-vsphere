@@ -136,8 +136,15 @@ class PortQueue(object):
 
     def get_dvs(self, port):
         dvs_uuid = port.get('binding:vif_details', {}).get('dvs_id')
-        dvs = dvs_util.get_dvs_by_uuid(
-            self.networking_map.values(), dvs_uuid)
+        if dvs_uuid:
+            dvs = dvs_util.get_dvs_by_uuid(
+                self.networking_map.values(), dvs_uuid)
+        else:
+            port_network = port['network_id']
+            port_network_name = port.get('binding:vif_details', {}).get(
+                'dvs_port_group_name')
+            dvs = dvs_util.get_dvs_by_network(
+                self.networking_map.values(), port_network, port_network_name)
         return dvs
 
     def port_updater_loop(self):
@@ -178,8 +185,15 @@ class DVSFirewallDriver(firewall.FirewallDriver):
 
     def _get_port_dvs(self, port):
         dvs_uuid = port.get('binding:vif_details', {}).get('dvs_id')
-        dvs = dvs_util.get_dvs_by_uuid(
-            self.networking_map.values(), dvs_uuid)
+        if dvs_uuid:
+            dvs = dvs_util.get_dvs_by_uuid(
+                self.networking_map.values(), dvs_uuid)
+        else:
+            port_network = port['network_id']
+            port_network_name = port.get('binding:vif_details', {}).get(
+                'dvs_port_group_name')
+            dvs = dvs_util.get_dvs_by_network(
+                self.networking_map.values(), port_network, port_network_name)
         return dvs
 
     def stop_all(self):

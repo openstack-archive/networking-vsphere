@@ -729,6 +729,17 @@ def get_dvs_by_uuid(dvs_list, uuid):
     return None
 
 
+def get_dvs_by_network(dvs_list, network_id, network_name=None):
+    for dvs in dvs_list:
+        try:
+            if not network_name:
+                network_name = dvs._get_net_name({'id': network_id})
+            if dvs._get_pg_by_name(network_name):
+                return dvs
+        except exceptions.PortGroupNotFound:
+            continue
+
+
 def wrap_retry(func):
     """Retry operation on dvs when concurrent modification was discovered."""
     @six.wraps(func)
