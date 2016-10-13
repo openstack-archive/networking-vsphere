@@ -40,7 +40,7 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
-        device_port = self.client.list_ports(device_id=server_id)
+        device_port = self.ports_client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
         self.assertTrue(self.ping_ip_address(
@@ -48,7 +48,7 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
             should_succeed=False))
 
         # Update security group rule for the existing security group
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=group_create_body_update['security_group']['id'],
             protocol='icmp',
             direction='ingress',
@@ -88,7 +88,7 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
-        device_port = self.client.list_ports(device_id=server_id)
+        device_port = self.ports_client.list_ports(device_id=server_id)
         port_id = device_port['ports'][0]['id']
         floating_ip = self._associate_floating_ips(port_id=port_id)
         self.assertTrue(self.ping_ip_address(
@@ -109,7 +109,7 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         task = self._migrate_vm(content, server_id, dest_host)
         self._wait_for_task(task, content)
         # Update security group rule for the existing security group
-        self.client.create_security_group_rule(
+        self.security_group_rules_client.create_security_group_rule(
             security_group_id=group_create_body_update['security_group']['id'],
             protocol='icmp',
             direction='ingress',
