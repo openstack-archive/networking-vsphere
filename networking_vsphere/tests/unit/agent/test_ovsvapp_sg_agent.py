@@ -121,13 +121,9 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         ports = {"123": fake_port['security_group_rules']}
         self.agent.firewall.filtered_ports["123"] = fake_port
         with mock.patch.object(self.agent.firewall,
-                               'prepare_port_filter') as mock_prepare, \
-            mock.patch.object(self.agent,
-                              '_update_device_port_sg_map'
-                              ) as mock_update_sg_map:
+                               'prepare_port_filter') as mock_prepare:
             self.agent.ovsvapp_sg_update(ports)
             self.assertTrue(mock_prepare.called)
-            self.assertTrue(mock_update_sg_map.called)
             mock_prepare.assert_called_with(ports["123"])
 
     def test_ovsvapp_sg_update_multiple_ports(self):
@@ -136,13 +132,9 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         self.agent.firewall.filtered_ports["123"] = fake_port
         self.agent.firewall.filtered_ports["456"] = fake_port
         with mock.patch.object(self.agent.firewall,
-                               'prepare_port_filter') as mock_prepare, \
-            mock.patch.object(self.agent,
-                              '_update_device_port_sg_map'
-                              ) as mock_update_sg_map:
+                               'prepare_port_filter') as mock_prepare:
             self.agent.ovsvapp_sg_update(ports)
             self.assertTrue(mock_prepare.called)
-            self.assertTrue(mock_update_sg_map.called)
             mock_prepare.assert_called_with(ports["123"])
             mock_prepare.assert_called_with(ports["456"])
 
@@ -171,24 +163,8 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
 
     def _get_fake_ports(self, ids):
         ports = {}
-        cnt = 1
         for id in ids:
-            port = {'id': id, 'security_group_rules': mock.MagicMock(),
-                    'sg_provider_rules': ['fake_rule'],
-                    'security_groups': ['mock_group'],
-                    'security_group_rules': [{"id": "0xabcdef" + str(cnt),
-                                              "direction": "ingress",
-                                              "protocol": "tcp",
-                                              "port_range_min": 2001,
-                                              "port_range_max": 2009,
-                                              "security_group_id": "f_group",
-                                              "source_port_range_min": 67,
-                                              "source_port_range_max": 77,
-                                              "ethertype": "IPv4",
-                                              "source_ip_prefix": "1.1.1.0/8",
-                                              "dest_ip_prefix": "1.1.1.0/8"}],
-                    'sg_normal_rules': [],
-                    'fixed_ips': ['1.1.1.' + str(cnt)]}
+            port = {'id': id, 'security_group_rules': mock.MagicMock()}
             ports[id] = port
         return ports
 
@@ -204,11 +180,14 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
                                   return_value=ret_val
                                   ) as mock_expand_sg_rules, \
                 mock.patch.object(self.agent.firewall,
+                                  'prepare_port_filter') as mock_prep, \
+                mock.patch.object(self.agent.firewall,
                                   'update_port_filter') as mock_update:
             self.agent._fetch_and_apply_rules(set(port_ids))
             self.assertEqual(1, mock_ovsvapp_sg_rpc.call_count)
             self.assertEqual(2, mock_expand_sg_rules.call_count)
-            self.assertTrue(mock_update.called)
+            self.assertEqual(2, mock_prep.call_count)
+            self.assertFalse(mock_update.called)
 
     def test_fetch_and_apply_rules_for_refresh(self):
         port_ids = self._get_fake_portids(2)
@@ -228,7 +207,7 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
             self.agent._fetch_and_apply_rules(set(port_ids), True)
             self.assertEqual(1, mock_ovsvapp_sg_rpc.call_count)
             self.assertEqual(2, mock_expand_sg_rules.call_count)
-            self.assertEqual(1, mock_update.call_count)
+            self.assertEqual(2, mock_update.call_count)
             self.assertFalse(mock_prep.called)
 
     def test_process_port_set(self):
@@ -274,15 +253,17 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         other_host_ports = self._get_fake_portids(6)
         self.agent.devices_to_refilter = set(own_host_ports)
         self.agent.global_refresh_firewall = False
-        with mock.patch.object(self.agent, 'refresh_firewall'
-                               ) as mock_refresh, \
+        with mock.patch.object(self.agent.firewall, 'clean_port_filters'
+                               ) as mock_clean, \
+                mock.patch.object(self.agent, 'refresh_firewall'
+                                  ) as mock_refresh, \
                 mock.patch.object(self.agent, 'prepare_firewall'
                                   ) as mock_prepare:
             self.agent.refresh_port_filters(set(own_host_ports),
                                             set(other_host_ports))
         self.assertFalse(self.agent.devices_to_refilter)
         self.assertFalse(self.agent.global_refresh_firewall)
-#        mock_clean.assert_called_with(set([]))
+        mock_clean.assert_called_with(set([]))
         self.assertTrue(mock_refresh.called)
         self.assertFalse(mock_prepare.called)
 
@@ -293,15 +274,17 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         other_host_ports = self._get_fake_portids(6)
         self.agent.devices_to_refilter = set(other_host_ports)
         self.agent.global_refresh_firewall = False
-        with mock.patch.object(self.agent, 'refresh_firewall'
-                               ) as mock_refresh, \
+        with mock.patch.object(self.agent.firewall, 'clean_port_filters'
+                               ) as mock_clean, \
+                mock.patch.object(self.agent, 'refresh_firewall'
+                                  ) as mock_refresh, \
                 mock.patch.object(self.agent, 'prepare_firewall'
                                   ) as mock_prepare:
             self.agent.refresh_port_filters(set(own_host_ports),
                                             set(other_host_ports))
         self.assertFalse(self.agent.devices_to_refilter)
         self.assertFalse(self.agent.global_refresh_firewall)
-#        mock_clean.assert_called_with(set(other_host_ports))
+        mock_clean.assert_called_with(set(other_host_ports))
         self.assertFalse(mock_refresh.called)
         self.assertTrue(mock_prepare.called)
 
@@ -315,14 +298,18 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
                            other_host_ports[4]]
         self.agent.devices_to_refilter = set(ports_to_filter)
         self.agent.global_refresh_firewall = False
-        with mock.patch.object(self.agent, 'refresh_firewall'
-                               ) as mock_refresh, \
+        with mock.patch.object(self.agent.firewall, 'clean_port_filters'
+                               ) as mock_clean, \
+                mock.patch.object(self.agent, 'refresh_firewall'
+                                  ) as mock_refresh, \
                 mock.patch.object(self.agent, 'prepare_firewall'
                                   ) as mock_prepare:
             self.agent.refresh_port_filters(set(own_host_ports),
                                             set(other_host_ports))
         self.assertFalse(self.agent.devices_to_refilter)
         self.assertFalse(self.agent.global_refresh_firewall)
+        mock_clean.assert_called_with(set([other_host_ports[3],
+                                           other_host_ports[4]]))
         self.assertTrue(mock_refresh.called)
         self.assertTrue(mock_prepare.called)
 
@@ -332,13 +319,16 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         other_host_ports = self._get_fake_portids(6)
         self.agent.devices_to_refilter = set([])
         self.agent.global_refresh_firewall = True
-        with mock.patch.object(self.agent, 'refresh_firewall'
-                               ) as mock_refresh, \
+        with mock.patch.object(self.agent.firewall, 'clean_port_filters'
+                               ) as mock_clean, \
+                mock.patch.object(self.agent, 'refresh_firewall'
+                                  ) as mock_refresh, \
                 mock.patch.object(self.agent, 'prepare_firewall'
                                   ) as mock_prepare:
             self.agent.refresh_port_filters(set(own_host_ports),
                                             set(other_host_ports))
         self.assertFalse(self.agent.global_refresh_firewall)
+        mock_clean.assert_called_with(set(other_host_ports))
         self.assertTrue(mock_refresh.called)
         self.assertFalse(mock_prepare.called)
 
@@ -349,13 +339,16 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         other_host_ports = self._get_fake_portids(6)
         self.agent.devices_to_refilter = set(own_host_ports)
         self.agent.global_refresh_firewall = True
-        with mock.patch.object(self.agent, 'refresh_firewall'
-                               ) as mock_refresh, \
+        with mock.patch.object(self.agent.firewall, 'clean_port_filters'
+                               ) as mock_clean, \
+                mock.patch.object(self.agent, 'refresh_firewall'
+                                  ) as mock_refresh, \
                 mock.patch.object(self.agent, 'prepare_firewall'
                                   ) as mock_prepare:
             self.agent.refresh_port_filters(set(own_host_ports),
                                             set(other_host_ports))
         self.assertFalse(self.agent.devices_to_refilter)
         self.assertFalse(self.agent.global_refresh_firewall)
+        mock_clean.assert_called_with(set(other_host_ports))
         self.assertTrue(mock_refresh.called)
         self.assertFalse(mock_prepare.called)

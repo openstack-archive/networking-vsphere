@@ -32,7 +32,6 @@ fake_port = {'security_group_source_groups': 'abc',
              'security_groups': "abc",
              'lvid': "100",
              'sg_provider_rules': [],
-             'security_group_rules_deleted': [],
              'security_group_rules': [
                  {"direction": "ingress",
                   "protocol": "tcp",
@@ -226,13 +225,12 @@ class TestOVSFirewallDriver(base.TestCase):
         direction = "fake_direction"
         with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                return_value=self.mock_br), \
-                mock.patch.object(self.ovs_firewall,
-                                  '_do_flows_action_on_sec_br'
-                                  ) as mock_do_flows_action_on_sec_br:
+                mock.patch.object(self.ovs_firewall, '_add_flows_to_sec_br'
+                                  ) as mock_add_flows_sec_br:
             self.ovs_firewall._add_flow_with_range(self.mock_br, port, flow,
                                                    direction, 1, 2, 1, 2)
-            mock_do_flows_action_on_sec_br.called_with(res_flow)
-            self.assertEqual(4, mock_do_flows_action_on_sec_br.call_count)
+            mock_add_flows_sec_br.called_with(res_flow)
+            self.assertEqual(4, mock_add_flows_sec_br.call_count)
 
     def test_add_flow_with_multiple_range(self):
         flow = {"priority": 1}
@@ -240,12 +238,11 @@ class TestOVSFirewallDriver(base.TestCase):
         direction = "fake_direction"
         with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                return_value=self.mock_br), \
-                mock.patch.object(self.ovs_firewall,
-                                  '_do_flows_action_on_sec_br'
-                                  ) as mock_do_flows_action_on_sec_br:
+                mock.patch.object(self.ovs_firewall, '_add_flows_to_sec_br'
+                                  ) as mock_add_flows_sec_br:
             self.ovs_firewall._add_flow_with_range(self.mock_br, port, flow,
                                                    direction, 1, 3, 1, 2)
-            self.assertEqual(6, mock_do_flows_action_on_sec_br.call_count)
+            self.assertEqual(6, mock_add_flows_sec_br.call_count)
 
     def test_add_flow_with_range_all_ports(self):
         flow = {"priority": 1}
@@ -253,12 +250,11 @@ class TestOVSFirewallDriver(base.TestCase):
         direction = "fake_direction"
         with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                return_value=self.mock_br), \
-                mock.patch.object(self.ovs_firewall,
-                                  '_do_flows_action_on_sec_br'
-                                  ) as mock_do_flows_action_on_sec_br:
+                mock.patch.object(self.ovs_firewall, '_add_flows_to_sec_br'
+                                  ) as mock_add_flows_sec_br:
             self.ovs_firewall._add_flow_with_range(self.mock_br, port,
                                                    flow, direction, 1, 65535)
-            self.assertEqual(1, mock_do_flows_action_on_sec_br.call_count)
+            self.assertEqual(1, mock_add_flows_sec_br.call_count)
 
     def test_add_flow_with_range_some_ports(self):
         flow = {"priority": 1}
@@ -266,12 +262,11 @@ class TestOVSFirewallDriver(base.TestCase):
         direction = "fake_direction"
         with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                return_value=self.mock_br), \
-                mock.patch.object(self.ovs_firewall,
-                                  '_do_flows_action_on_sec_br'
-                                  ) as mock_do_flows_action_on_sec_br:
+                mock.patch.object(self.ovs_firewall, '_add_flows_to_sec_br'
+                                  ) as mock_add_flows_sec_br:
             self.ovs_firewall._add_flow_with_range(self.mock_br, port,
                                                    flow, direction, 1, 100)
-            self.assertEqual(100, mock_do_flows_action_on_sec_br.call_count)
+            self.assertEqual(100, mock_add_flows_sec_br.call_count)
 
     def test_add_flows_to_sec_br_ingress_direction(self):
         flows = {}
@@ -335,8 +330,7 @@ class TestOVSFirewallDriver(base.TestCase):
                                return_value=100) as mock_get_vlan, \
                 mock.patch.object(self.ovs_firewall, '_get_protocol',
                                   return_value=['tcp']) as mock_get_proto, \
-                mock.patch.object(self.ovs_firewall,
-                                  '_do_flows_action_with_range'
+                mock.patch.object(self.ovs_firewall, '_add_flow_with_range'
                                   ) as mock_add_range_flows, \
                 mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                   return_value=self.mock_br), \
@@ -352,8 +346,7 @@ class TestOVSFirewallDriver(base.TestCase):
                                return_value=100) as mock_get_vlan, \
                 mock.patch.object(self.ovs_firewall, '_get_protocol',
                                   return_value=['ip']) as mock_get_proto, \
-                mock.patch.object(self.ovs_firewall,
-                                  '_do_flows_action_with_range'
+                mock.patch.object(self.ovs_firewall, '_add_flow_with_range'
                                   ) as mock_add_range_flows, \
                 mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                   return_value=self.mock_br), \
@@ -408,7 +401,7 @@ class TestOVSFirewallDriver(base.TestCase):
                                   return_value=self.mock_br), \
                 mock.patch.object(self.mock_br, 'delete_flows'
                                   ) as mock_del_flows:
-            self.ovs_firewall._remove_all_flows(self.mock_br, "123")
+            self.ovs_firewall._remove_flows(self.mock_br, "123")
             self.assertTrue(mock_get_vlan.called)
             self.assertEqual(5, mock_del_flows.call_count)
 
@@ -420,7 +413,7 @@ class TestOVSFirewallDriver(base.TestCase):
                                   return_value=self.mock_br), \
                 mock.patch.object(self.mock_br, 'delete_flows'
                                   ) as mock_del_flows:
-            self.ovs_firewall._remove_all_flows(self.mock_br, "123", True)
+            self.ovs_firewall._remove_flows(self.mock_br, "123", True)
             self.assertTrue(mock_get_vlan.called)
             self.assertEqual(7, mock_del_flows.call_count)
 
@@ -435,7 +428,7 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch.object(self.mock_br, 'delete_flows'
                                   ) as mock_del_flows, \
                 mock.patch.object(self.LOG, 'debug') as mock_debug_log:
-            self.ovs_firewall._remove_all_flows(self.mock_br, "123")
+            self.ovs_firewall._remove_flows(self.mock_br, "123")
             self.assertTrue(mock_get_vlan.called)
             self.assertEqual(1, mock_del_flows.call_count)
             self.assertEqual(2, mock_debug_log.call_count)
@@ -444,7 +437,7 @@ class TestOVSFirewallDriver(base.TestCase):
         self.ovs_firewall.filtered_ports["123"] = fake_res_port
         with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                return_value=self.mock_br), \
-                mock.patch.object(self.ovs_firewall, '_remove_all_flows'
+                mock.patch.object(self.ovs_firewall, '_remove_flows'
                                   ) as mock_rem_flow:
             self.ovs_firewall.clean_port_filters(["123"])
             mock_rem_flow.assert_called_with(self.mock_br, "123")
@@ -455,7 +448,7 @@ class TestOVSFirewallDriver(base.TestCase):
         self.ovs_firewall.provider_port_cache = set(['123'])
         with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                return_value=self.mock_br), \
-                mock.patch.object(self.ovs_firewall, '_remove_all_flows'
+                mock.patch.object(self.ovs_firewall, '_remove_flows'
                                   ) as mock_rem_flow:
             self.ovs_firewall.clean_port_filters(["123"], True)
             mock_rem_flow.assert_called_with(self.mock_br, "123", True)
@@ -467,7 +460,7 @@ class TestOVSFirewallDriver(base.TestCase):
         self.ovs_firewall.provider_port_cache = set(['123'])
         with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
                                return_value=self.mock_br), \
-                mock.patch.object(self.ovs_firewall, '_remove_all_flows',
+                mock.patch.object(self.ovs_firewall, '_remove_flows',
                                   side_effect=Exception()
                                   ) as mock_rem_flow, \
                 mock.patch.object(self.LOG, 'exception'
@@ -490,8 +483,7 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch.object(self.ovs_firewall, '_add_flows'
                                   ) as mock_add_flow_fn:
             self.ovs_firewall.update_port_filter(fake_port)
-            mock_rem_flow.assert_called_with(self.mock_br, fake_port,
-                                             cookie)
+            mock_rem_flow.assert_called_with(self.mock_br, "123")
             mock_aap_flow_fn.assert_called_with(self.mock_br, fake_port)
             mock_add_flow_fn.assert_called_with(self.mock_br, fake_port,
                                                 cookie)
@@ -510,8 +502,7 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch.object(self.ovs_firewall, '_add_flows'
                                   ) as mock_add_flow_fn:
             self.ovs_firewall.update_port_filter(fake_port)
-            mock_rem_flow.assert_called_with(self.mock_br, fake_port,
-                                             cookie)
+            mock_rem_flow.assert_called_with(self.mock_br, "123", True)
             mock_aap_flow_fn.assert_called_with(self.mock_br, fake_port)
             mock_add_flow_fn.assert_called_with(self.mock_br, fake_port,
                                                 cookie)
@@ -531,8 +522,8 @@ class TestOVSFirewallDriver(base.TestCase):
                 mock.patch.object(self.LOG, 'exception'
                                   ) as mock_exception_log:
             self.ovs_firewall.update_port_filter(fake_port)
-            mock_rem_flow.assert_called_with(self.mock_br, fake_port, cookie)
-            self.assertTrue(mock_add_flow_fn.called)
+            mock_rem_flow.assert_called_with(self.mock_br, "123")
+            self.assertFalse(mock_add_flow_fn.called)
             self.assertIn("123", self.ovs_firewall.filtered_ports)
             self.assertTrue(mock_exception_log.called)
 
