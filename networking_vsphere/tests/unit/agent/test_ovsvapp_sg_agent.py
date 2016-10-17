@@ -173,7 +173,7 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         ports = {}
         cnt = 1
         for id in ids:
-            port = {'id': id, 'security_group_rules': mock.MagicMock(),
+            port = {'id': id, 'security_group_rules': mock.Mock(),
                     'sg_provider_rules': ['fake_rule'],
                     'security_groups': ['mock_group'],
                     'security_group_rules': [{"id": "0xabcdef" + str(cnt),
@@ -195,7 +195,7 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
     def test_fetch_and_apply_rules_for_prepare(self):
         port_ids = self._get_fake_portids(2)
         ret_val = self._get_fake_ports(port_ids)
-        port_info = {'member_ips': mock.MagicMock(),
+        port_info = {'member_ips': mock.Mock(),
                      'ports': ret_val}
         with mock.patch.object(self.agent.ovsvapp_sg_rpc,
                                'security_group_info_for_esx_devices',
@@ -213,7 +213,7 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
     def test_fetch_and_apply_rules_for_refresh(self):
         port_ids = self._get_fake_portids(2)
         ret_val = self._get_fake_ports(port_ids)
-        port_info = {'member_ips': mock.MagicMock(),
+        port_info = {'member_ips': mock.Mock(),
                      'ports': ret_val}
         with mock.patch.object(self.agent.ovsvapp_sg_rpc,
                                'security_group_info_for_esx_devices',
