@@ -52,9 +52,6 @@ AGENT_RUNNING = "RUNNING"
 AGENT_STOPPING = "STOPPING"
 AGENT_STOPPED = "STOPPED"
 
-SEC_TO_INT_PATCH = "patch-integration"
-INT_TO_SEC_PATCH = "patch-security"
-
 # OVS Firewall related constants.
 SG_DROPALL_PRI = 0
 SG_DEFAULT_PRI = 1
