@@ -185,7 +185,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
 
     def check_and_remove_stale_patch_ports(self):
         req_ports = [cfg.CONF.OVS.int_peer_patch_port,
-                     ovsvapp_const.INT_TO_SEC_PATCH]
+                     CONF.OVSVAPP.integration_patch_port]
         for phys_net, bridge in six.iteritems(self.bridge_mappings):
             p = str(ovs_const.PEER_INTEGRATION_PREFIX + bridge)
             req_ports.append(p)
@@ -316,8 +316,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if self.sec_br is not None:
             self.set_openflow_version(self.sec_br)
         self.sec_br.remove_all_flows()
-        self.int_br.delete_port(ovsvapp_const.INT_TO_SEC_PATCH)
-        self.sec_br.delete_port(ovsvapp_const.SEC_TO_INT_PATCH)
+        self.int_br.delete_port(CONF.OVSVAPP.integration_patch_port)
+        self.sec_br.delete_port(CONF.OVSVAPP.security_patch_port)
         self.phy_ofport = self.sec_br.get_port_ofport(secbr_phyname)
         if not self.phy_ofport:
             LOG.error(_LE("Physical bridge patch port not available on "
@@ -325,17 +325,19 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "agent!"), secbr_name)
             raise SystemExit(1)
         br_name = self.sec_br.get_bridge_for_iface(
-            ovsvapp_const.SEC_TO_INT_PATCH)
+            CONF.OVSVAPP.security_patch_port)
         if br_name is not None:
             if br_name != secbr_name:
                 br = ovs_lib.OVSBridge(br_name)
-                br.delete_port(ovsvapp_const.SEC_TO_INT_PATCH)
+                br.delete_port(CONF.OVSVAPP.security_patch_port)
         # br-sec patch port to br-int.
         patch_sec_int_ofport = self.sec_br.add_patch_port(
-            ovsvapp_const.SEC_TO_INT_PATCH, ovsvapp_const.INT_TO_SEC_PATCH)
+            CONF.OVSVAPP.security_patch_port,
+            CONF.OVSVAPP.integration_patch_port)
         # br-int patch port to br-sec.
         self.patch_sec_ofport = self.int_br.add_patch_port(
-            ovsvapp_const.INT_TO_SEC_PATCH, ovsvapp_const.SEC_TO_INT_PATCH)
+            CONF.OVSVAPP.integration_patch_port,
+            CONF.OVSVAPP.security_patch_port)
         if int(patch_sec_int_ofport) < 0 or int(self.patch_sec_ofport) < 0:
             LOG.error(_LE("Failed to create OVS patch port. Neutron port "
                           "security cannot be enabled on this agent. "
@@ -373,20 +375,20 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                           "agent!"), secbr_name)
             raise SystemExit(1)
         br_name = self.sec_br.get_bridge_for_iface(
-            ovsvapp_const.SEC_TO_INT_PATCH)
+            CONF.OVSVAPP.security_patch_port)
         if br_name is not None:
             if br_name != secbr_name:
                 br = ovs_lib.OVSBridge(br_name)
-                br.delete_port(ovsvapp_const.SEC_TO_INT_PATCH)
+                br.delete_port(CONF.OVSVAPP.security_patch_port)
                 self.sec_br.add_patch_port(
-                    ovsvapp_const.SEC_TO_INT_PATCH,
-                    ovsvapp_const.INT_TO_SEC_PATCH)
+                    CONF.OVSVAPP.security_patch_port,
+                    CONF.OVSVAPP.integration_patch_port)
         # br-sec patch port to br-int.
         patch_sec_int_ofport = self.sec_br.get_port_ofport(
-            ovsvapp_const.SEC_TO_INT_PATCH)
+            CONF.OVSVAPP.security_patch_port)
         # br-int patch port to br-sec.
         self.patch_sec_ofport = self.int_br.get_port_ofport(
-            ovsvapp_const.INT_TO_SEC_PATCH)
+            CONF.OVSVAPP.integration_patch_port)
         if int(patch_sec_int_ofport) < 0 or int(self.patch_sec_ofport) < 0:
             LOG.error(_LE("Failed to find OVS patch port. Cannot have "
                           "Security enabled on this agent. "

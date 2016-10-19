@@ -68,7 +68,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self.sg_br = ovs_lib.OVSBridge(secbr_name)
         self.phy_ofport = self.sg_br.get_port_ofport(secbr_phyname)
         self.patch_ofport = self.sg_br.get_port_ofport(
-            ovsvapp_const.SEC_TO_INT_PATCH)
+            cfg.CONF.OVSVAPP.security_patch_port)
         self._defer_apply = False
         if not self.check_ovs_firewall_restart():
             self.setup_base_flows()
