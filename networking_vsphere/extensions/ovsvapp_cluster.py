@@ -18,6 +18,7 @@ import abc
 from neutron.api import extensions
 from neutron.api.v2 import attributes
 from neutron.api.v2 import resource_helper
+from neutron_lib.api import validators
 
 from networking_vsphere._i18n import _
 from networking_vsphere.common import constants
@@ -55,7 +56,7 @@ RESOURCE_ATTRIBUTE_MAP = {
     }
 }
 
-attributes.validators['type:clusters_list'] = validate_clusters_list
+validators.add_validator('type:clusters_list', validate_clusters_list)
 
 
 class Ovsvapp_cluster(extensions.ExtensionDescriptor):

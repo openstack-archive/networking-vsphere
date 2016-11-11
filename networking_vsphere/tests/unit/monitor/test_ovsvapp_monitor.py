@@ -22,12 +22,12 @@ from oslo_serialization import jsonutils
 from oslo_service import loopingcall
 from oslo_utils import timeutils
 
-from neutron.common import constants
 from neutron.common import topics
 from neutron import context as neutron_context
 from neutron.db import agents_db
 from neutron import manager
 from neutron.tests import base
+from neutron_lib import constants
 
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.db import ovsvapp_db
