@@ -15,7 +15,7 @@
 #
 
 import mock
-from neutron.common import constants as n_const
+from neutron_lib import constants as n_const
 from neutron.tests import base
 
 from networking_vsphere.common import constants as dvs_const

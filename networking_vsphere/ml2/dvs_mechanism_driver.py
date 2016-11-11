@@ -17,7 +17,7 @@ import six
 from time import sleep
 
 from neutron.agent import securitygroups_rpc
-from neutron.common import constants as n_const
+from neutron_lib import constants as n_const
 from neutron import context
 from neutron.extensions import portbindings
 from neutron.plugins.common import constants

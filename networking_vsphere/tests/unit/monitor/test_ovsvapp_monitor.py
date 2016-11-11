@@ -22,7 +22,7 @@ from oslo_serialization import jsonutils
 from oslo_service import loopingcall
 from oslo_utils import timeutils
 
-from neutron.common import constants
+from neutron_lib import constants
 from neutron.common import topics
 from neutron import context as neutron_context
 from neutron.db import agents_db

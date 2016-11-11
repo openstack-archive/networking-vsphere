@@ -15,7 +15,7 @@
 
 import mock
 
-from neutron.common import exceptions as exc
+from neutron_lib import exceptions as exc
 from neutron import context
 from neutron.tests.unit import testlib_api
 

@@ -16,7 +16,7 @@
 from oslo_log import log
 import sqlalchemy.orm.exc as sa_exc
 
-from neutron.common import exceptions as exc
+from neutron_lib import exceptions as exc
 from neutron.db import api as db_api
 from neutron.db import common_db_mixin
 
