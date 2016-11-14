@@ -102,6 +102,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.cluster_host_ports = set()
         self.cluster_other_ports = set()
         self.ports_to_bind = set()
+        self.devices_to_bind = set()
+        self.ports_to_bind_pending = set()
         self.devices_up_list = list()
         self.devices_down_list = list()
         self.refresh_devices_to_filter = {}
@@ -109,6 +111,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.ovsvapp_mitigation_required = False
         self.refresh_firewall_required = False
         self._pool = None
+        self._pool_bind = None
         self.run_check_for_updates = True
         self.use_call = True
         self.hostname = cfg.CONF.host
@@ -281,7 +284,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if self.sec_br is not None:
             flows = self.sec_br.dump_flows_for(
                 table=0, dl_dst=mac, tp_src=67, tp_dst=68)
-            if flows:
+            if mac in flows:
                 return True
         return False
 
@@ -631,6 +634,19 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         finally:
             ovsvapplock.release()
 
+    def _update_device_port_bindings(self):
+        ovsvapplock.acquire()
+        ports_to_update = self.devices_to_bind
+        LOG.info(_LI("update_device_port_bindings RPC called for %s ports."),
+                 len(ports_to_update))
+        self.devices_to_bind = set()
+        ovsvapplock.release()
+        for port in ports_to_update:
+            p = self.ports_dict.get(port)
+            if p is not None:
+                self._update_device_port_binding(
+                    {'id': p.port_id, 'device_id': p.vm_uuid})
+
     def _update_port_bindings(self):
         ovsvapplock.acquire()
         ports_to_update = self.ports_to_bind
@@ -671,6 +687,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if self._pool is None:
             self._pool = eventlet.GreenPool(ovsvapp_const.THREAD_POOL_SIZE)
         return self._pool
+
+    @property
+    def threadpool_bind(self):
+        if self._pool_bind is None:
+            self._pool_bind = eventlet.GreenPool(
+                ovsvapp_const.THREAD_POOL_SIZE)
+        return self._pool_bind
 
     def _remove_stale_ports_flows(self, stale_ports):
         for port_id in stale_ports:
@@ -911,6 +934,15 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         # Check if there are any pending port bindings to be made.
         if self.ports_to_bind:
             self._update_port_bindings()
+
+        # Check if there are port bindings to be made for Vxlan
+        if self.devices_to_bind:
+            try:
+                self.threadpool_bind.spawn_n(self._update_device_port_bindings)
+                eventlet.sleep(0)
+            except Exception:
+                LOG.exception(_LE("Exception occured while spawning thread "
+                                  "to update device port bindings"))
         # Case where devices_to_filter is having some entries.
         if self.refresh_firewall_required:
             self._update_firewall()
@@ -1240,6 +1272,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         """Handle VM updated event."""
         try:
             if host == self.esx_hostname:
+                port_found = False
                 self._add_ports_to_host_ports(
                     [vnic.port_uuid for vnic in vm.vnics])
                 # host_changed flag being True indicates, that
@@ -1252,21 +1285,36 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     # it ships them to all other L2Pop enabled nodes
                     # creating havoc with tunnel port allocations/releases
                     # of them.
-                    ovsvapp_l2pop_lock.acquire()
-                    try:
-                        LOG.info(_LI("Invoking update_device_binding RPC for "
-                                     "device %s."), vm.uuid)
-                        self.ovsvapp_rpc.update_device_binding(
-                            self.context,
-                            agent_id=self.agent_id,
-                            device=vm.uuid,
-                            host=self.hostname)
-                    except Exception as e:
-                        LOG.exception(_LE("Failed to handle VM migration "
-                                          "for device: %s."), vm.uuid)
-                        raise error.OVSvAppNeutronAgentError(e)
-                    finally:
-                        ovsvapp_l2pop_lock.release()
+                    for vnic in vm.vnics:
+                        if vnic.port_uuid in self.ports_dict:
+                            port_found = True
+                            break
+                    if port_found:
+                        ovsvapp_l2pop_lock.acquire()
+                        try:
+                            LOG.info(_LI("Invoking update_device_binding RPC "
+                                         "for "
+                                         "device %s."), vm.uuid)
+                            dbind = self.ovsvapp_rpc.update_device_binding(
+                                self.context,
+                                agent_id=self.agent_id,
+                                device=vm.uuid,
+                                host=self.hostname)
+                            if dbind is None:
+                                LOG.info(_LI("update_device_binding "
+                                             "failed for %s"), vm.uuid)
+                                self.devices_to_bind.add(vnic.port_uuid)
+                        except Exception as e:
+                            LOG.exception(_LE("Failed to handle VM migration "
+                                              "for device: %s."), vm.uuid)
+                            self.devices_to_bind.add(vnic.port_uuid)
+                            raise error.OVSvAppNeutronAgentError(e)
+                        finally:
+                            ovsvapp_l2pop_lock.release()
+                    else:
+                        LOG.info(_LI("No flows for device."
+                                     "Adding to pending update %s"), vm.uuid)
+                        self.ports_to_bind_pending.add(vnic.port_uuid)
                     for vnic in vm.vnics:
                         updated_port = self.ports_dict.get(vnic.port_uuid)
                         if (updated_port and
@@ -1284,6 +1332,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             else:
                 for vnic in vm.vnics:
                     if host_changed:
+                        if vnic.port_uuid in self.ports_to_bind_pending:
+                            self.ports_to_bind_pending.remove(vnic.port_uuid)
                         updated_port = self.ports_dict.get(vnic.port_uuid)
                         if updated_port:
                             net_type = updated_port.network_type
@@ -1343,6 +1393,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         with ovsvapplock:
             if port_id in self.ports_to_bind:
                 self.ports_to_bind.remove(port_id)
+            if port_id in self.ports_to_bind_pending:
+                self.ports_to_bind_pending.remove(port_id)
             if port_id in self.ports_dict.keys():
                 if port_id in self.cluster_host_ports:
                     self.cluster_host_ports.remove(port_id)
@@ -1542,6 +1594,30 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                         self.sg_agent.ovsvapp_sg_update(
                             {port_id: ports_sg_rules[port_id]})
                 self._update_device_status(context, port, host)
+                if port['id'] in self.ports_to_bind_pending:
+                    self.ports_to_bind_pending.remove(port['id'])
+                    self._update_device_port_binding(port)
+
+    def _update_device_port_binding(self, port):
+        ovsvapp_l2pop_lock.acquire()
+        try:
+            LOG.info(_LI("UInvoking update_device_binding RPC "
+                         "for "
+                         "device %s."), port.get('device_id'))
+            dbind = self.ovsvapp_rpc.update_device_binding(
+                self.context,
+                agent_id=self.agent_id,
+                device=port.get('device_id'),
+                host=self.hostname)
+            LOG.info(_LI("UUpdate_device_binding returns: %s"), dbind)
+            if dbind is None:
+                self.devices_to_bind.add(port.get('id'))
+        except Exception:
+            LOG.exception(_LE("Failed to update device port bindingn "
+                              "for device: %s."), port.get('device_id'))
+            self.devices_to_bind.add(port.get('id'))
+        finally:
+            ovsvapp_l2pop_lock.release()
 
     def _update_device_status(self, context, port, host):
         if (port['network_type'] == p_const.TYPE_VLAN and
