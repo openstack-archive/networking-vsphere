@@ -1780,6 +1780,8 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_expand_sg_rules, \
                 mock.patch.object(self.agent, '_provision_local_vlan'
                                   ) as mock_prov_local_vlan, \
+                mock.patch.object(self.agent, '_check_network_support',
+                                  ) as mock_check_network, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
@@ -1790,6 +1792,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertFalse(self.agent.devices_up_list)
+            self.assertTrue(mock_check_network.called)
             self.assertTrue(mock_sg_update_fn.called)
             self.assertTrue(mock_expand_sg_rules.called)
             self.assertTrue(mock_prov_local_vlan.called)
@@ -1814,6 +1817,8 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_expand_sg_rules, \
                 mock.patch.object(self.agent, '_provision_local_vlan'
                                   ) as mock_prov_local_vlan, \
+                mock.patch.object(self.agent, '_check_network_support',
+                                  ) as mock_check_network, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
@@ -1824,6 +1829,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             self.assertEqual([FAKE_PORT_1], self.agent.devices_up_list)
             mock_add_devices_fn.assert_called_with(ports)
+            self.assertTrue(mock_check_network.called)
             self.assertTrue(mock_sg_update_fn.called)
             self.assertTrue(mock_expand_sg_rules.called)
             self.assertTrue(mock_prov_local_vlan.called)
@@ -1847,6 +1853,8 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent.sg_agent, 'expand_sg_rules',
                                   return_value=FAKE_SG_RULES_MISSING
                                   ) as mock_expand_sg_rules, \
+                mock.patch.object(self.agent, '_check_network_support',
+                                  ) as mock_check_network, \
                 mock.patch.object(self.agent, '_provision_local_vlan'
                                   ) as mock_prov_local_vlan, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
@@ -1860,6 +1868,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertEqual([FAKE_PORT_1], self.agent.devices_up_list)
             self.assertIn(FAKE_PORT_1, self.agent.devices_to_filter)
             mock_add_devices_fn.assert_called_with(ports)
+            self.assertTrue(mock_check_network.called)
             self.assertFalse(mock_sg_update_fn.called)
             self.assertTrue(mock_expand_sg_rules.called)
             self.assertTrue(mock_prov_local_vlan.called)
@@ -1885,6 +1894,8 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_expand_sg_rules, \
                 mock.patch.object(self.agent, '_provision_local_vlan'
                                   ) as mock_prov_local_vlan, \
+                mock.patch.object(self.agent, '_check_network_support',
+                                  ) as mock_check_network, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
@@ -1896,6 +1907,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertEqual([FAKE_PORT_1], self.agent.devices_up_list)
             self.assertIn(FAKE_PORT_1, self.agent.devices_to_filter)
             mock_add_devices_fn.assert_called_with(ports)
+            self.assertTrue(mock_check_network.called)
             self.assertFalse(mock_sg_update_fn.called)
             self.assertTrue(mock_expand_sg_rules.called)
             self.assertTrue(mock_prov_local_vlan.called)
@@ -1925,6 +1937,8 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_expand_sg_rules, \
                 mock.patch.object(self.agent.plugin_rpc, 'update_device_up'
                                   ) as mock_update_device_up, \
+                mock.patch.object(self.agent, '_check_network_support',
+                                  ) as mock_check_network, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
@@ -1937,6 +1951,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
             mock_add_devices_fn.assert_called_with(ports)
             self.assertTrue(mock_sg_update_fn.called)
+            self.assertTrue(mock_check_network.called)
             self.assertTrue(mock_expand_sg_rules.called)
             self.assertTrue(mock_update_device_up.called)
 
@@ -1965,6 +1980,8 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_expand_sg_rules, \
                 mock.patch.object(self.agent.plugin_rpc, 'update_device_up'
                                   ) as mock_update_device_up, \
+                mock.patch.object(self.agent, '_check_network_support',
+                                  ) as mock_check_network, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug:
             self.agent.device_create(FAKE_CONTEXT,
                                      device=DEVICE,
@@ -1978,6 +1995,7 @@ class TestOVSvAppAgent(base.TestCase):
             mock_add_devices_fn.assert_called_with(ports)
             self.assertFalse(mock_sg_update_fn.called)
             self.assertTrue(mock_expand_sg_rules.called)
+            self.assertTrue(mock_check_network.called)
             self.assertTrue(mock_update_device_up.called)
 
     def test_device_create_hosted_vm_create_port_exception(self):
@@ -2001,12 +2019,15 @@ class TestOVSvAppAgent(base.TestCase):
                                   return_value=FAKE_SG_RULES
                                   ) as mock_expand_sg_rules, \
                 mock.patch.object(self.LOG, 'debug') as mock_logger_debug, \
+                mock.patch.object(self.agent, '_check_network_support',
+                                  ) as mock_check_network, \
                 mock.patch.object(self.LOG, 'exception') as mock_log_excep:
             self.assertRaises(
                 error.OVSvAppNeutronAgentError,
                 self.agent.device_create,
                 FAKE_CONTEXT, device=DEVICE,
                 ports=ports, sg_rules=mock.MagicMock())
+            self.assertTrue(mock_check_network.called)
             self.assertTrue(mock_logger_debug.called)
             self.assertNotIn(FAKE_PORT_1, self.agent.cluster_other_ports)
             self.assertIn(FAKE_PORT_1, self.agent.cluster_host_ports)
@@ -2224,6 +2245,82 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(log_info.called)
             mock_sg_provider_updated.assert_called_with(NETWORK_ID)
 
+    def test_check_network_support_vlan_exception(self):
+        port1 = self._build_port(FAKE_PORT_1)
+        port2 = self._build_port(FAKE_PORT_2)
+        port2['physical_network'] = "physnet2"
+        port2['segmentation_id'] = "2005"
+        port2['network_id'] = "fake_net2"
+        ports = [port1, port2]
+        self.agent.bridge_mappings = {'physnet2': 'br-eth2'}
+        self.agent.tenant_network_types = 'vlan'
+        self.assertRaises(error.NetworkConfigNotSupportedError,
+                          self.agent._check_network_support, ports)
+
+    def test_check_network_support_vlan(self):
+        port1 = self._build_port(FAKE_PORT_2)
+        port1['physical_network'] = "physnet2"
+        port1['segmentation_id'] = "2005"
+        port1['network_id'] = "fake_net2"
+        ports = [port1]
+        self.agent.bridge_mappings = {'physnet2': 'br-eth2'}
+        self.agent.tenant_network_types = 'vlan'
+        try:
+            self.agent._check_network_support(ports)
+        except error.NetworkConfigNotSupportedError:
+            self.fail("Unexpected error!")
+
+    def test_check_network_support_vxlan_exception(self):
+        port1 = self._build_port(FAKE_PORT_2)
+        port1['segmentation_id'] = "2005"
+        port1['network_id'] = "fake_net2"
+        port1['network_type'] = 'vxlan'
+        ports = [port1]
+        self.agent.bridge_mappings = {}
+        self.agent.tenant_network_types = 'vlan'
+        self.assertRaises(error.NetworkConfigNotSupportedError,
+                          self.agent._check_network_support, ports)
+
+    def test_check_network_support_vxlan(self):
+        port1 = self._build_port(FAKE_PORT_1)
+        port1['segmentation_id'] = "2005"
+        port1['network_id'] = "fake_net2"
+        port1['network_type'] = 'vxlan'
+        port1['physical_network'] = None
+        ports = [port1]
+        self.agent.bridge_mappings = {}
+        self.agent.tenant_network_types = 'vxlan'
+        try:
+            self.agent._check_network_support(ports)
+        except error.NetworkConfigNotSupportedError:
+            self.fail("Unexpected error!")
+
+    def test_check_network_support_vlan_vxlan(self):
+        port1 = self._build_port(FAKE_PORT_1)
+        port1['segmentation_id'] = "2005"
+        port1['network_id'] = "fake_net2"
+        port1['network_type'] = 'vxlan'
+        port1['physical_network'] = None
+        ports = [port1]
+        self.agent.bridge_mappings = {'physnet2': 'br-eth2'}
+        self.agent.tenant_network_types = 'vlan,vxlan'
+        try:
+            self.agent._check_network_support(ports)
+        except error.NetworkConfigNotSupportedError:
+            self.fail("Unexpected error!")
+
+    def test_check_network_support_vlan_vxlan_exception(self):
+        port1 = self._build_port(FAKE_PORT_1)
+        port1['segmentation_id'] = "2005"
+        port1['physical_network'] = "physnet2"
+        port1['network_id'] = "fake_net2"
+        port1['network_type'] = 'vlan'
+        ports = [port1]
+        self.agent.bridge_mappings = {'physnet1': 'br-eth2'}
+        self.agent.tenant_network_types = 'vlan,vxlan'
+        self.assertRaises(error.NetworkConfigNotSupportedError,
+                          self.agent._check_network_support, ports)
+
     def test_device_create_hosted_vm_vlan_multiple_physnet(self):
         port1 = self._build_port(FAKE_PORT_1)
         port2 = self._build_port(FAKE_PORT_2)
@@ -2253,6 +2350,8 @@ class TestOVSvAppAgent(base.TestCase):
                                   ), \
                 mock.patch.object(self.agent.int_br, 'provision_local_vlan'
                                   ) as mock_prov_local_vlan, \
+                mock.patch.object(self.agent, '_check_network_support',
+                                  return_value=True) as mock_check_network, \
                 mock.patch.object(self.agent.sg_agent, 'expand_sg_rules',
                                   return_value=FAKE_SG_RULES_MULTI_PORTS
                                   ), \
@@ -2266,6 +2365,7 @@ class TestOVSvAppAgent(base.TestCase):
                              self.agent.devices_up_list)
             mock_add_devices_fn.assert_called_with(ports)
             self.assertTrue(mock_prov_local_vlan.called)
+            self.assertTrue(mock_check_network.called)
             mock_prov_local_vlan.assert_any_call(
                 port1['network_type'],
                 port1['lvid'],
