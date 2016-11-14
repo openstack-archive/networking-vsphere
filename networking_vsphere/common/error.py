@@ -24,3 +24,9 @@ class VcenterConfigurationError(Exception):
 
     '''vCenter Configuration Exception.'''
     pass
+
+
+class NetworkConfigNotSupportedError(Exception):
+
+    '''OVSvApp Agent Exception for unsupported network type/physnet.'''
+    pass
