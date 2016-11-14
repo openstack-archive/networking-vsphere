@@ -309,33 +309,37 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                         removed_rules.append(ex_rule)
             devs_list = self.sgid_devices_dict.get(ngroup)
             if devs_list is not None:
-                for dev, p_id in six.iteritems(devs_list):
-                    prules = self.pending_rules_dict.get(p_id)
-                    if prules is None:
-                        self.pending_rules_dict[p_id] = prules = {}
-                        prules[ADD_KEY] = []
-                        prules[DEL_KEY] = []
-                    prules[DEL_KEY].extend(removed_rules)
+                for dev, ports_list in six.iteritems(devs_list):
+                    for port_id in ports_list:
+                        prules = self.pending_rules_dict.get(port_id)
+                        if prules is None:
+                            self.pending_rules_dict[port_id] = prules = {}
+                            prules[ADD_KEY] = []
+                            prules[DEL_KEY] = []
+                        prules[DEL_KEY].extend(removed_rules)
 
     def _remove_from_sgid_device_map(self, deleted_dev, deleted_dev_group, ip,
                                      port_id, remove_list):
         for group, devices_dict in \
                 six.iteritems(self.sgid_devices_dict):
-            for ip, port in six.iteritems(devices_dict):
-                if port == port_id:
+            for ip, ports_list in six.iteritems(devices_dict):
+                if port_id in ports_list:
                     deleted_dev = ip
                     deleted_dev_group = group
                     break
                 else:
                     ip = None
             if ip is not None:
-                value = devices_dict.pop(ip, None)
-                if value is None:
-                    LOG.info(_LI("KeyError for %s"), ip)
-                    LOG.info(_LI("KeyError devices_dict %(ddict)s,"
-                                 "%(deleted_dev)s"),
-                             {'ddict': devices_dict,
-                              'deleted_dev': deleted_dev})
+                if len(ports_list) == 1:
+                    value = devices_dict.pop(ip, None)
+                    if value is None:
+                        LOG.info(_LI("KeyError for %s"), ip)
+                        LOG.info(_LI("KeyError devices_dict %(ddict)s,"
+                                     "%(deleted_dev)s"),
+                                 {'ddict': devices_dict,
+                                  'deleted_dev': deleted_dev})
+                else:
+                    ports_list.remove(port_id)
             if len(devices_dict) == 0:
                 remove_list.append(group)
             dev_groups = self.device_sgids_dict.get(port_id)
@@ -394,7 +398,9 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             if group not in dev_groups:
                 dev_groups.append(group)
             for device in sg_devices:
-                devices[device] = port_id
+                if devices.get(device) is None:
+                    devices[device] = set()
+                devices[device].add(port_id)
                 new_device = device
         else:
             devices = self.sgid_devices_dict[group]
@@ -404,8 +410,10 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             if group not in dev_groups:
                 dev_groups.append(group)
             for device in sg_devices:
-                if device not in devices:
-                    devices[device] = port_id
+                if devices.get(device) is None:
+                    devices[device] = set()
+                if port_id not in devices[device]:
+                    devices[device].add(port_id)
                     new_device = device
         return new_device
 
@@ -442,7 +450,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
     def _update_pending_rules(self, devices, new_arules, new_drules, port_id,
                               remote, skip):
         for device in devices:
-            if devices[device] != port_id:
+            if port_id not in devices[device]:
                 if skip:
                     continue
                 pending_port = devices[device]
@@ -472,7 +480,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                                  port_id):
         skip = False
         for device in devices:
-            if devices[device] == port_id:
+            if port_id in devices[device]:
                 prules = self.pending_rules_dict.get(port_id)
                 if prules is not None:
                     if len(prules[ADD_KEY]) > 0:
