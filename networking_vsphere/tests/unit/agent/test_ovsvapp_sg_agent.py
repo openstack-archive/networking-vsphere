@@ -228,7 +228,7 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
             self.agent._fetch_and_apply_rules(set(port_ids), True)
             self.assertEqual(1, mock_ovsvapp_sg_rpc.call_count)
             self.assertEqual(2, mock_expand_sg_rules.call_count)
-            self.assertEqual(1, mock_update.call_count)
+            self.assertEqual(2, mock_update.call_count)
             self.assertFalse(mock_prep.called)
 
     def test_process_port_set(self):
