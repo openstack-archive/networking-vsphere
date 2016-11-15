@@ -1622,6 +1622,20 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     LOG.exception(_LE("Exception during update_device_up "
                                       "RPC for port %s."), port['id'])
 
+    def _check_network_support(self, ports):
+        for port in ports:
+            if port.get('network_type') in self.tenant_network_types:
+                p_net = port.get('physical_network')
+                if p_net is not None and \
+                    p_net not in self.bridge_mappings:
+                    raise error.NetworkConfigNotSupportedError(
+                        'Physnet ' + p_net + ' not configured for:'
+                        + port.get('id'))
+            else:
+                raise error.NetworkConfigNotSupportedError(
+                    'Network type' + port.get('network_type')
+                    + ' not configured. Port-id:' + port.get('id'))
+
     def device_create(self, context, **kwargs):
         """Gets the port details from plugin using RPC call."""
         device = kwargs.get('device')
@@ -1633,6 +1647,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.debug('Cluster/vCenter mismatch..ignoring device_create rpc.')
             return
         ports_list = kwargs.get('ports')
+        self._check_network_support(ports_list)
         sg_info = kwargs.get("sg_rules")
         host = device['host']
         LOG.debug("Received Port list: %s.", ports_list)
