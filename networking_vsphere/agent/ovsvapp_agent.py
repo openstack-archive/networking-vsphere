@@ -54,6 +54,7 @@ MAX_RETRY_COUNT = 3
 RETRY_DELAY = 2
 REFRESH_INTERVAL_DELAY = 10
 RETRY_COUNT = 2
+PORTBINDING_RETRY_COUNT = 5
 
 # To ensure thread safety for the shared variables
 # ports_dict, devices_to_filter,
@@ -102,6 +103,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.cluster_other_ports = set()
         self.ports_to_bind = set()
         self.devices_to_bind = set()
+        self.devices_to_bind_retry_count = {}
         self.ports_to_bind_pending = set()
         self.devices_up_list = list()
         self.devices_down_list = list()
@@ -1595,7 +1597,21 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 host=self.hostname)
             LOG.info(_LI("UUpdate_device_binding returns: %s"), dbind)
             if dbind is None:
-                self.devices_to_bind.add(port.get('id'))
+                pid = port.get('id')
+                if self.devices_to_bind_retry_count.get(pid) is None:
+                    self.devices_to_bind_retry_count[pid] = 1
+                    self.devices_to_bind.add(pid)
+                else:
+                    if (self.devices_to_bind_retry_count[pid] <
+                            PORTBINDING_RETRY_COUNT):
+                        self.devices_to_bind.add(pid)
+                        self.devices_to_bind_retry_count[pid] += 1
+                    else:
+                        self.devices_to_bind_retry_count.pop(pid)
+            else:
+                pid = port.get('id')
+                if pid in self.devices_to_bind_retry_count:
+                    self.devices_to_bind_retry_count.pop(pid)
         except Exception:
             LOG.exception(_LE("Failed to update device port bindingn "
                               "for device: %s."), port.get('device_id'))
