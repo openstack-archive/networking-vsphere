@@ -669,10 +669,15 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                         remote_g = rule.get('remote_group_id')
                         if remote_g is not None and remote_g != group:
                             return True
-            remote_rules = self.sgid_remote_rules_dict.get(group)
-            if remote_rules is not None and \
-                len(remote_rules) > 0:
-                    return True
+            for group in sgroups:
+                remote_rules = self.sgid_remote_rules_dict.get(group)
+# case when incoming dict has no remote rules but cache does(i.e rules removed)
+                if remote_rules is not None and \
+                    len(remote_rules) > 0:
+                        for rule in remote_rules:
+                            remote_g = rule.get('remote_group_id')
+                            if remote_g is not None and remote_g != group:
+                                return True
         except Exception as e:
             LOG.error(_LE("Exception in _has_remote_rules: %s"), e)
             # In case of exceptions better to clear and reapply rules to the
