@@ -453,28 +453,29 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             if port_id not in devices[device]:
                 if skip:
                     continue
-                pending_port = devices[device]
+                pending_ports = devices[device]
                 prules = None
-                if pending_port is not None:
-                    prules = self.pending_rules_dict.get(pending_port)
-                if prules is None:
-                    self.pending_rules_dict[pending_port] = prules = {}
-                    prules[ADD_KEY] = []
-                    prules[DEL_KEY] = []
-                if not remote:
-                    for r in new_arules:
-                        if r not in prules[ADD_KEY]:
-                            prules[ADD_KEY].append(r)
-                    for r in new_drules:
-                        if r not in prules[DEL_KEY]:
-                            prules[DEL_KEY].append(r)
-                else:
-                    if len(new_arules) > 0:
-                        prules[ADD_KEY].extend(
-                            self._expand_rules(new_arules))
-                    if len(new_drules) > 0:
-                        prules[DEL_KEY].extend(
-                            self._expand_rules(new_drules))
+                if pending_ports is not None:
+                    for pp in pending_ports:
+                        prules = self.pending_rules_dict.get(pp)
+                        if prules is None:
+                            self.pending_rules_dict[pp] = prules = {}
+                            prules[ADD_KEY] = []
+                            prules[DEL_KEY] = []
+                        if not remote:
+                            for r in new_arules:
+                                if r not in prules[ADD_KEY]:
+                                    prules[ADD_KEY].append(r)
+                            for r in new_drules:
+                                if r not in prules[DEL_KEY]:
+                                    prules[DEL_KEY].append(r)
+                        else:
+                            if len(new_arules) > 0:
+                                prules[ADD_KEY].extend(
+                                    self._expand_rules(new_arules))
+                            if len(new_drules) > 0:
+                                prules[DEL_KEY].extend(
+                                    self._expand_rules(new_drules))
 
     def _check_for_pending_rules(self, added_rules, deleted_rules, devices,
                                  port_id):
@@ -672,7 +673,10 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             remote_rules = self.sgid_remote_rules_dict.get(group)
             if remote_rules is not None and \
                 len(remote_rules) > 0:
-                    return True
+                    for rule in remote_rules:
+                        remote_g = rule.get('remote_group_id')
+                        if remote_g is not None and remote_g != group:
+                            return True
         except Exception as e:
             LOG.error(_LE("Exception in _has_remote_rules: %s"), e)
             # In case of exceptions better to clear and reapply rules to the

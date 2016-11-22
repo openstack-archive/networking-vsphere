@@ -25,6 +25,15 @@ from networking_vsphere.tests import base
 cfg.CONF.import_group('AGENT', 'neutron.plugins.ml2.drivers.openvswitch.agent.'
                       'common.config')
 
+FAKE_DEVICE_ID_1 = 'fake_device_id_1'
+FAKE_DEVICE_ID_2 = 'fake_device_id_2'
+FAKE_PORT_ID_1 = u'fake_port_id_1'
+FAKE_PORT_ID_2 = u'fake_port_id_2'
+FAKE_PORT_ID_3 = u'fake_port_id_3'
+FAKE_RULE = {u'ethertype': u'IPv6', u'direction': u'egress',
+             u'id': u'RULE_ID', u'security_group_id': u'SG_01',
+             u'remote_group_id': u'SG_02'}
+FAKE_RULE_LIST = [FAKE_RULE]
 fake_port = {'security_group_source_groups': 'abc',
              'mac_address': '00:11:22:33:44:55',
              'network_id': "netid",
@@ -385,3 +394,18 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
         self.assertFalse(self.agent.global_refresh_firewall)
         self.assertTrue(mock_refresh.called)
         self.assertFalse(mock_prepare.called)
+
+    def test_update_pending_rules(self):
+        devices = {FAKE_DEVICE_ID_1: {FAKE_PORT_ID_1},
+                   FAKE_DEVICE_ID_2: {FAKE_PORT_ID_2}}
+        with mock.patch.object(self.agent,
+                               "_expand_rules",
+                               return_value=FAKE_RULE_LIST
+                               ) as mock_expand_rules:
+            self.agent._update_pending_rules(devices, FAKE_RULE_LIST,
+                                             [], FAKE_PORT_ID_2, True,
+                                             False)
+            self.assertTrue(mock_expand_rules.called)
+            pending_rules = self.agent.pending_rules_dict.get(FAKE_PORT_ID_1)
+            self.assertNotEqual(pending_rules, None)
+            self.assertEqual(len(pending_rules['add']), 1)
