@@ -95,6 +95,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.cluster_dvs_info = (CONF.VMWARE.cluster_dvs_mapping)[0].split(":")
         self.cluster_id = self.cluster_dvs_info[0]  # Datacenter/host/cluster.
         self.ports_dict = {}
+        self.sg_rules_info = list()
         self.vlan_manager = vlanmanager.LocalVlanManager()
         self.vnic_info = {}
         self.phys_brs = {}
@@ -181,6 +182,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if self.monitor_log:
             self.monitor_log.warning(_LW("ovs: pending"))
         self.sg_agent = sgagent.OVSvAppSecurityGroupAgent(self.context,
+                                                          self.cluster_id,
                                                           self.ovsvapp_sg_rpc,
                                                           defer_apply)
         if self.monitor_log:
@@ -844,7 +846,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             self.refresh_firewall_required = False
             device_list = set()
             for device in devices_to_filter:
-                if device in self.ports_dict:
+                if device in self.cluster_host_ports:
                     device_list.add(device)
             uncached_devices = set()
             uncached_devices = devices_to_filter - device_list
@@ -864,8 +866,6 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 uncached_devices.add(port)
             else:
                 self.refresh_firewall_required = True
-        if uncached_devices:
-            self._process_uncached_devices(uncached_devices)
 
     def mitigate_ovs_restart(self):
         """Mitigates OpenvSwitch process restarts.
@@ -953,10 +953,23 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.monitor_log.warning(_("ovs: pending"))
             LOG.info(_LI("Starting refresh_port_filters."))
             self.sg_agent.refresh_port_filters(
-                self.cluster_host_ports, self.cluster_other_ports)
+                self.cluster_host_ports, set())
+#                self.cluster_host_ports, self.cluster_other_ports)
             LOG.info(_LI("Finished refresh_port_filters."))
             if self.monitor_log:
                 self.monitor_log.info(_LI("ovs: ok"))
+
+        if self.sg_rules_info:
+            sg_rules = self.sg_rules_info
+            self.sg_rules_info = list()
+            LOG.debug("Spawning a thread to process fw rules.")
+            try:
+                self.threadpool.spawn_n(self.sg_agent._apply_rules,
+                                        sg_rules)
+                eventlet.sleep(0)
+            except Exception:
+                LOG.exception(_LE("Exception occured while spawning thread "
+                                  "to process fw rules."))
 
     def check_for_updates(self):
         while self.run_check_for_updates:
@@ -1862,6 +1875,11 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                      "network %s"),
                  net_id)
         self.sg_agent.sg_provider_updated(net_id)
+
+    def security_group_info_for_devices(self, context, **kwargs):
+        """Callback for security group rules update."""
+        sg_info = kwargs.get('device_data',{})
+        self.sg_rules_info.append(sg_info)
 
 
 class RpcPluginApi(agent_rpc.PluginApi):

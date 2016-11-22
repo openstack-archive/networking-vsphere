@@ -89,7 +89,7 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         self.endpoints = [ovsvapp_rpc.OVSvAppServerRpcCallback(
                           self.notifier, self.ovsvapp_sg_server_rpc),
                           ovsvapp_rpc.OVSvAppSecurityGroupServerRpcCallback(
-                          self.ovsvapp_sg_server_rpc)]
+                          self.ovsvapp_sg_server_rpc, self.notifier)]
         self.topic = ovsvapp_const.OVSVAPP
         self.conn = n_rpc.create_connection()
         self.conn.create_consumer(self.topic, self.endpoints, fanout=False)

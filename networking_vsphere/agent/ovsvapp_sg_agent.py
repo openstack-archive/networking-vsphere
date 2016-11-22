@@ -35,6 +35,7 @@ LOG = log.getLogger(__name__)
 
 ovsvapplock = threading.RLock()
 sg_datalock = threading.RLock()
+ovs_rpclock = threading.RLock()
 
 ADD_KEY = 'add'
 DEL_KEY = 'del'
@@ -48,9 +49,10 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
 
     This class is to override the default behavior of some methods.
     """
-    def __init__(self, context, ovsvapp_sg_rpc, defer_apply):
+    def __init__(self, context, cluster_id, ovsvapp_sg_rpc, defer_apply):
         self.context = context
         self.ovsvapp_sg_rpc = ovsvapp_sg_rpc
+        self.cluster_id = cluster_id
         self.sgid_rules_dict = {}
         self.sgid_remote_rules_dict = {}
         self.sgid_devices_dict = {}
@@ -187,40 +189,45 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         #  when we get back to back updates for same SG or Network.
         self.devices_to_refilter = self.devices_to_refilter - set(dev_ids)
         ovsvapplock.release()
-        sg_info = self.ovsvapp_sg_rpc.security_group_info_for_esx_devices(
-            self.context, dev_ids)
-        time.sleep(0)
-        LOG.debug("Successfully serviced security_group_info_for_esx_devices "
-                  "RPC for %s.", dev_ids)
-        ports = sg_info.get('ports')
-        for port_id in ports:
-            if port_id in dev_ids:
-                port_info = {'member_ips': sg_info.get('member_ips'),
-                             'ports': {port_id: ports[port_id]}}
-                port_sg_rules = self.expand_sg_rules(port_info)
-                if len(port_sg_rules.get(port_id).get(
-                       'sg_provider_rules')) == 0:
-                    LOG.info(_LI("Missing Provider Rules for port %s"),
-                             port_id)
-                    self.devices_to_refilter.add(port_id)
-                    return
+        ovs_rpclock.acquire()
+        if self.ovsvapp_sg_rpc.security_group_info_for_esx_devices(
+            self.context, dev_ids, self.cluster_id):
+            LOG.debug("Successfully serviced security_group_info_for_esx_devices "
+                      "RPC for %s.", dev_ids)
+        ovs_rpclock.release()
 
-                if self.deleted_devices_dict.get(port_id) is None:
-                    self._update_device_port_sg_map(port_sg_rules,
-                                                    port_id, update)
-                    LOG.debug("Port Cache: %s",
-                              port_sg_rules[port_id])
-                    if len(port_sg_rules[port_id]['security_group_rules']) > 0 \
-                        or \
-                       port_sg_rules[port_id].get('security_group_rules_deleted') \
-                       is not None:
-                        LOG.info(_LI("Applying Changed Rules for Port %s"),
+    def _apply_rules(self, sg_rules, update=False):
+        for sg_info in sg_rules:
+            ports = sg_info.get('ports')
+            dev_ids = sg_info.get('dev_ids')
+            for port_id in ports:
+                if port_id in dev_ids:
+                    port_info = {'member_ips': sg_info.get('member_ips'),
+                                 'ports': {port_id: ports[port_id]}}
+                    port_sg_rules = self.expand_sg_rules(port_info)
+                    if len(port_sg_rules.get(port_id).get(
+                           'sg_provider_rules')) == 0:
+                        LOG.info(_LI("Missing Provider Rules for port %s"),
                                  port_id)
-                        self.firewall.update_port_filter(
-                            port_sg_rules[port_id]
-                        )
-                    else:
-                        LOG.info(_LI("NO RULES CHANGED for Port %s"), port_id)
+                        self.devices_to_refilter.add(port_id)
+                        return
+
+                    if self.deleted_devices_dict.get(port_id) is None:
+                        self._update_device_port_sg_map(port_sg_rules,
+                                                        port_id, update)
+                        LOG.debug("Port Cache: %s",
+                                  port_sg_rules[port_id])
+                        if len(port_sg_rules[port_id]['security_group_rules']) > 0 \
+                            or \
+                           port_sg_rules[port_id].get('security_group_rules_deleted') \
+                           is not None:
+                            LOG.info(_LI("Applying Changed Rules for Port %s"),
+                                     port_id)
+                            self.firewall.update_port_filter(
+                                port_sg_rules[port_id]
+                            )
+                        else:
+                            LOG.info(_LI("NO RULES CHANGED for Port %s"), port_id)
 
     def _process_port_set(self, devices, update=False):
         dev_list = list(devices)
@@ -890,7 +897,7 @@ class OVSvAppSecurityGroupServerRpcApi(object):
         target = oslo_messaging.Target(topic=topic, version='1.0')
         self.client = n_rpc.get_client(target)
 
-    def security_group_info_for_esx_devices(self, context, devices):
+    def security_group_info_for_esx_devices(self, context, devices, cluster_id):
         cctxt = self.client.prepare()
         return cctxt.call(context, 'security_group_info_for_esx_devices',
-                          devices=devices)
+                          devices=devices, cluster_id=cluster_id)

@@ -15,6 +15,7 @@
 
 import time
 
+import eventlet
 from oslo_log import log
 import oslo_messaging
 from sqlalchemy.orm import exc as sa_exc
@@ -49,8 +50,17 @@ class OVSvAppSecurityGroupServerRpcCallback(object):
     """
     target = oslo_messaging.Target(version='1.0')
 
-    def __init__(self, ovsvapp_sg_server_rpc=None):
+    def __init__(self, ovsvapp_sg_server_rpc=None, notifier=None):
         self.sg_rpc = ovsvapp_sg_server_rpc
+        self.notifier = notifier
+        self._pool = None
+
+    @property
+    def threadpool(self):
+        if self._pool is None:
+            self._pool = eventlet.GreenPool()
+        return self._pool
+
 
     @property
     def plugin(self):
@@ -63,16 +73,32 @@ class OVSvAppSecurityGroupServerRpcCallback(object):
             if port and not port['device_owner'].startswith('network:')
         )
 
+    def _security_group_info_for_esx_devices(self,rpc_context, devices_info,
+                                             cluster_id):
+        ports = self._get_devices_info(rpc_context, devices_info)
+        sg_info = self.sg_rpc.security_group_info_for_esx_ports(
+            rpc_context, ports)
+        sg_info['dev_ids'] = devices_info
+        self.notifier.security_group_info_for_devices(rpc_context, sg_info,cluster_id)
+
     def security_group_info_for_esx_devices(self, rpc_context, **kwargs):
         """RPC callback to return security_grp rules for each VM port on esx.
 
         :params devices: list of devices.
         :returns: security group info correspond to the devices with sg_rules.
         """
-        devices_info = kwargs.get('devices')
-        ports = self._get_devices_info(rpc_context, devices_info)
-        return self.sg_rpc.security_group_info_for_esx_ports(
-            rpc_context, ports)
+        try:
+            devices_info = kwargs.get('devices')
+            cluster_id = kwargs.get('cluster_id')
+            self.threadpool.spawn_n(
+                self._security_group_info_for_esx_devices,
+                rpc_context,devices_info, cluster_id)
+            eventlet.sleep(0)
+        except Exception:
+            LOG.exception(_LE("Exception occured while spawning thread "
+                              "to get security_group_info_for_esx_devices"))
+
+
 
 
 class OVSvAppSecurityGroupServerRpcMixin(
@@ -538,6 +564,14 @@ class OVSvAppAgentNotifyAPI(object):
             fanout=True)
         cctxt.cast(context, 'device_delete',
                    network_info=network_info, host=host,
+                   cluster_id=cluster_id)
+
+    def security_group_info_for_devices(self, context, sg_data, cluster_id):
+        cctxt = self.client.prepare(
+            topic=self._get_device_topic(topics.UPDATE, cluster_id),
+            fanout=True)
+        cctxt.cast(context, 'security_group_info_for_devices',
+                   device_data=sg_data,
                    cluster_id=cluster_id)
 
     def enhanced_sg_provider_updated(self, context, network_id):
