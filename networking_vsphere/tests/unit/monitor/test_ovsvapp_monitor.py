@@ -17,6 +17,7 @@ import copy
 import datetime
 import mock
 
+from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_service import loopingcall
@@ -171,7 +172,7 @@ class TestAgentMonitor(base.BaseTestCase):
                                'get_admin_context',
                                return_value=self.context
                                ) as get_context, \
-                mock.patch.object(manager.NeutronManager,
+                mock.patch.object(directory,
                                   'get_plugin',
                                   return_value=self.plugin
                                   ) as get_plugin, \
@@ -192,7 +193,7 @@ class TestAgentMonitor(base.BaseTestCase):
                                'get_admin_context',
                                return_value=self.context
                                ) as get_context, \
-                mock.patch.object(manager.NeutronManager,
+                mock.patch.object(directory,
                                   'get_plugin',
                                   side_effect=Exception
                                   ) as get_plugin, \
@@ -208,7 +209,7 @@ class TestAgentMonitor(base.BaseTestCase):
                                'get_admin_context',
                                return_value=self.context
                                ) as get_context, \
-                mock.patch.object(manager.NeutronManager,
+                mock.patch.object(directory,
                                   'get_plugin',
                                   return_value=None
                                   ) as get_plugin, \

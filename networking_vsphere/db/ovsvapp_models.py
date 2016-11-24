@@ -15,7 +15,7 @@
 
 import sqlalchemy as sa
 
-from neutron.db import model_base
+from neutron_lib.db import model_base
 
 
 class ClusterVNIAllocations(model_base.BASEV2):
