@@ -15,16 +15,18 @@
 
 import abc
 
+from neutron_lib.api import extensions as api_extensions
+from neutron_lib.api import validators
+
 from neutron.api import extensions
 from neutron.api.v2 import attributes
 from neutron.api.v2 import resource_helper
-from neutron_lib.api import validators
 
 from networking_vsphere._i18n import _
 from networking_vsphere.common import constants
-import networking_vsphere.extensions
+from networking_vsphere import extensions as vsphere_extensions
 
-extensions.append_api_extensions_path(networking_vsphere.extensions.__path__)
+extensions.append_api_extensions_path(vsphere_extensions.__path__)
 
 
 def convert_none_to_empty_list(value):
@@ -59,7 +61,7 @@ RESOURCE_ATTRIBUTE_MAP = {
 validators.add_validator('type:clusters_list', validate_clusters_list)
 
 
-class Ovsvapp_cluster(extensions.ExtensionDescriptor):
+class Ovsvapp_cluster(api_extensions.ExtensionDescriptor):
     """Extension class supporting OVSvApp-Cluster-Mappings."""
 
     @classmethod
