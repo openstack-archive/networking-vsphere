@@ -56,7 +56,7 @@ class TestAgent(base.TestCase):
             self.agent.set_node_state(True)
             self.assertTrue(mock_log_info.called)
             self.assertTrue(fake_net_mgr.get_driver())
-            self.assertTrue("start" in fake_net_mgr.methods)
+            self.assertIn("start", fake_net_mgr.methods)
             self.assertTrue(self.agent.state == constants.AGENT_RUNNING)
 
     def test_set_node_state_down(self):
@@ -64,5 +64,5 @@ class TestAgent(base.TestCase):
         fake_net_mgr = fake_manager.MockNetworkManager(self.agent)
         self.agent.net_mgr = fake_net_mgr
         self.agent.set_node_state(False)
-        self.assertTrue("stop" in fake_net_mgr.methods)
+        self.assertIn("stop", fake_net_mgr.methods)
         self.assertTrue(self.agent.state == constants.AGENT_STOPPED)
