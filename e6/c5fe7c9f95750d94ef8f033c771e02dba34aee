@@ -1,0 +1,11 @@
+Code-Review+1: YAMAMOTO Takashi <yamamoto@midokura.com>
+Code-Review+1: Mohit Malik <mohit.malik@intel.com>
+Code-Review+2: Swaminathan Vasudevan <swaminathan.vasudevan@hpe.com>
+Code-Review+2: Adolfo Duarte <adolfo.duarte@hpe.com>
+Workflow+1: Adolfo Duarte <adolfo.duarte@hpe.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 05 Dec 2016 20:13:28 +0000
+Reviewed-on: https://review.openstack.org/403299
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
