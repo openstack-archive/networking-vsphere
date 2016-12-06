@@ -38,6 +38,7 @@ from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 NETWORK_ID = 'fake_net_id'
 VNIC_ADDED = 'VNIC_ADDED'
 FAKE_DEVICE_ID = 'fake_device_id'
+FAKE_PORT_ID = 'fake_port_id'
 FAKE_VM = 'fake_vm'
 FAKE_HOST_1 = 'fake_host_1'
 FAKE_HOST_2 = 'fake_host_2'
@@ -510,6 +511,44 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(br.delete_flows.called)
             self.assertTrue(br.add_flows.called)
             self.assertTrue(mock_int_br_add_flow.called)
+
+    def test_update_device_port_binding_success(self):
+        port = {'id': FAKE_PORT_ID, 'device_id': FAKE_DEVICE_ID}
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               "update_device_binding",
+                               return_value=set(["fake_port"])
+                               ) as mock_update_device_binding:
+            self.agent._update_device_port_binding(port)
+            self.assertTrue(mock_update_device_binding.called)
+            self.assertEqual(self.agent.devices_to_bind_retry_count
+                             .get(FAKE_PORT_ID), None)
+
+    def test_update_device_port_binding_fail(self):
+        port = {'id': FAKE_PORT_ID, 'device_id': FAKE_DEVICE_ID}
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               "update_device_binding",
+                               return_value=None
+                               ) as mock_update_device_binding:
+            self.agent._update_device_port_binding(port)
+            self.assertTrue(mock_update_device_binding.called)
+            self.assertEqual(self.agent.devices_to_bind_retry_count
+                             .get(FAKE_PORT_ID), 1)
+
+    def test_update_device_port_binding_fail_exceed_count(self):
+        port = {'id': FAKE_PORT_ID, 'device_id': FAKE_DEVICE_ID}
+        with mock.patch.object(self.agent.ovsvapp_rpc,
+                               "update_device_binding",
+                               return_value=None
+                               ) as mock_update_device_binding:
+            for i in range(5):
+                self.agent._update_device_port_binding(port)
+            self.assertEqual(mock_update_device_binding.call_count, 5)
+            self.assertEqual(self.agent.devices_to_bind_retry_count
+                             .get(FAKE_PORT_ID), 5)
+            self.agent._update_device_port_binding(port)
+            self.assertEqual(mock_update_device_binding.call_count, 6)
+            self.assertEqual(self.agent.devices_to_bind_retry_count
+                             .get(FAKE_PORT_ID), None)
 
     def test_update_port_bindings(self):
         self.agent.ports_to_bind.add("fake_port")
