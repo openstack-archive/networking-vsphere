@@ -386,7 +386,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                 continue
             port = self.plugin._make_port_dict(port_db)
             network = self.plugin.get_network(rpc_context, port['network_id'])
-            levels = db.get_binding_levels(rpc_context.session, port_id,
+            levels = db.get_binding_levels(rpc_context, port_id,
                                            port_db.port_binding.host)
             port_context = driver_context.PortContext(self.plugin,
                                                       rpc_context,
