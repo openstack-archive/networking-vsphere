@@ -166,12 +166,17 @@ class TestOVSvAppAgentRestart(base.TestCase):
                 'check_ovs_firewall_restart')
     @mock.patch('networking_vsphere.drivers.ovs_firewall.'
                 'OVSFirewallDriver.setup_base_flows')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                '_modify_tcp_and_udp_learning_flows')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                '_mod_ovs_flow')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.create')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.set_secure_mode')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.OVSvAppAgent.__init__')
     def setUp(self, mock_ovs_init, mock_get_port_ofport,
-              mock_set_secure_mode, mock_create_ovs_bridge,
+              mock_set_secure_mode, mock_create_ovs_bridge, mock_mod_ovs_flow,
+              mock_tcp_udp_learning_flows,
               mock_setup_base_flows, mock_check_ovs_firewall_restart,
               mock_init_ovs_flows, mock_setup_security_br,
               mock_setup_ovs_bridges,
@@ -318,6 +323,10 @@ class TestOVSvAppAgent(base.TestCase):
                 'OVSvAppAgent._init_ovs_flows')
     @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
                 'check_ovs_firewall_restart')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                '_modify_tcp_and_udp_learning_flows')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                '_mod_ovs_flow')
     @mock.patch('networking_vsphere.drivers.ovs_firewall.'
                 'OVSFirewallDriver.setup_base_flows')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.create')
@@ -325,7 +334,9 @@ class TestOVSvAppAgent(base.TestCase):
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
     def setUp(self, mock_get_port_ofport,
               mock_set_secure_mode, mock_create_ovs_bridge,
-              mock_setup_base_flows, mock_check_ovs_firewall_restart,
+              mock_setup_base_flows, mock_mod_ovs_flow,
+              mock_modify_tcp_and_udp_learning_flows,
+              mock_check_ovs_firewall_restart,
               mock_init_ovs_flows, mock_setup_security_br,
               mock_setup_ovs_bridges, mock_check_ovsvapp_agent_restart,
               mock_setup_integration_br, mock_create_consumers,

@@ -56,7 +56,10 @@ cookie = ("0x%x" % (hash("123") & 0xffffffffffffffff))
 
 
 class TestOVSFirewallDriver(base.TestCase):
-
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                '_mod_ovs_flow')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                '_modify_tcp_and_udp_learning_flows')
     @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
                 'check_ovs_firewall_restart')
     @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
@@ -68,7 +71,9 @@ class TestOVSFirewallDriver(base.TestCase):
                 'API.get')
     def setUp(self, mock_ovsdb_api, mock_get_port_ofport, mock_set_secure_mode,
               mock_create_ovs_bridge, mock_setup_base_flows,
-              mock_check_ovs_firewall_restart,):
+              mock_check_ovs_firewall_restart,
+              mock_modify_tcp_and_udp_learning_flows,
+              mock_mod_ovs_flow):
         super(TestOVSFirewallDriver, self).setUp()
         config.register_root_helper(cfg.CONF)
         cfg.CONF.set_override('security_bridge_mapping',
@@ -153,6 +158,36 @@ class TestOVSFirewallDriver(base.TestCase):
             mock_add_flow.assert_called_with(table=1, priority=0,
                                              proto=constants.PROTO_NAME_ICMP,
                                              icmp_type=11, actions="normal")
+
+    def test_mod_ovs_flow(self):
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
+                mock.patch.object(self.mock_br, 'mod_flow') as mock_mod_flow:
+            self.ovs_firewall._mod_ovs_flow(self.mock_br, 1, "normal")
+            mock_mod_flow.assert_called_with(actions='normal', table=1)
+
+    def test_mod_ovs_flow_with_protocol(self):
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
+                mock.patch.object(self.mock_br, 'mod_flow') as mock_mod_flow:
+            # rule with protocol
+            self.ovs_firewall._mod_ovs_flow(self.mock_br, 1, "normal",
+                                            protocol="arp")
+            mock_mod_flow.assert_called_with(table=1,
+                                             proto="arp", actions="normal")
+
+    def test_mod_ovs_flow_with_tcpflag(self):
+        with mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                               return_value=self.mock_br), \
+                mock.patch.object(self.mock_br, 'mod_flow') as mock_mod_flow:
+            # rule with tcp_flags
+            t_flag = "+rst"
+            self.ovs_firewall._mod_ovs_flow(self.mock_br, 1, "normal",
+                                            tcp_flag=t_flag)
+            mock_mod_flow.assert_called_with(table=1,
+                                             proto=constants.PROTO_NAME_TCP,
+                                             tcp_flags=t_flag,
+                                             actions="normal")
 
     def test_add_ports_to_filter(self):
         self.ovs_firewall.filtered_ports = {}
