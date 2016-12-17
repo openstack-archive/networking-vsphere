@@ -72,6 +72,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self._defer_apply = False
         if not self.check_ovs_firewall_restart():
             self.setup_base_flows()
+        else:
+            self._modify_tcp_and_udp_learning_flows(self.sg_br)
 
     def security_group_updated(self, action_type, sec_group_ids,
                                device_id=None):
@@ -139,6 +141,35 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                            actions=action)
         else:
             sg_br.add_flow(table=table_id, priority=pri, actions=action)
+
+    def _mod_ovs_flow(self, sg_br, table_id, action, in_port=None,
+                      protocol=None, dl_dest=None, tcp_flag=None,
+                      icmp_req_type=None):
+        """Helper method to modify OVS flows.
+
+        Method which will help modify an openflow rule with the given
+        action in the specified table.
+        """
+        if protocol:
+            sg_br.mod_flow(table=table_id, proto=protocol,
+                           actions=action)
+        elif dl_dest:
+            sg_br.mod_flow(table=table_id, dl_dst=dl_dest,
+                           actions=action)
+        elif tcp_flag:
+            sg_br.mod_flow(table=table_id,
+                           proto=constants.PROTO_NAME_TCP,
+                           tcp_flags=tcp_flag, actions=action)
+        elif icmp_req_type:
+            sg_br.mod_flow(table=table_id,
+                           proto=constants.PROTO_NAME_ICMP,
+                           icmp_type=icmp_req_type,
+                           actions=action)
+        elif in_port:
+            sg_br.mod_flow(table=table_id, in_port=in_port,
+                           actions=action)
+        else:
+            sg_br.mod_flow(table=table_id, actions=action)
 
     def _add_icmp_learn_flow(self, sec_br, reqType, resType,
                              pri=ovsvapp_const.SG_TP_PRI):
@@ -237,6 +268,53 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                            protocol=constants.PROTO_NAME_UDP)
         # Now setup the ICMP learn flows.
         self._setup_icmp_learn_flows(sec_br)
+
+    def _modify_tcp_and_udp_learning_flows(self, sec_br):
+        """Helper method to modify learning flows.
+
+        Method which will help modify the base learning flows at
+        the start of the agent.
+        These flows are populated in specific tables for
+        TCP/UDP/ICMP.
+        """
+
+        # Modify learning flows one for TCP and another for UDP.
+        learned_tcp_flow = ("table=%s,"
+                            "priority=%s,"
+                            "fin_idle_timeout=1,"
+                            "idle_timeout=7200,"
+                            "dl_type=0x0800,"
+                            "NXM_OF_VLAN_TCI[0..11],"
+                            "nw_proto=%s,"
+                            "NXM_OF_IP_SRC[]=NXM_OF_IP_DST[],"
+                            "NXM_OF_IP_DST[]=NXM_OF_IP_SRC[],"
+                            "NXM_OF_TCP_SRC[]=NXM_OF_TCP_DST[],"
+                            "NXM_OF_TCP_DST[]=NXM_OF_TCP_SRC[],"
+                            "output:NXM_OF_IN_PORT[]" %
+                            (ovsvapp_const.SG_LEARN_TABLE_ID,
+                             ovsvapp_const.SG_TP_PRI,
+                             constants.PROTO_NUM_TCP))
+        self._mod_ovs_flow(sec_br, ovsvapp_const.SG_TCP_TABLE_ID,
+                           "learn(%s)" % learned_tcp_flow,
+                           protocol=constants.PROTO_NAME_TCP)
+
+        learned_udp_flow = ("table=%s,"
+                            "priority=%s,"
+                            "idle_timeout=300,"
+                            "dl_type=0x0800,"
+                            "NXM_OF_VLAN_TCI[0..11],"
+                            "nw_proto=%s,"
+                            "NXM_OF_IP_SRC[]=NXM_OF_IP_DST[],"
+                            "NXM_OF_IP_DST[]=NXM_OF_IP_SRC[],"
+                            "NXM_OF_UDP_SRC[]=NXM_OF_UDP_DST[],"
+                            "NXM_OF_UDP_DST[]=NXM_OF_UDP_SRC[],"
+                            "output:NXM_OF_IN_PORT[]" %
+                            (ovsvapp_const.SG_LEARN_TABLE_ID,
+                             ovsvapp_const.SG_TP_PRI,
+                             constants.PROTO_NUM_UDP))
+        self._mod_ovs_flow(sec_br, ovsvapp_const.SG_UDP_TABLE_ID,
+                           "learn(%s)" % learned_udp_flow,
+                           protocol=constants.PROTO_NAME_UDP)
 
     def setup_base_flows(self):
         """Method for configuring the default flows in OVS bridge.
