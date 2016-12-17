@@ -21,8 +21,8 @@ from neutron_lib.db import model_base
 
 from oslo_config import cfg
 from oslo_db.sqlalchemy import session
-import sqlalchemy as sa
-from sqlalchemy import event
+import sqlalchemy as sai
+from sqlalchemy.event import listens_for
 
 MYSQL_ENGINE = None
 OVSVAPP_VERSION_TABLE = 'ovsvapp_alembic_version'
@@ -58,7 +58,7 @@ def run_migrations_offline():
         context.run_migrations()
 
 
-@event.listens_for(sa.Table, 'after_parent_attach')
+@listens_for(sa.Table, 'after_parent_attach')
 def set_storage_engine(target, parent):
     if MYSQL_ENGINE:
         target.kwargs['mysql_engine'] = MYSQL_ENGINE
