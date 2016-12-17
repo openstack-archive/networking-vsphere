@@ -61,6 +61,10 @@ class FakeFirewall(ovs_firewall.OVSFirewallDriver):
 class TestOVSvAppSecurityGroupAgent(base.TestCase):
 
     @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                '_modify_tcp_and_udp_learning_flows')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
+                '_mod_ovs_flow')
+    @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
                 'check_ovs_firewall_restart')
     @mock.patch('networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver.'
                 'setup_base_flows')
@@ -72,7 +76,8 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
     def setUp(self, mock_ovsdb_api, mock_get_port_ofport,
               mock_set_secure_mode, mock_create_ovs_bridge,
               mock_setup_base_flows,
-              mock_check_ovs_firewall_restart):
+              mock_check_ovs_firewall_restart, mock_mod_ovs_flow,
+              mock_tcp_udp_learning_flows):
         super(TestOVSvAppSecurityGroupAgent, self).setUp()
         self.context = mock.Mock()
         cfg.CONF.set_override('security_bridge_mapping',
