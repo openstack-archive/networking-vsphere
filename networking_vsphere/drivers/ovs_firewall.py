@@ -72,6 +72,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self._defer_apply = False
         if not self.check_ovs_firewall_restart():
             self.setup_base_flows()
+        else:
+            self._setup_learning_flows(self.sg_br)
 
     def security_group_updated(self, action_type, sec_group_ids,
                                device_id=None):
@@ -139,6 +141,35 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                            actions=action)
         else:
             sg_br.add_flow(table=table_id, priority=pri, actions=action)
+
+    def _mod_ovs_flow(self, sg_br, pri, table_id, action, in_port=None,
+                      protocol=None, dl_dest=None, tcp_flag=None,
+                      icmp_req_type=None):
+        """Helper method to modify OVS flows.
+
+        Method which will help modify an openflow rule with the given
+        action in the specified table.
+        """
+        if protocol:
+            sg_br.mod_flow(table=table_id, proto=protocol,
+                           actions=action)
+        elif dl_dest:
+            sg_br.mod_flow(table=table_id, dl_dst=dl_dest,
+                           actions=action)
+        elif tcp_flag:
+            sg_br.mod_flow(table=table_id,
+                           proto=constants.PROTO_NAME_TCP,
+                           tcp_flags=tcp_flag, actions=action)
+        elif icmp_req_type:
+            sg_br.mod_flow(table=table_id,
+                           proto=constants.PROTO_NAME_ICMP,
+                           icmp_type=icmp_req_type,
+                           actions=action)
+        elif in_port:
+            sg_br.mod_flow(table=table_id, in_port=in_port,
+                           actions=action)
+        else:
+            sg_br.mod_flow(table=table_id, actions=action)
 
     def _add_icmp_learn_flow(self, sec_br, reqType, resType,
                              pri=ovsvapp_const.SG_TP_PRI):
@@ -216,6 +247,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                            ovsvapp_const.SG_TCP_TABLE_ID,
                            "learn(%s)" % learned_tcp_flow,
                            protocol=constants.PROTO_NAME_TCP)
+        self._mod_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
+                           ovsvapp_const.SG_TCP_TABLE_ID,
+                           "learn(%s)" % learned_tcp_flow,
+                           protocol=constants.PROTO_NAME_TCP)
 
         learned_udp_flow = ("table=%s,"
                             "priority=%s,"
@@ -232,6 +267,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                              ovsvapp_const.SG_TP_PRI,
                              constants.PROTO_NUM_UDP))
         self._add_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
+                           ovsvapp_const.SG_UDP_TABLE_ID,
+                           "learn(%s)" % learned_udp_flow,
+                           protocol=constants.PROTO_NAME_UDP)
+        self._mod_ovs_flow(sec_br, ovsvapp_const.SG_TP_PRI,
                            ovsvapp_const.SG_UDP_TABLE_ID,
                            "learn(%s)" % learned_udp_flow,
                            protocol=constants.PROTO_NAME_UDP)
