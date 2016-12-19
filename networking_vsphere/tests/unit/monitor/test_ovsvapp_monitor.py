@@ -24,10 +24,10 @@ from oslo_service import loopingcall
 from oslo_utils import timeutils
 
 from neutron.common import topics
-from neutron import context as neutron_context
 from neutron.db import agents_db
 from neutron.tests import base
 from neutron_lib import constants
+from neutron_lib import context as neutron_context
 
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.db import ovsvapp_db
