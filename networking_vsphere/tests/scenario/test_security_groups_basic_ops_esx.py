@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import netaddr
 from networking_vsphere.tests.scenario import manager
 
 from neutron.tests.tempest import exceptions
@@ -54,7 +55,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         self.assertTrue(self._check_remote_connectivity(source_ip, dest_ip,
                                                         should_succeed), msg)
 
-    def _create_server_associate(self, test_sever, access_server):
+    def _create_server_associate(self, test_sever, access_server, network_name=None):
         device_port1 = self.ports_client.list_ports(device_id=test_sever)
         port_id1 = device_port1['ports'][0]['id']
         sg_test_sever = device_port1['ports'][0]['security_groups'][0]
@@ -72,8 +73,10 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             direction='ingress',
             ethertype=self.ethertype
         )
+        if network_name is None:
+            network_name = self.network['name']
         remote_prefix_ip = self.get_server_ip(access_server,
-                                              self.network['name'])
+                                              network_name)
         return (sg_test_sever, sg_access_server, dest_ip, fip,
                 port_id1, port_id2, remote_prefix_ip)
 
@@ -485,3 +488,85 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         else:
             error_msg = "Host not found"
             raise exceptions.BadRequest(error_msg)
+
+    def test_Validate_provider_securitygrouprules_on_VM_port_on_ingress_direction(self):
+        group_create_body_update, _ = self._create_security_group()
+
+        # Create server with security group
+        name = data_utils.rand_name('server-with-security-group')
+        server_id = self._create_server_with_sec_group(
+            name, self.network['id'],
+            group_create_body_update['security_group']['id'])
+        device_port = self.ports_client.list_ports(device_owner='network:dhcp', network_id=self.network['id'])
+        dhcp_ip1 = device_port['ports'][0]['fixed_ips'][0]['ip_address']
+        dhcp_ip2 = device_port['ports'][1]['fixed_ips'][0]['ip_address']
+        device_port = self.admin_manager.ports_client.list_ports(
+            device_id=server_id)
+        binding_host = device_port['ports'][0]['binding:host_id']
+        host_dic = self._get_host_name(server_id)
+        host_name = host_dic['host_name']
+        vapp_ipadd = self._get_vapp_ip(str(host_name), binding_host)
+        self._dump_flows_on_br_sec_to_verify_dhcp_ip(vapp_ipadd, dhcp_ip1)
+        self._dump_flows_on_br_sec_to_verify_dhcp_ip(vapp_ipadd, dhcp_ip2)
+
+    def test_data_tarffic_with_vms_hosted_on_same_host_with_different_network(self):
+        """Validate security group rule with remote security group.
+        This test verifies the traffic after adding the remote prefix
+        as destination ip address
+        """
+        # Create two server with different security group.
+        network2 = self.create_network()
+        sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
+        subnet2 = self.create_subnet(network2, cidr=sub_cidr)
+        router2 = self.create_router(data_utils.rand_name('router2-'),
+                                     external_network_id=self.ext_net_id,
+                                     admin_state_up="true")
+        self.create_router_interface(self.router['id'], subnet2['id'])
+        network_name = network2['name']
+        sg_body, _ = self._create_security_group()
+        test_sever, access_server = \
+            self._create_multiple_server_on_same_host(network2['id'])
+        sg_test_sever, sg_access_server, dest_ip, fip, port1, port2, rp_ip = \
+            self._create_server_associate(test_sever, access_server, network_name)
+        update_body = {"security_groups": []}
+        self.ports_client.update_port(port1, **update_body)
+        # Add remote_ip_prefix as dest_ip
+        self.security_group_rules_client.create_security_group_rule(
+            security_group_id=sg_body['security_group']['id'],
+            direction='ingress',
+            ethertype=self.ethertype,
+            protocol='icmp',
+            remote_ip_prefix=str(rp_ip)
+        )
+
+        update_body = {"security_groups": [sg_body['security_group']['id']]}
+        self.ports_client.update_port(port1, **update_body)
+        # Ping second server from first server.
+        self.assertTrue(self._check_remote_connectivity(fip, dest_ip))
+
+    def test_validate_addition_of_sec_with_remote_ip_prefix_as_0_0_0_0_32(self):
+        """Validate security group rule with remote security group.
+        This test verifies the traffic after adding the remote prefix
+        as 0.0.0.0/32
+        """
+        # Create two server with different security group.
+        sg_body, _ = self._create_security_group()
+        test_sever, access_server = \
+            self._create_multiple_server_on_different_host()
+        sg_test_sever, sg_access_server, dest_ip, fip, port1, port2, rp_ip = \
+            self._create_server_associate(test_sever, access_server)
+        update_body = {"security_groups": []}
+        self.ports_client.update_port(port1, **update_body)
+        # Add remote_ip_prefix as 0.0.0.0
+        self.security_group_rules_client.create_security_group_rule(
+            security_group_id=sg_body['security_group']['id'],
+            direction='ingress',
+            ethertype=self.ethertype,
+            protocol='icmp',
+            remote_ip_prefix=str("0.0.0.0/32")
+        )
+
+        update_body = {"security_groups": [sg_body['security_group']['id']]}
+        self.ports_client.update_port(port1, **update_body)
+        # Ping second server from first server.
+        self.assertFalse(self._check_remote_connectivity(fip, dest_ip))
