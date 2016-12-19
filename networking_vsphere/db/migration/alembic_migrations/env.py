@@ -22,7 +22,7 @@ from neutron_lib.db import model_base
 from oslo_config import cfg
 from oslo_db.sqlalchemy import session
 import sqlalchemy as sa
-from sqlalchemy import event
+from sqlalchemy import event  # noqa
 
 MYSQL_ENGINE = None
 OVSVAPP_VERSION_TABLE = 'ovsvapp_alembic_version'

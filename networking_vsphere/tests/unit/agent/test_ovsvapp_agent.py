@@ -21,6 +21,8 @@ import time
 import logging
 from oslo_config import cfg
 
+from neutron_lib.utils import helpers
+
 from networking_vsphere.agent import ovsvapp_agent
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import error
@@ -29,7 +31,6 @@ from networking_vsphere.tests.unit.drivers import fake_manager
 from networking_vsphere.utils import resource_util
 
 from neutron.agent.common import ovs_lib
-from neutron.common import utils as n_utils
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.common import utils as p_utils
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa
@@ -453,7 +454,7 @@ class TestOVSvAppAgent(base.TestCase):
     def test_recover_physical_bridges(self, mock_ovsdb_api):
         cfg.CONF.set_override('bridge_mappings',
                               ["physnet1:br-eth1"], 'OVSVAPP')
-        self.agent.bridge_mappings = n_utils.parse_mappings(
+        self.agent.bridge_mappings = helpers.parse_mappings(
             cfg.CONF.OVSVAPP.bridge_mappings)
         with mock.patch.object(self.LOG, 'info') as mock_logger_info, \
                 mock.patch.object(self.LOG, 'error') as mock_logger_error, \
@@ -490,7 +491,7 @@ class TestOVSvAppAgent(base.TestCase):
     def test_init_ovs_flows(self):
         cfg.CONF.set_override('bridge_mappings',
                               ["physnet1:br-eth1"], 'OVSVAPP')
-        self.agent.bridge_mappings = n_utils.parse_mappings(
+        self.agent.bridge_mappings = helpers.parse_mappings(
             cfg.CONF.OVSVAPP.bridge_mappings)
         self.agent.patch_sec_ofport = 5
         self.agent.int_ofports = {'physnet1': 'br-eth1'}

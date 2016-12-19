@@ -25,11 +25,12 @@ import oslo_messaging
 from oslo_service import loopingcall
 import six
 
+from neutron_lib.utils import helpers
+
 from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
-from neutron.common import utils as n_utils
 from neutron import context
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.common import utils as p_utils
@@ -131,7 +132,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         # Examples: bridge_mappings, tunnel_types, tenant_network_type,
         # cluster_dvs_ampping.
         try:
-            self.bridge_mappings = n_utils.parse_mappings(
+            self.bridge_mappings = helpers.parse_mappings(
                 CONF.OVSVAPP.bridge_mappings)
         except ValueError as e:
             raise ValueError(_("Parsing bridge_mappings failed: %s.") % e)

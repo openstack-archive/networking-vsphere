@@ -24,6 +24,8 @@ from oslo_log import log as logging
 import oslo_messaging
 from oslo_service import loopingcall
 
+from neutron_lib.utils import helpers
+
 from neutron.agent.common import polling
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
@@ -394,8 +396,8 @@ def create_agent_config_map(config):
     :returns: a map of agent configuration parameters
     """
     try:
-        bridge_mappings = utils.parse_mappings(config.ML2_VMWARE.network_maps,
-                                               unique_values=False)
+        bridge_mappings = helpers.parse_mappings(
+            config.ML2_VMWARE.network_maps, unique_values=False)
     except ValueError as e:
         raise ValueError(_("Parsing network_maps failed: %s.") % e)
 
