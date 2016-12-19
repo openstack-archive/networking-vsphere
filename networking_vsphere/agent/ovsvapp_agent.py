@@ -901,6 +901,9 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.ports_dict = {}
                 self.devices_to_filter |= self.cluster_host_ports
                 self.devices_to_filter |= self.cluster_other_ports
+                for port_id in self.devices_to_filter:
+                    self.sg_agent._remove_devices_filter(port_id, False)
+
                 self.refresh_firewall_required = True
             finally:
                 ovsvapplock.release()
