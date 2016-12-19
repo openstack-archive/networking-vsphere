@@ -16,7 +16,7 @@
 from oslo_config import cfg
 
 from networking_vsphere._i18n import _
-from neutron.agent.common import config
+from neutron.conf.agent import common as config
 
 DEFAULT_BRIDGE_MAPPINGS = []
 DEFAULT_UPLINK_MAPPINGS = []

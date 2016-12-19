@@ -18,8 +18,8 @@ import copy
 import mock
 from oslo_config import cfg
 
-from neutron.agent.common import config
 from neutron.agent.common import ovs_lib
+from neutron.conf.agent import common as config
 from neutron_lib import constants
 
 from networking_vsphere.drivers import ovs_firewall as ovs_fw
