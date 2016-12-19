@@ -13,16 +13,57 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import netaddr
 from networking_vsphere.tests.scenario import manager
 
 from oslo_config import cfg
 
 from tempest.lib.common.utils import data_utils
+import testtools
 
 CONF = cfg.CONF
 
 
 class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
+
+    def _create_custom_security_group(self):
+        group_create_body, _ = self._create_security_group()
+
+        # Create rules for each protocol
+        protocols = ['tcp', 'udp', 'icmp']
+        for protocol in protocols:
+            self.security_group_rules_client.create_security_group_rule(
+                security_group_id=group_create_body['security_group']['id'],
+                protocol=protocol,
+                direction='ingress',
+                ethertype=self.ethertype
+            )
+        return group_create_body
+
+    def _create_server_associate(self, test_sever, access_server, net=None):
+        device_port1 = self.ports_client.list_ports(device_id=test_sever)
+        port_id1 = device_port1['ports'][0]['id']
+        sg_test_sever = device_port1['ports'][0]['security_groups'][0]
+        device_port2 = self.ports_client.list_ports(
+            device_id=access_server)
+        port_id2 = device_port2['ports'][0]['id']
+        floating_ip = self._associate_floating_ips(port_id=port_id2)
+        fip = floating_ip['floatingip']['floating_ip_address']
+        sg_access_server = device_port2['ports'][0]['security_groups'][0]
+        dest_ip = device_port1['ports'][0]['fixed_ips'][0]['ip_address']
+        # Add tcp rule to ssh to first server.
+        self.security_group_rules_client.create_security_group_rule(
+            security_group_id=sg_access_server,
+            protocol='tcp',
+            direction='ingress',
+            ethertype=self.ethertype
+        )
+        if net is None:
+            net = self.network['name']
+        remote_prefix_ip = self.get_server_ip(access_server,
+                                              net)
+        return (sg_test_sever, sg_access_server, dest_ip, fip,
+                port_id1, port_id2, remote_prefix_ip)
 
     def test_vm_migration_across_hosts(self):
         """Validate added security group consistent even after vm migration.
@@ -64,7 +105,8 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         vm_host_ip = vm_host.name
         cluster_hosts = self._get_hosts_for_cluster(content, cluster)
         if len(cluster_hosts.host) < 2:
-            raise Exception('Min two hosts needed in cluster for Vmotion')
+            msg = "Min two hosts needed in cluster for Vmotion"
+            raise testtools.TestCase.skipException(msg)
         for host in cluster_hosts.host:
             if host.name != vm_host_ip:
                 dest_host = host
@@ -101,7 +143,8 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         vm_host_ip = vm_host.name
         cluster_hosts = self._get_hosts_for_cluster(content, cluster)
         if len(cluster_hosts.host) < 2:
-            raise Exception('Min two hosts needed in cluster for Vmotion')
+            msg = "Min two hosts needed in cluster for Vmotion"
+            raise testtools.TestCase.skipException(msg)
         for host in cluster_hosts.host:
             if host.name != vm_host_ip:
                 dest_host = host
@@ -118,3 +161,45 @@ class OVSvAppVmotionTestJSON(manager.ESXNetworksTestJSON):
         self.assertTrue(self.ping_ip_address(
             floating_ip['floatingip']['floating_ip_address'],
             should_succeed=True))
+
+    def test_vm_communication_part_of_diff_network_after_migrating_vm(self):
+        network2 = self.create_network()
+        sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
+        subnet2 = self.create_subnet(network2, cidr=sub_cidr)
+        self.create_router_interface(self.router['id'], subnet2['id'])
+        net_name = network2['name']
+        sg_body, _ = self._create_security_group()
+        test_sever, access_server = \
+            self._create_multiple_server_on_same_host(network2['id'])
+        sg_test_sever, sg_access_server, dest_ip, fip, port1, port2, rp_ip = \
+            self._create_server_associate(test_sever, access_server, net_name)
+        update_body = {"security_groups": []}
+        self.ports_client.update_port(port1, **update_body)
+        # Add remote_ip_prefix as dest_ip
+        self.security_group_rules_client.create_security_group_rule(
+            security_group_id=sg_body['security_group']['id'],
+            direction='ingress',
+            ethertype=self.ethertype,
+            protocol='icmp',
+            remote_ip_prefix=str(rp_ip)
+        )
+
+        update_body = {"security_groups": [sg_body['security_group']['id']]}
+        self.ports_client.update_port(port1, **update_body)
+        # Ping second server from first server.
+        cluster = cfg.CONF.VCENTER.cluster_in_use
+        content = self._create_connection()
+        host_dic = self._get_host_name(test_sever)
+        vm_host = host_dic['host_name']
+        vm_host_ip = vm_host.name
+        cluster_hosts = self._get_hosts_for_cluster(content, cluster)
+        if len(cluster_hosts.host) < 2:
+            msg = "Min two hosts needed in cluster for Vmotion"
+            raise testtools.TestCase.skipException(msg)
+        for host in cluster_hosts.host:
+            if host.name != vm_host_ip:
+                dest_host = host
+        # Live Migration
+        task = self._migrate_vm(content, test_sever, dest_host)
+        self._wait_for_task(task, content)
+        self.assertTrue(self._check_remote_connectivity(fip, dest_ip))
