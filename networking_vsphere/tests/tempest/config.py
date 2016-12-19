@@ -41,7 +41,9 @@ VCENTER_OPTS = [
     cfg.StrOpt('bridge_interface_trunk',
                help="Bridge interface of trunk dvs"),
     cfg.StrOpt('neutron_database_name',
-               help="Neutron database name as in mysql table")
+               help="Neutron database name as in mysql table"),
+    cfg.StrOpt('neutron_database_ip',
+               help="Neutron database ip as in mysql table")
 ]
 
 
