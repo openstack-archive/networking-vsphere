@@ -680,6 +680,8 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_setup_tunnel_br_flows, \
                 mock.patch.object(self.agent, "_init_ovs_flows"
                                   ) as mock_init_flows, \
+                mock.patch.object(self.agent.sg_agent, "_remove_devices_filter"
+                                  ) as mock_remove_device, \
                 mock.patch.object(self.agent.monitor_log, "warning"
                                   ) as monitor_warning, \
                 mock.patch.object(self.agent.monitor_log, "info"
@@ -692,6 +694,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertFalse(mock_setup_tunnel_br_flows.called)
             self.assertTrue(mock_init_fw.called)
             self.assertTrue(mock_init_flows.called)
+            self.assertTrue(mock_remove_device.called)
             self.assertTrue(self.agent.refresh_firewall_required)
             self.assertEqual(2, len(self.agent.devices_to_filter))
             monitor_warning.assert_called_with("ovs: broken")
@@ -722,6 +725,8 @@ class TestOVSvAppAgent(base.TestCase):
                 mock.patch.object(self.agent, "tunnel_sync"
                                   ) as mock_tun_sync, \
                 mock.patch.object(self.agent, "_init_ovs_flows"), \
+                mock.patch.object(self.agent.sg_agent, "_remove_devices_filter"
+                                  ) as mock_remove_device, \
                 mock.patch.object(self.agent.monitor_log, "warning"
                                   ) as monitor_warning, \
                 mock.patch.object(self.agent.monitor_log, "info"
@@ -742,6 +747,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(mock_setup_tunnel_br_flows.called)
             self.assertTrue(mock_phys_brs.called)
             self.assertTrue(mock_tun_sync.called)
+            self.assertTrue(mock_remove_device.called)
             self.assertTrue(self.agent.refresh_firewall_required)
             self.assertEqual(len(self.agent.devices_to_filter), 2)
             monitor_warning.assert_called_with("ovs: broken")
