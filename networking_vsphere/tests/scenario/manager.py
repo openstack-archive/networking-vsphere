@@ -15,10 +15,8 @@
 """
 The test requires pyvmomi as a requirement to validate
 port group in vCenter
-
 You will need to install the python pyvmomi package
 sudo pip install pyvmomi
-
 """
 import atexit
 import netaddr
@@ -31,6 +29,7 @@ from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
 from tempest.common import waiters
+from tempest import exceptions
 from tempest.lib.common import rest_client
 from tempest.lib.common import ssh
 from tempest.lib.common.utils import data_utils
@@ -39,6 +38,7 @@ from tempest.lib.common.utils import test_utils
 from tempest.lib import exceptions as lib_exc
 from tempest import manager
 from tempest import test
+import testtools
 
 from networking_vsphere.tests.tempest import config as tempest_config
 from networking_vsphere._i18n import _LI, _LW
@@ -134,6 +134,17 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 break
         return obj
 
+    def get_obj_by_uuid(self, content, vimtype, uuid):
+        """Get the vsphere object associated with a given text name."""
+        obj = None
+        container = content.viewManager.CreateContainerView(content.rootFolder,
+                                                            vimtype, True)
+        for containername in container.view:
+            if containername.config.instanceUuid == uuid:
+                obj = containername
+                break
+        return obj
+
     def _connect_server(self):
         region = CONF.compute.region
         endpoint_type = CONF.compute.endpoint_type
@@ -154,12 +165,12 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         vcenter_username = CONF.VCENTER.vcenter_username
         vcenter_password = CONF.VCENTER.vcenter_password
         try:
-            msg = "Trying to connect %s vCenter" % vcenter_ip
-            LOG.info(msg)
-            connection = connect.Connect(vcenter_ip, 443,
-                                         vcenter_username,
-                                         vcenter_password,
-                                         service="hostd")
+                msg = "Trying to connect %s vCenter" % vcenter_ip
+                LOG.info(msg)
+                connection = connect.Connect(vcenter_ip, 443,
+                                             vcenter_username,
+                                             vcenter_password,
+                                             service="hostd")
         except Exception:
             msg = ('Could not connect to the specified vCenter')
             raise lib_exc.TimeoutException(msg)
@@ -192,21 +203,9 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             portgroupname = port_group.name
             segment_id = port_group.config.defaultPortConfig.vlan.vlanId
             self.portgroup_deleted_list.append(portgroupname)
-            self.segmentid_deleted_list.append(segment_id)
+            self.segmentid_deleted_list.append(int(segment_id))
         self.assertNotIn(portgroup, self.portgroup_deleted_list)
         self.assertNotIn(segmentid, self.segmentid_deleted_list)
-
-    def _fetch_network_segmentid_and_verify_portgroup(self, network=None):
-        net = self.admin_client.show_network(network)
-        net_segmentid = net['network']['provider:segmentation_id']
-        self._portgroup_verify(portgroup=network,
-                               segmentid=net_segmentid)
-
-    def _verify_portgroup_after_vm_delete(self, network=None):
-        net = self.admin_client.show_network(network)
-        net_segmentid = net['network']['provider:segmentation_id']
-        self._portgroup_verify_after_server_delete(portgroup=network,
-                                                   segmentid=net_segmentid)
 
     def addCleanup_with_wait(self, waiter_callable, thing_id, thing_id_param,
                              cleanup_callable, cleanup_args=None,
@@ -221,6 +220,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             the following *cleanup_args, **cleanup_kwargs.
             usually a delete method.
         """
+
         if cleanup_args is None:
             cleanup_args = []
         if cleanup_kwargs is None:
@@ -351,7 +351,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
 
             server_status = body['server']['status']
             if server_status == 'ERROR' and not ignore_error:
-                raise lib_exc.BuildErrorException(server_id=server_id)
+                raise exceptions.BuildErrorException(server_id=server_id)
 
             time.sleep(build_interval)
 
@@ -400,10 +400,10 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 )
             if (server_status == 'ERROR') and raise_on_error:
                 if 'fault' in body:
-                    raise lib_exc.BuildErrorException(body['fault'],
-                                                      server_id=server_id)
+                    raise exceptions.BuildErrorException(body['fault'],
+                                                         server_id=server_id)
                 else:
-                    raise lib_exc.BuildErrorException(server_id=server_id)
+                    raise exceptions.BuildErrorException(server_id=server_id)
 
             timed_out = int(time.time()) - start_time >= timeout
 
@@ -475,7 +475,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def check_vm_connectivity(self, ip_address,
                               username=None,
                               should_connect=True):
-        """:param ip_address: server to test against
+        """Param ip_address: server to test against
 
         :param username: server's ssh username
         :param should_connect: True/False indicates positive/negative test
@@ -509,6 +509,17 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 ex_msg += ": " + msg
             LOG.exception(ex_msg)
             raise
+
+    def check_vapp_network_connectivity(self, ip_address, username,
+                                        should_connect=True):
+        try:
+            linux_client = ssh.Client(ip_address, username,
+                                      timeout=5,
+                                      look_for_keys=True)
+            linux_client.test_connection_auth()
+            return True
+        except Exception:
+            return False
 
     def get_remote_client(self, ip, username=None):
         """Get a SSH client to a remote server
@@ -688,21 +699,33 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                                     CONF.validation.ping_timeout, 1)
 
     def _fetch_segment_id_from_db(self, segmentid):
-        cont_ip = CONF.VCENTER.controller_ip
-        neutron_db_name = CONF.VCENTER.neutron_database_name
-        neutron_db = "select lvid from ovsvapp_cluster_vni_allocations " \
-                     "where network_id=\"" + segmentid + "\";"
-        cmd = ['mysql', '-sN', '-h', cont_ip, neutron_db_name,
-               '-e', neutron_db]
-        proc = subprocess.Popen(cmd,
+        database_ip = CONF.VCENTER.neutron_database_ip
+        neutron_database_username = CONF.VCENTER.neutron_database_username
+        db_name = CONF.VCENTER.neutron_database_name
+        neutron_db = "'select lvid from ovsvapp_cluster_vni_allocations " \
+                     "where network_id=\"" + segmentid + "\"';"
+        cmd1 = ("sudo mysql -sN -D" + ' ' + db_name + ' ' + "-e")
+        cmd2 = (' ' + neutron_db)
+        cmd = cmd1 + cmd2
+        Host = neutron_database_username + "@" + database_ip
+        proc = subprocess.Popen(["ssh", "%s" % Host, cmd],
+                                shell=False,
+                                stderr=subprocess.PIPE,
                                 stdout=subprocess.PIPE)
         segment_id = proc.communicate()[0]
-        return int(segment_id.strip('\r\n'))
+        result = segment_id.strip('\r\n')
+        count = 3
+        while count > 0:
+            if result == '':
+                self._fetch_segment_id_from_db(segmentid)
+                count = count - 1
+            else:
+                return segment_id.strip('\r\n')
 
     def _get_vm_name(self, server_id):
         content = self._create_connection()
-        vm_name = self.get_obj(content, [vim.VirtualMachine],
-                               server_id)
+        vm_name = self.get_obj_by_uuid(content, [vim.VirtualMachine],
+                                       server_id)
         return vm_name
 
     def _fetch_cluster_in_use_from_server(self, server_id):
@@ -735,7 +758,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 if net_id in port_group.summary.name:
                     seg_id = port_group.config.defaultPortConfig
                     self.assertEqual(seg_id.vlan.vlanId,
-                                     segment_id)
+                                     int(segment_id))
                     return True
         return False
 
@@ -753,7 +776,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         content = self._create_connection()
         trunk_dvswitch_name = CONF.VCENTER.trunk_dvswitch_name
         trunk_dvswitch_name = trunk_dvswitch_name.split(',')
-        time.sleep(10)
+        time.sleep(20)
         for trunk_dvswitch in trunk_dvswitch_name:
             dvswitch_obj = self.get_obj(content,
                                         [vim.DistributedVirtualSwitch],
@@ -793,6 +816,18 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
             self.wait_for_server_status(server_id, 'ACTIVE')
         return server_id
 
+    def get_all_ips(self, vm):
+        vm_ips = list()
+        nic_infos = vm.guest.net
+        if nic_infos:
+            for nic in nic_infos:
+                ip_list = nic.ipAddress
+                if ip_list:
+                    for ip in ip_list:
+                        if netaddr.valid_ipv4(ip):
+                            vm_ips.append(ip)
+        return vm_ips
+
     def _get_vm_info(self, dic, vm, depth=1):
         maxdepth = 10
         if hasattr(vm, 'childEntity'):
@@ -807,7 +842,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         vm_name = summary.config.name
         host_name = summary.runtime.host
         name = summary.guest.hostName
-        ip_address = summary.guest.ipAddress
+        ip_address = self.get_all_ips(vm)
         dic1 = {'vm_name': vm_name, 'host_name': host_name,
                 'name': name, 'ip_address': ip_address}
         if vm_name is not None:
@@ -826,7 +861,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                     host_name = self._get_vm_info(dic, vm)
                     if host_name is not None:
                         for key in host_name:
-                            if server_id == str(host_name[key]['vm_name']):
+                            if server_id in str(host_name[key]['vm_name']):
                                 return host_name[key]
 
     def _get_vapp_ip(self, host_n, vapp_name):
@@ -843,13 +878,18 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                         for key in host_name:
                             if host_n == str(host_name[key]['host_name']):
                                 if vapp_name == str(host_name[key]['name']):
-                                    return host_name[key]['ip_address']
+                                    ip_list = host_name[key]['ip_address']
+        for ip in ip_list:
+            result = self.check_vapp_network_connectivity(ip,
+                                                          self.vapp_username)
+            if result:
+                return ip
+                break
 
     def _create_multiple_server_on_different_host(self):
         group_create_body_update, _ = self._create_security_group()
-        server = {}
         count = 0
-        while count < 3:
+        while count < 5:
             name = data_utils.rand_name('server-with-security-group')
             server_id = self._create_server_with_sec_group(
                 name, self.network['id'],
@@ -864,15 +904,62 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 cleanup_callable=test_utils.call_and_ignore_notfound_exc,
                 cleanup_args=[clients.servers_client.delete_server, server_id],
                 waiter_client=clients.servers_client)
-            serv = self._get_host_name(server_id)
-
+            if count == 0:
+                first_id = server_id
+                serv_first_id = self._get_host_name(server_id)
             if count is not 0:
-                if str(serv['host_name']) == str(server['host_name']):
-                    if count == 2:
-                        raise Exception('VM hosted on same host.')
+                second_id = server_id
+                serv_second_id = self._get_host_name(server_id)
+            if count is not 0:
+                fs = str(serv_first_id['host_name'])
+                ss = str(serv_second_id['host_name'])
+                if fs == ss:
+                    if count == 4:
+                        msg = 'VM hosted on same host.'
+                        raise testtools.TestCase.skipException(msg)
                 else:
-                    return str(serv['vm_name']), str(server['vm_name'])
-            server = serv
+                    return first_id, second_id
+            count += 1
+
+    def _create_multiple_server_on_same_host(self, network_id):
+        group_create_body_update, _ = self._create_security_group()
+        count = 0
+        while count < 5:
+            if count is not 0:
+                name = data_utils.rand_name('server-with-security-group')
+                server_id = self._create_server_with_sec_group(
+                    name, network_id,
+                    group_create_body_update['security_group']['id'])
+            if count == 0:
+                name = data_utils.rand_name('server-with-security-group')
+                server_id = self._create_server_with_sec_group(
+                    name, self.network['id'],
+                    group_create_body_update['security_group']['id'])
+            clients = self.manager
+            self.addCleanup(waiters.wait_for_server_termination,
+                            clients.servers_client,
+                            server_id)
+            self.addCleanup_with_wait(
+                waiter_callable=waiters.wait_for_server_termination,
+                thing_id=server_id, thing_id_param='server_id',
+                cleanup_callable=test_utils.call_and_ignore_notfound_exc,
+                cleanup_args=[clients.servers_client.delete_server, server_id],
+                waiter_client=clients.servers_client)
+            if count == 0:
+                first_id = server_id
+                serv_first_id = self._get_host_name(server_id)
+            if count is not 0:
+                second_id = server_id
+                serv_second_id = self._get_host_name(server_id)
+            if count is not 0:
+                fs = str(serv_first_id['host_name'])
+                ss = str(serv_second_id['host_name'])
+                if fs != ss:
+                    if count == 4:
+                        msg = 'VM hosted on different host.'
+                        raise testtools.TestCase.skipException(msg)
+                else:
+                    return first_id, second_id
             count += 1
 
     def get_server_ip(self, server_id, net_name):
@@ -896,7 +983,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
     def _migrate_vm(self, content, vm, dest_host):
         """Migrate vm from one host to the destination host."""
 
-        vm_obj = self.get_obj(content, [vim.VirtualMachine], vm)
+#        vm_obj = self.get_obj(content, [vim.VirtualMachine], vm)
+        vm_obj = self.get_obj_by_uuid(content, [vim.VirtualMachine], vm)
         resource_pool = vm_obj.resourcePool
         if vm_obj.runtime.powerState != 'poweredOn':
             raise Exception('Migration is only for Powered On VMs')
@@ -921,6 +1009,25 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         if task.info.state != vim.TaskInfo.State.success:
             raise Exception('%s did not complete successfully: %s' % (
                             actionName, task.info.error))
+
+    def _dump_flows_on_br_sec_to_verify_dhcp_ip(self, vapp_ipadd, dhcp_ip, udp_port):
+        HOST = self.vapp_username + "@" + vapp_ipadd
+        time.sleep(self.build_interval)
+        cmd1 = ('sudo ovs-ofctl dump-flows ' + self.br_inf)
+        cmd2 = (' | grep table=0 ' + '| grep ' + dhcp_ip)
+        cmd = cmd1 + cmd2
+        ssh = subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                               shell=False,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+        output = ssh.stdout.readlines()
+        if output[1:] == []:
+            error = ssh.stderr.readlines()
+            raise lib_exc.TimeoutException(error)
+        else:
+            for output_list in output[1:]:
+                self.assertIn('nw_src=' + dhcp_ip, output_list)
+                self.assertIn('tp_src=' + udp_port, output_list)
 
     def _dump_flows_on_br_sec(self, vapp_ipadd, protocol, vlan, mac,
                               port, net_id):
@@ -980,8 +1087,14 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                     host_name = self._get_vm_info(dic, vm)
                     if host_name is not None:
                         for key in host_name:
-                            if key == host_n:
-                                return host_name[key]['ip_address']
+                            if host_n == str(host_name[key]['name']):
+                                ip_list = host_name[key]['ip_address']
+        for ip in ip_list:
+            result = self.check_vapp_network_connectivity(ip,
+                                                          self.vapp_username)
+            if result:
+                return ip
+                break
 
     def _dump_flows_on_br_sec_for_icmp_type(self, vapp_ipadd, protocol, vlan,
                                             mac, icmp_type, net_id):

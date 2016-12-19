@@ -92,18 +92,15 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         group_create_body = self._create_custom_security_group()
         network2 = self.create_network()
         sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
-        subnet2 = self.create_subnet(network2, cidr=sub_cidr)
-        router2 = self.create_router(data_utils.rand_name('router2-'),
-                                     external_network_id=self.ext_net_id,
-                                     admin_state_up="true")
-        self.create_router_interface(router2['id'], subnet2['id'])
+        self.create_subnet(network2, cidr=sub_cidr, gateway=None)
         name = data_utils.rand_name('server-smoke')
         serverid = self._create_server_multiple_nic(
             name, self.network['id'], network2['id'],
             group_create_body['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid))
-        deviceport = self.ports_client.list_ports(device_id=serverid)
+        deviceport = self.ports_client.list_ports(device_id=serverid,
+                                                  network_id=self.network['id'])
         body = self._associate_floating_ips(
             port_id=deviceport['ports'][0]['id'])
         floatingiptoreach = body['floatingip']['floating_ip_address']
@@ -138,11 +135,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
                         port_body1['port']['id'])
         network2 = self.create_network()
         sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
-        subnet2 = self.create_subnet(network2, cidr=sub_cidr)
-        router2 = self.create_router(data_utils.rand_name('router2-'),
-                                     external_network_id=self.ext_net_id,
-                                     admin_state_up="true")
-        self.create_router_interface(router2['id'], subnet2['id'])
+        self.create_subnet(network2, cidr=sub_cidr, gateway=None)
         post_body2 = {
             "name": data_utils.rand_name('port-'),
             "security_groups": [group_create_body2['security_group']['id']],
@@ -157,7 +150,8 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
             name, port_body1['port']['id'], port_body2['port']['id'])
         self.assertTrue(self.verify_portgroup(network1['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid))
-        deviceport = self.ports_client.list_ports(device_id=serverid)
+        deviceport = self.ports_client.list_ports(device_id=serverid,
+                                                  network_id=self.network['id'])
         body = self._associate_floating_ips(
             port_id=deviceport['ports'][0]['id'])
         floatingiptoreach = body['floatingip']['floating_ip_address']
@@ -206,18 +200,15 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         group_create_body = self._create_custom_security_group()
         network2 = self.create_network()
         sub_cidr = netaddr.IPNetwork(CONF.network.project_network_cidr).next()
-        subnet2 = self.create_subnet(network2, cidr=sub_cidr)
-        router2 = self.create_router(data_utils.rand_name('router2-'),
-                                     external_network_id=self.ext_net_id,
-                                     admin_state_up="true")
-        self.create_router_interface(router2['id'], subnet2['id'])
+        self.create_subnet(network2, cidr=sub_cidr, gateway=None)
         name = data_utils.rand_name('server-smoke')
         serverid = self._create_server_multiple_nic(
             name, self.network['id'], network2['id'],
             group_create_body['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid))
-        deviceport = self.ports_client.list_ports(device_id=serverid)
+        deviceport = self.ports_client.list_ports(device_id=serverid,
+                                                  network_id=self.network['id'])
         body = self._associate_floating_ips(
             port_id=deviceport['ports'][0]['id'])
         floatingiptoreach = body['floatingip']['floating_ip_address']
@@ -362,3 +353,119 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
         self.assertTrue(self.verify_portgroup(network2['id'], serverid2))
         self.assertTrue(self._check_remote_connectivity(fip1, fip2))
+
+    def test_vm_after_restarting_ovsvvapp_agent_and_openvswitch(self):
+        net_id = self.network['id']
+        name = data_utils.rand_name('server-smoke')
+        group_create_body = self._create_custom_security_group()
+        server_id = self._create_server_with_sec_group(
+            name, net_id, group_create_body['security_group']['id'])
+        self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
+        deviceport = self.admin_manager.ports_client.list_ports(
+            device_id=server_id)
+        body = self._associate_floating_ips(
+            port_id=deviceport['ports'][0]['id'])
+        floatingiptoreach = body['floatingip']['floating_ip_address']
+        self._check_public_network_connectivity(floatingiptoreach)
+        binding_host = deviceport['ports'][0]['binding:host_id']
+        host_dic = self._get_host_name(server_id)
+        host_name = host_dic['host_name']
+        vapp_ipadd = self._get_vapp_ip(str(host_name), binding_host)
+        HOST = self.vapp_username + "@" + vapp_ipadd
+        cmd = ('sudo service neutron-ovsvapp-agent stop')
+        subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                         shell=False,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+        self.assertTrue(self.ping_ip_address(
+            floatingiptoreach,
+            should_succeed=True))
+        self._check_public_network_connectivity(floatingiptoreach)
+        cmd = ('sudo service neutron-ovsvapp-agent start')
+        subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                         shell=False,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+        self.assertTrue(self.ping_ip_address(
+            floatingiptoreach,
+            should_succeed=True))
+        cmd = ('sudo service openvswitch-switch stop')
+        subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                         shell=False,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+        self.assertTrue(self.ping_ip_address(
+            floatingiptoreach,
+            should_succeed=False))
+        cmd = ('sudo service openvswitch-switch start')
+        subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                         shell=False,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+        self.assertTrue(self.ping_ip_address(
+            floatingiptoreach,
+            should_succeed=True))
+        cmd = ('sudo service neutron-ovsvapp-agent stop')
+        subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                         shell=False,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+        cmd = ('sudo service openvswitch-switch stop')
+        subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                         shell=False,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+        self.assertTrue(self.ping_ip_address(
+            floatingiptoreach,
+            should_succeed=False))
+        cmd = ('sudo service neutron-ovsvapp-agent start')
+        subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                         shell=False,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+        cmd = ('sudo service openvswitch-switch start')
+        subprocess.Popen(["ssh", "%s" % HOST, cmd],
+                         shell=False,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+        self.assertTrue(self.ping_ip_address(
+            floatingiptoreach,
+            should_succeed=True))
+
+    def test_validatate_tenant_isolation_when_using_overlapping_of_ips(self):
+        network2 = self.create_network()
+        subnet2 = self.create_subnet(network2)
+        router2 = self.create_router(data_utils.rand_name('router2-'),
+                                     external_network_id=self.ext_net_id,
+                                     admin_state_up="true")
+        self.create_router_interface(router2['id'], subnet2['id'])
+        test_sever, access_server = \
+            self._create_multiple_server_on_same_host(network2['id'])
+
+        device_port1 = self.ports_client.list_ports(device_id=test_sever)
+        port_id1 = device_port1['ports'][0]['id']
+        device_port2 = self.ports_client.list_ports(
+            device_id=access_server)
+        port_id2 = device_port2['ports'][0]['id']
+        floating_ip1 = self._associate_floating_ips(port_id=port_id1)
+        fip1 = floating_ip1['floatingip']['floating_ip_address']
+        create_floating_ip2 = self.create_floatingip(self.ext_net_id)
+        floating_ip2 = self.floating_ips_client.update_floatingip(
+            create_floating_ip2['id'], port_id=port_id2)
+        updated_floating_ip = floating_ip2['floatingip']
+        self.assertEqual(updated_floating_ip['port_id'], port_id2)
+        self.wait_for_floating_ip_status(create_floating_ip2['id'], "ACTIVE")
+        fip2 = floating_ip2['floatingip']['floating_ip_address']
+        sg_test_sever = device_port1['ports'][0]['security_groups'][0]
+        self.security_group_rules_client.create_security_group_rule(
+            security_group_id=sg_test_sever,
+            protocol='icmp',
+            direction='ingress',
+            ethertype=self.ethertype
+        )
+        self.assertTrue(self.ping_ip_address(
+            fip1,
+            should_succeed=True))
+        self.assertTrue(self.ping_ip_address(
+            fip2,
+            should_succeed=True))
