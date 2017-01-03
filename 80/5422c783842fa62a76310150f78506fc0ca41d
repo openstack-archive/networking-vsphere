@@ -1,0 +1,8 @@
+Code-Review+2: Raghuveer Shenoy <rshenoy@hpe.com>
+Workflow+1: Raghuveer Shenoy <rshenoy@hpe.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 03 Jan 2017 10:32:32 +0000
+Reviewed-on: https://review.openstack.org/416191
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/mitaka
