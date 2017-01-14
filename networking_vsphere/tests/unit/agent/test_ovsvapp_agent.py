@@ -1433,7 +1433,7 @@ class TestOVSvAppAgent(base.TestCase):
                                return_value=FAKE_MAC_1 + ',' + FAKE_MAC_2
                                ) as mock_dump_flows:
             self.agent.process_event(event)
-            self.assertTrue(mock_dump_flows.called)
+            self.assertFalse(mock_dump_flows.called)
         for vnic in vm.vnics:
             self.assertIn(vnic.port_uuid, self.agent.devices_to_filter)
             self.assertIn(vnic.port_uuid, self.agent.cluster_other_ports)

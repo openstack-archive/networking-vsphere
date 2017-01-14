@@ -1242,13 +1242,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             LOG.debug("Processing for an existing VM %s.", vm.uuid)
             ovsvapplock.acquire()
             for vnic in vm.vnics:
-                if not self.check_flows_for_mac(vnic.mac_address):
-                    if host == self.esx_hostname:
-                        device = {'id': vm.uuid,
-                                  'host': host,
-                                  'cluster_id': self.cluster_id,
-                                  'vcenter': self.vcenter_id}
-                        self.invoke_get_ports_for_device_rpc(device)
+                if (host == self.esx_hostname) and not (
+                    self.check_flows_for_mac(vnic.mac_address)):
+                    device = {'id': vm.uuid,
+                              'host': host,
+                              'cluster_id': self.cluster_id,
+                              'vcenter': self.vcenter_id}
+                    self.invoke_get_ports_for_device_rpc(device)
                 else:
                     self.devices_to_filter.add(vnic.port_uuid)
                     self._add_ports_to_host_ports([vnic.port_uuid],
