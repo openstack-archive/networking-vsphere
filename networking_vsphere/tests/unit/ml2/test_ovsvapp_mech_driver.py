@@ -17,10 +17,10 @@
 
 import mock
 
-from neutron.extensions import portbindings
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api as api
 from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
+from neutron_lib.api.definitions import portbindings
 # TODO(romilg): Revisit to minimize dependency on ML2 tests.
 
 from networking_vsphere.common import constants as ovsvapp_const

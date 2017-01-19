@@ -20,11 +20,11 @@ from neutron_lib.plugins import directory
 from oslo_config import cfg
 
 from neutron.common import topics
-from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2 import rpc as plugin_rpc
 from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
 from neutron.tests.unit.plugins.ml2 import test_rpc
+from neutron_lib.api.definitions import portbindings
 
 from networking_vsphere.agent import ovsvapp_agent
 from networking_vsphere.agent import ovsvapp_sg_agent
