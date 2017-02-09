@@ -684,8 +684,8 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                 return not should_succeed
             return should_succeed
 
-        return test.call_until_true(ping_remote,
-                                    CONF.validation.ping_timeout, 1)
+        return test_utils.call_until_true(ping_remote,
+                                          CONF.validation.ping_timeout, 1)
 
     def _fetch_segment_id_from_db(self, segmentid):
         cont_ip = CONF.VCENTER.controller_ip
