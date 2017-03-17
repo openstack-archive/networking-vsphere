@@ -58,7 +58,8 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         2. Check public connectivity after dis-associating the floating ip
         3. Check public connectivity after re-associating the floating ip again
         """
-        net_id = self.network['id']
+        net_id1 = self.network['id']
+        net_id = net_id1
         name = data_utils.rand_name('server-smoke')
         group_create_body = self._create_custom_security_group()
         serverid = self._create_server_with_sec_group(
