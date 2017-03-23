@@ -17,10 +17,10 @@ import six
 from time import sleep
 
 from neutron.agent import securitygroups_rpc
-from neutron.extensions import portbindings
 from neutron.plugins.common import constants
 from neutron.plugins.ml2 import driver_api
 from neutron.plugins.ml2.drivers import mech_agent
+from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as n_const
 from neutron_lib import context
 from oslo_log import log
