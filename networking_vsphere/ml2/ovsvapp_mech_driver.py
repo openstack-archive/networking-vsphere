@@ -30,6 +30,7 @@ from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import mech_agent
 from neutron_lib import constants as common_const
+from neutron_lib import constants as n_const
 
 from networking_vsphere._i18n import _LE, _LI
 from networking_vsphere.common import constants as ovsvapp_const
@@ -163,55 +164,79 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         self._check_and_fire_provider_update(port)
 
     def update_port_postcommit(self, context):
-        pass
+        port_original_vif_type = context.original[portbindings.VIF_TYPE]
+        port_original_status = context.original['status']
+        port_current_vif_type = context.current[portbindings.VIF_TYPE]
+        port_current_status = context.current['status']
+        if (not context.current['device_owner'] and
+                port_original_status == n_const.PORT_STATUS_ACTIVE and
+                port_current_status == n_const.PORT_STATUS_DOWN and
+                port_original_vif_type == 'other' and
+                port_current_vif_type == 'unbound'):
+            self._delete_port_group_postcommit(context)
+
+    def _delete_port_group_postcommit(self, context):
+        """Deletes the unused port_group.
+
+        When network_port_count becomes zero in database.
+        """
+        port = context.original
+        if port and port['device_owner'].startswith('compute'):
+            segment = context.original_top_bound_segment
+            self._delete_port_postcommit(port, segment)
+        else:
+            self._check_and_fire_provider_update(port)
+
+    def _delete_port_postcommit(self, port, segment):
+        if (segment and
+                segment[api.NETWORK_TYPE] in self.supported_network_types):
+            LOG.debug("OVSvApp Mech driver - delete_port_postcommit for "
+                      "port: %s with network_type as %s.",
+                      port['id'], segment[api.NETWORK_TYPE])
+            vni = segment[api.SEGMENTATION_ID]
+            network_type = segment[api.NETWORK_TYPE]
+            host = port[portbindings.HOST_ID]
+            agent = None
+            vcenter = None
+            cluster = None
+            net_info = None
+            agents = self.plugin.get_agents(
+                self.context,
+                filters={'agent_type': [ovsvapp_const.AGENT_TYPE_OVSVAPP],
+                         'host': [host]})
+            if agents:
+                agent = agents[0]
+                vcenter = agent['configurations']['vcenter_id']
+                cluster = agent['configurations']['cluster_id']
+                net_info = {'vcenter_id': vcenter,
+                            'cluster_id': cluster,
+                            'network_id': port['network_id'],
+                            'segmentation_id': vni,
+                            'network_type': network_type,
+                            'host': host}
+            else:
+                LOG.debug("Not a valid ESX port: %s.", port['id'])
+                return
+            try:
+                lvid = ovsvapp_db.check_to_reclaim_local_vlan(net_info)
+                if lvid >= 1:
+                    net_info.update({'lvid': lvid})
+                    LOG.debug("Spawning thread for releasing network "
+                              "VNI allocations for %s.", net_info)
+                    self.threadpool.spawn_n(self._notify_agent, net_info)
+                    LOG.info(_LI("Spawned a thread for releasing network "
+                                 "vni allocations for network: %s."),
+                             net_info)
+            except Exception:
+                LOG.exception(_LE("Failed to check for reclaiming "
+                                  "local vlan."))
 
     def delete_port_postcommit(self, context):
         """Delete port non-database commit event."""
         port = context.current
         if port and port['device_owner'].startswith('compute'):
             segment = context.top_bound_segment
-            if (segment and
-                    segment[api.NETWORK_TYPE] in self.supported_network_types):
-                LOG.debug("OVSvApp Mech driver - delete_port_postcommit for "
-                          "port: %s with network_type as %s.",
-                          port['id'], segment[api.NETWORK_TYPE])
-                vni = segment[api.SEGMENTATION_ID]
-                network_type = segment[api.NETWORK_TYPE]
-                host = port[portbindings.HOST_ID]
-                agent = None
-                vcenter = None
-                cluster = None
-                net_info = None
-                agents = self.plugin.get_agents(
-                    self.context,
-                    filters={'agent_type': [ovsvapp_const.AGENT_TYPE_OVSVAPP],
-                             'host': [host]})
-                if agents:
-                    agent = agents[0]
-                    vcenter = agent['configurations']['vcenter_id']
-                    cluster = agent['configurations']['cluster_id']
-                    net_info = {'vcenter_id': vcenter,
-                                'cluster_id': cluster,
-                                'network_id': port['network_id'],
-                                'segmentation_id': vni,
-                                'network_type': network_type,
-                                'host': host}
-                else:
-                    LOG.debug("Not a valid ESX port: %s.", port['id'])
-                    return
-                try:
-                    lvid = ovsvapp_db.check_to_reclaim_local_vlan(net_info)
-                    if lvid >= 1:
-                        net_info.update({'lvid': lvid})
-                        LOG.debug("Spawning thread for releasing network "
-                                  "VNI allocations for %s.", net_info)
-                        self.threadpool.spawn_n(self._notify_agent, net_info)
-                        LOG.info(_LI("Spawned a thread for releasing network "
-                                     "vni allocations for network: %s."),
-                                 net_info)
-                except Exception:
-                    LOG.exception(_LE("Failed to check for reclaiming "
-                                      "local vlan."))
+            self._delete_port_postcommit(port, segment)
         else:
             self._check_and_fire_provider_update(port)
 
