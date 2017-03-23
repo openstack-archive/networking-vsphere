@@ -23,6 +23,8 @@ from neutron.plugins.ml2 import driver_api as api
 from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
 # TODO(romilg): Revisit to minimize dependency on ML2 tests.
 
+from neutron_lib import constants as n_const
+
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.ml2 import ovsvapp_mech_driver
 
@@ -222,6 +224,60 @@ class OVSvAppAgentMechanismBaseTestCase(base.AgentMechanismBaseTestCase):
                                ) as mock_sg_provider_updated_rpc:
             self.driver.create_port_postcommit(port_context)
             self.assertFalse(mock_sg_provider_updated_rpc.called)
+
+    def _create_port_context(self, current=None, original=None):
+        context = mock.Mock(
+            current=current or self._create_port_dict(),
+            original=original or self._create_port_dict())
+        return context
+
+    def _create_port_dict(self, vif_type=portbindings.VIF_TYPE_OTHER,
+                          status=n_const.PORT_STATUS_DOWN,
+                          device_owner='compute'):
+        return {
+            'id': '_dummy_port_id_%s' % id({}),
+            'binding:vif_type': vif_type,
+            'status': status,
+            'device_owner': device_owner
+        }
+
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'check_to_reclaim_local_vlan')
+    @mock.patch('eventlet.GreenPool.spawn_n')
+    def test_update_port_postcommit_compute_port(self, mock_spawn_thread,
+                                                 mock_reclaim_local_vlan):
+        original = self._create_port_dict(vif_type='other',
+                                          status=n_const.PORT_STATUS_ACTIVE,
+                                          device_owner='compute')
+        current = self._create_port_dict(vif_type='unbound',
+                                         status=n_const.PORT_STATUS_DOWN)
+        port_ctx = self._create_port_context(current=current,
+                                             original=original)
+        mock_reclaim_local_vlan.return_value = 1
+        with mock.patch.object(self.driver._plugin, 'get_agents'
+                               ) as mock_get_agents, \
+                mock.patch.object(self.driver.notifier,
+                                  'enhanced_sg_provider_updated'
+                                  ) as mock_sg_provider_updated_rpc:
+            self.driver.update_port_postcommit(port_ctx)
+            self.assertTrue(mock_get_agents.called)
+            self.assertTrue(mock_reclaim_local_vlan.called)
+            self.assertTrue(mock_spawn_thread.called)
+            self.assertFalse(mock_sg_provider_updated_rpc.called)
+
+    def test_update_port_postcommit_dhcp_port(self):
+        original = self._create_port_dict(vif_type='other',
+                                          status=n_const.PORT_STATUS_ACTIVE,
+                                          device_owner='dhcp_port')
+        current = self._create_port_dict(vif_type='unbound',
+                                         status=n_const.PORT_STATUS_DOWN)
+        port_ctx = self._create_port_context(current=current,
+                                             original=original)
+        with mock.patch.object(self.driver.notifier,
+                               'enhanced_sg_provider_updated'
+                               ) as mock_sg_provider_updated_rpc:
+            self.driver.update_port_postcommit(port_ctx)
+            self.assertTrue(mock_sg_provider_updated_rpc.called)
 
     @mock.patch('networking_vsphere.db.ovsvapp_db.'
                 'check_to_reclaim_local_vlan')
