@@ -23,6 +23,8 @@ from neutron.plugins.ml2 import driver_api as api
 from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
 # TODO(romilg): Revisit to minimize dependency on ML2 tests.
 
+from neutron_lib import constants as n_const
+
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.ml2 import ovsvapp_mech_driver
 
@@ -222,6 +224,69 @@ class OVSvAppAgentMechanismBaseTestCase(base.AgentMechanismBaseTestCase):
                                ) as mock_sg_provider_updated_rpc:
             self.driver.create_port_postcommit(port_context)
             self.assertFalse(mock_sg_provider_updated_rpc.called)
+
+    def _create_port_context(self, current=None, original=None, network=None,
+                             segment=None):
+        context = mock.Mock(
+            current=current or self._create_port_dict(),
+            original=original or self._create_port_dict(),
+            original_top_bound_segment=segment or self._network_context())
+        return context
+
+    def _create_port_dict(self, vif_type=portbindings.VIF_TYPE_OTHER,
+                          status=n_const.PORT_STATUS_DOWN,
+                          device_owner='compute'):
+        return {
+            'id': '_dummy_port_id_%s' % id({}),
+            'binding:vif_type': vif_type,
+            'status': status,
+            'device_owner': device_owner,
+            'network_id': 'net_id',
+            portbindings.HOST_ID: 'fake_host'
+        }
+
+    def _network_context(self, network_type='vlan'):
+        return {
+            'id': '_id_segment_',
+            'api.NETWORK_TYPE': network_type,
+            'api.SEGMENTATION_ID': 1234
+        }
+
+    @mock.patch('networking_vsphere.db.ovsvapp_db.'
+                'check_to_reclaim_local_vlan')
+    @mock.patch('eventlet.GreenPool.spawn_n')
+    def test_update_port_postcommit_compute_port(self, mock_spawn_thread,
+                                                 mock_reclaim_local_vlan):
+        original = self._create_port_dict(vif_type='other',
+                                          status=n_const.PORT_STATUS_ACTIVE,
+                                          device_owner='compute')
+        current = self._create_port_dict(vif_type='unbound',
+                                         status=n_const.PORT_STATUS_DOWN,
+                                         device_owner='')
+        segment = self._network_context(network_type='vlan')
+        port_ctx = self._create_port_context(
+            current=current,
+            original=original,
+            segment=segment)
+        mock_reclaim_local_vlan.return_value = 1
+        with mock.patch.object(self.driver, '_delete_port_postcommit'
+                               ) as mock_delete_port_postcommit:
+            self.driver.update_port_postcommit(port_ctx)
+            self.assertTrue(mock_delete_port_postcommit.called)
+
+    def test_update_port_postcommit_dhcp_port(self):
+        original = self._create_port_dict(vif_type='other',
+                                          status=n_const.PORT_STATUS_ACTIVE,
+                                          device_owner='dhcp_port')
+        current = self._create_port_dict(vif_type='unbound',
+                                         status=n_const.PORT_STATUS_DOWN,
+                                         device_owner='')
+        port_ctx = self._create_port_context(current=current,
+                                             original=original)
+        with mock.patch.object(self.driver, '_check_and_fire_provider_update'
+                               ) as mock_check_and_fire_provider_update:
+            self.driver.update_port_postcommit(port_ctx)
+            self.assertTrue(mock_check_and_fire_provider_update.called)
 
     @mock.patch('networking_vsphere.db.ovsvapp_db.'
                 'check_to_reclaim_local_vlan')
