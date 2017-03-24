@@ -1756,8 +1756,10 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 LOG.info(_LI("RPC port_update for port %s exited "
                              "as agent does not own it."), new_port['id'])
                 return
-            if cmp(old_port_object.admin_state_up,
-                   new_port_object.admin_state_up) != 0:
+            if ((old_port_object.admin_state_up >
+                 new_port_object.admin_state_up) -
+                (old_port_object.admin_state_up <
+                 new_port_object.admin_state_up)) != 0:
                 LOG.debug("Updating admin_state_up status for %s.",
                           new_port['id'])
                 network, port = self._map_port_to_common_model(new_port,
