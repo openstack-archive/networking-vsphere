@@ -21,7 +21,7 @@ from oslo_log import log
 
 from neutron.agent.common import ovs_lib
 from neutron.agent import firewall
-from neutron_lib import constants
+from neutron.common import constants
 
 from networking_vsphere._i18n import _LI, _LE, _LW
 from networking_vsphere.common import constants as ovsvapp_const

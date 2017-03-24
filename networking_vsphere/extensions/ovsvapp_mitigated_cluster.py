@@ -15,11 +15,11 @@
 
 import abc
 
+from neutron.api import extensions
 from neutron.api.v2 import attributes as attr
 from neutron.api.v2 import resource_helper
 
 from neutron_lib.api import converters
-from neutron_lib.api import extensions
 
 from networking_vsphere.common import constants
 
