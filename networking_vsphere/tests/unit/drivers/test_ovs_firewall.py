@@ -20,7 +20,7 @@ from oslo_config import cfg
 
 from neutron.agent.common import config
 from neutron.agent.common import ovs_lib
-from neutron_lib import constants
+from neutron.common import constants
 
 from networking_vsphere.drivers import ovs_firewall as ovs_fw
 from networking_vsphere.tests import base

@@ -14,7 +14,7 @@
 #    under the License.
 
 from networking_vsphere._i18n import _
-from neutron_lib import exceptions
+from neutron.common import exceptions
 
 
 class VMWareDVSException(exceptions.NeutronException):
