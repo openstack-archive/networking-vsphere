@@ -15,8 +15,8 @@
 
 import mock
 
+from neutron import context
 from neutron.tests.unit import testlib_api
-from neutron_lib import context
 from neutron_lib import exceptions as exc
 
 from networking_vsphere.db import ovsvapp_db

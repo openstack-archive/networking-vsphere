@@ -15,7 +15,6 @@
 
 import eventlet
 eventlet.monkey_patch()
-from neutron_lib import context as neutron_context
 from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_log import log
@@ -25,6 +24,7 @@ from oslo_utils import timeutils
 import random
 import requests
 
+from neutron import context as neutron_context
 from neutron.db import agents_db
 from neutron.db import common_db_mixin
 
