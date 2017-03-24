@@ -260,7 +260,7 @@ class OVSvAppVCDriverTestCase(test.TestCase):
         vm = self._get_vm_record()
 
         # Check that m1.large above turned into the right thing.
-        mem_kib = long(self.type_data['memory_mb']) << 10
+        mem_kib = int(self.type_data['memory_mb']) << 10
         vcpus = self.type_data['vcpus']
         self.assertEqual(vm_info.max_mem_kb, mem_kib)
         self.assertEqual(vm_info.mem_kb, mem_kib)
@@ -305,7 +305,7 @@ class OVSvAppVCDriverTestCase(test.TestCase):
            object in the db.
 
            """
-        mem_kib = long(self.type_data['memory_mb']) << 10
+        mem_kib = int(self.type_data['memory_mb']) << 10
         self.assertEqual(info.state, pwr_state)
         self.assertEqual(info.max_mem_kb, mem_kib)
         self.assertEqual(info.mem_kb, mem_kib)
