@@ -17,8 +17,8 @@ from oslo_config import cfg
 
 # vCenter related config information to login
 VCENTER_OPTS = [
-    cfg.StrOpt('vcenter_ip',
-               help="The vCenter ip address "),
+    cfg.HostAddressOpt('vcenter_ip',
+                       help="The vCenter ip address "),
     cfg.StrOpt('trunk_dvswitch_name',
                help="The trunk dvswitch name "),
     cfg.StrOpt('vcenter_username',
@@ -29,8 +29,8 @@ VCENTER_OPTS = [
     cfg.StrOpt('tenant_network_type',
                default="vlan",
                help="tenant network type is vlan or vxlan"),
-    cfg.StrOpt('controller_ip',
-               help="The controller ip under test"),
+    cfg.HostAddressOpt('controller_ip',
+                       help="The controller ip under test"),
     cfg.StrOpt('cluster_in_use',
                help="The Cluster in use for the test"),
     cfg.StrOpt('vapp_username',
