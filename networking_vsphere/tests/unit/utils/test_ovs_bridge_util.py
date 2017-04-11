@@ -111,12 +111,20 @@ class TestOVSvAppPhysicalBridge(base.TestCase):
                                          FAKE_PHY_OFPORT,
                                          FAKE_ETH_OFPORT)
             self.assertTrue(mock_add_flow.called)
-            mock_add_flow.assert_called_once_with(
+            self.assertEqual(mock_add_flow.call_count, 2)
+            mock_add_flow.assert_has_calls([mock.call(
                 priority=4,
                 in_port=FAKE_PHY_OFPORT,
                 dl_vlan=FAKE_LVID,
                 actions="mod_vlan_vid:%s,output:%s"
-                % (FAKE_SEG_ID, FAKE_ETH_OFPORT))
+                % (FAKE_SEG_ID, FAKE_ETH_OFPORT)),
+                mock.call(
+                priority=11,
+                proto="rarp",
+                in_port=FAKE_PHY_OFPORT,
+                dl_vlan=FAKE_LVID,
+                actions="mod_vlan_vid:%s,normal"
+                % (FAKE_SEG_ID))])
 
     def test_reclaim_local_vlan(self):
         with mock.patch.object(self.br, "delete_flows") as mock_delete_flow:
