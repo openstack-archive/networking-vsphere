@@ -70,6 +70,12 @@ class OVSvAppPhysicalBridge(br_phys.OVSPhysicalBridge):
                       dl_vlan=lvid,
                       actions="mod_vlan_vid:%s,output:%s" % (
                               segmentation_id, eth_ofport))
+        self.add_flow(priority=11,
+                      proto="rarp",
+                      in_port=phys_ofport,
+                      dl_vlan=lvid,
+                      actions="mod_vlan_vid:%s,normal" % (
+                              segmentation_id))
 
     def add_drop_flows(self, vlan, mac_address,
                        eth_ofport):
