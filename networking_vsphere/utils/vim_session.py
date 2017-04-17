@@ -33,6 +33,7 @@ class ConnectionHandler(object):
     wsdl_url = None
     ca_cert = None
     scheme = None
+    connection_timeout = None
     stopped = False
     create_session = True
     https_port = 443
@@ -40,6 +41,7 @@ class ConnectionHandler(object):
     @classmethod
     def set_vc_details(cls, host_ip, host_username, host_password,
                        api_retry_count, wsdl_url, ca_cert,
+                       connection_timeout=None,
                        https_port=443, scheme="https"):
         cls.session = None
         cls.host_ip = host_ip
@@ -52,6 +54,7 @@ class ConnectionHandler(object):
         cls.stopped = False
         cls.create_session = True
         cls.ca_cert = ca_cert
+        cls.connection_timeout = connection_timeout
 
     @classmethod
     def stop(cls):
@@ -71,6 +74,7 @@ class ConnectionHandler(object):
                                        cls.host_password,
                                        cls.api_retry_count,
                                        cls.wsdl_url,
+                                       cls.connection_timeout,
                                        scheme=cls.scheme,
                                        https_port=cls.https_port,
                                        create_session=cls.create_session,
@@ -104,8 +108,9 @@ class VMWareAPISession(api.VMwareAPISession):
     """Sets up a session with the ESX host and handles all the calls."""
 
     def __init__(self, host_ip, host_username, host_password,
-                 api_retry_count, wsdl_url, scheme="https", https_port=443,
-                 create_session=True, ca_cert=None):
+                 api_retry_count, wsdl_url, connection_timeout=None,
+                 scheme="https", https_port=443, create_session=True,
+                 ca_cert=None):
         super(VMWareAPISession, self).__init__(
             host=host_ip,
             port=https_port,
@@ -116,7 +121,8 @@ class VMWareAPISession(api.VMwareAPISession):
             task_poll_interval=1,
             wsdl_loc=wsdl_url,
             create_session=create_session,
-            cacert=ca_cert)
+            cacert=ca_cert,
+            connection_timeout=connection_timeout)
 
     def __del__(self):
         """Logs-out the session."""
