@@ -1,0 +1,8 @@
+Code-Review+2: Swaminathan Vasudevan <SVasudevan@suse.com>
+Workflow+1: Swaminathan Vasudevan <SVasudevan@suse.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 25 Apr 2017 18:44:53 +0000
+Reviewed-on: https://review.openstack.org/453512
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/mitaka
