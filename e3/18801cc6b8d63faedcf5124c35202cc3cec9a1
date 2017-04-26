@@ -1,0 +1,8 @@
+Code-Review+2: Raghuveer Shenoy <rshenoy@hpe.com>
+Workflow+1: Raghuveer Shenoy <rshenoy@hpe.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 26 Apr 2017 05:24:35 +0000
+Reviewed-on: https://review.openstack.org/457216
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/ocata
