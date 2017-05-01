@@ -532,8 +532,8 @@ class TestOVSvAppAgent(base.TestCase):
                                ) as mock_update_device_binding:
             self.agent._update_device_port_binding(port)
             self.assertTrue(mock_update_device_binding.called)
-            self.assertEqual(self.agent.devices_to_bind_retry_count
-                             .get(FAKE_PORT_ID), None)
+            self.assertIsNone(self.agent.devices_to_bind_retry_count
+                              .get(FAKE_PORT_ID))
 
     def test_update_device_port_binding_fail(self):
         port = {'id': FAKE_PORT_ID, 'device_id': FAKE_DEVICE_ID}
@@ -559,8 +559,8 @@ class TestOVSvAppAgent(base.TestCase):
                              .get(FAKE_PORT_ID), 5)
             self.agent._update_device_port_binding(port)
             self.assertEqual(mock_update_device_binding.call_count, 6)
-            self.assertEqual(self.agent.devices_to_bind_retry_count
-                             .get(FAKE_PORT_ID), None)
+            self.assertIsNone(self.agent.devices_to_bind_retry_count
+                              .get(FAKE_PORT_ID))
 
     def test_update_port_bindings(self):
         self.agent.ports_to_bind.add("fake_port")

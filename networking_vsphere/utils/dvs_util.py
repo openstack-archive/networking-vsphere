@@ -23,7 +23,7 @@ from oslo_vmware import exceptions as vmware_exceptions
 from oslo_vmware import vim_util
 from requests.exceptions import ConnectionError
 
-from networking_vsphere._i18n import _LI, _LW, _LE
+from networking_vsphere._i18n import _, _LI, _LW, _LE
 from networking_vsphere.common import constants as dvs_const
 from networking_vsphere.common import exceptions
 from networking_vsphere.common import vmware_conf as config
@@ -693,7 +693,7 @@ def create_uplink_map_from_config(config, network_map):
     for mapping in config.uplink_maps:
         net_conf = mapping.split(':')
         if len(net_conf) not in (2, 3):
-            raise ValueError("Invalid uplink mapping: '%s'" % mapping)
+            raise ValueError(_("Invalid uplink mapping: '%s'") % mapping)
         phys_net = net_conf[0]
         active = net_conf[1].split(';')
         passive = net_conf[2].split(';') if len(net_conf) == 3 else []
@@ -703,7 +703,8 @@ def create_uplink_map_from_config(config, network_map):
             uplinks = conf.uplinkPortPolicy.uplinkPortName
             for uplink in set(active + passive):
                 if uplink not in uplinks:
-                    raise ValueError("Invalid uplink mapping: '%s'" % mapping)
+                    raise ValueError(
+                        _("Invalid uplink mapping: '%s'") % mapping)
             uplink_map[phys_net] = {'active': active,
                                     'passive': passive}
             for key in failover_keys:

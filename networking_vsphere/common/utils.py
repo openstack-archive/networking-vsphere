@@ -19,7 +19,7 @@ import traceback
 
 from oslo_log import log
 
-from networking_vsphere._i18n import _LI
+from networking_vsphere._i18n import _, _LI
 from networking_vsphere.common import error
 
 LOG = log.getLogger(__name__)
@@ -32,17 +32,17 @@ def import_class(import_str):
         __import__(mod_str)
         return getattr(sys.modules[mod_str], class_str)
     except (ValueError, AttributeError):
-        raise ImportError('Class %s cannot be found (%s).' %
-                          (class_str,
-                           traceback.format_exception(*sys.exc_info())))
+        raise ImportError(_('Class %(cls)s cannot be found (%(exp)s).') %
+                          {'cls': class_str,
+                           'exp': traceback.format_exception(*sys.exc_info())})
 
 
 def load_object(driver, base_class, *args, **kwargs):
     """Load a class, instantiate, check if its of base_class type."""
     driver_obj = import_class(driver)(*args, **kwargs)
     if not isinstance(driver_obj, base_class):
-        raise TypeError("Invalid type - %s does not extend %s." %
-                        (fullname(driver_obj), base_class))
+        raise TypeError(_("Invalid type - %(dvr)s does not extend %(base)s.") %
+                        {'dvr': fullname(driver_obj), 'base': base_class})
     return driver_obj
 
 
