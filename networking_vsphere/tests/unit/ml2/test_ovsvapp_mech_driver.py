@@ -417,10 +417,12 @@ class OVSvAppAgentMechanismVxlanTestCase(
     OVSvAppAgentMechanismBaseTestCase,
     base.AgentMechanismBaseTestCase):
     VXLAN_SEGMENTS = [{api.ID: 'unknown_segment_id',
-                       api.NETWORK_TYPE: 'no_such_type'},
+                       api.NETWORK_TYPE: 'no_such_type',
+                       api.NETWORK_ID: 'foo_net_id'},
                       {api.ID: 'vxlan_segment_id',
                        api.NETWORK_TYPE: 'vxlan',
-                       api.SEGMENTATION_ID: 1234}]
+                       api.SEGMENTATION_ID: 1234,
+                       api.NETWORK_ID: 'foo_net_id'}]
 
     def test_type_vxlan(self):
         context = base.FakePortContext(self.AGENT_TYPE,

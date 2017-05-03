@@ -146,8 +146,7 @@ class TestOVSvAppAgentRestart(base.TestCase):
 
     @mock.patch('neutron.common.config.init')
     @mock.patch('neutron.common.config.setup_logging')
-    @mock.patch('neutron.agent.ovsdb.api.'
-                'API.get')
+    @mock.patch('neutron.agent.ovsdb.api.from_config')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.RpcPluginApi')
     @mock.patch('neutron.agent.securitygroups_rpc.SecurityGroupServerRpcApi')
     @mock.patch('neutron.agent.rpc.PluginReportStateAPI')
@@ -303,8 +302,7 @@ class TestOVSvAppAgent(base.TestCase):
 
     @mock.patch('neutron.common.config.init')
     @mock.patch('neutron.common.config.setup_logging')
-    @mock.patch('neutron.agent.ovsdb.api.'
-                'API.get')
+    @mock.patch('neutron.agent.ovsdb.api.from_config')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.RpcPluginApi')
     @mock.patch('neutron.agent.securitygroups_rpc.SecurityGroupServerRpcApi')
     @mock.patch('neutron.agent.rpc.PluginReportStateAPI')
@@ -460,8 +458,7 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(mock_delete_port.called)
             self.assertTrue(mock_add_patch_port.called)
 
-    @mock.patch('neutron.agent.ovsdb.api.'
-                'API.get')
+    @mock.patch('neutron.agent.ovsdb.api.from_config')
     def test_recover_physical_bridges(self, mock_ovsdb_api):
         cfg.CONF.set_override('bridge_mappings',
                               ["physnet1:br-eth1"], 'OVSVAPP')
@@ -622,8 +619,7 @@ class TestOVSvAppAgent(base.TestCase):
             mock_init_ovs_flows.assert_called_with(self.agent.bridge_mappings)
             self.assertTrue(mock_rarp_flow.called)
 
-    @mock.patch('neutron.agent.ovsdb.api.'
-                'API.get')
+    @mock.patch('neutron.agent.ovsdb.api.from_config')
     def test_setup_ovs_bridges_vxlan(self, mock_ovsdb_api):
         self.agent.local_ip = "10.10.10.10"
         self.agent.tenant_network_types = [p_const.TYPE_VXLAN]
