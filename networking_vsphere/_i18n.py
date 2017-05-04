@@ -47,4 +47,4 @@ _LC = _translators.log_critical
 
 
 def get_available_languages():
-        return oslo_i18n.get_available_languages(DOMAIN)
+    return oslo_i18n.get_available_languages(DOMAIN)
