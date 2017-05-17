@@ -493,11 +493,11 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
             br.add_flow(priority=10,
                         proto="rarp",
                         in_port=self.phys_ofports[phys_net],
-                        actions="normal")
+                        actions="output:%s" % eth_ofport)
             # Ingress FLOWs.
             br.add_flow(priority=2,
                         in_port=eth_ofport,
-                        actions="normal")
+                        actions="output:%s" % self.phys_ofports[phys_net])
             self.int_br.add_flow(priority=2,
                                  in_port=self.int_ofports[phys_net],
                                  actions="output:%s" % self.patch_sec_ofport)
