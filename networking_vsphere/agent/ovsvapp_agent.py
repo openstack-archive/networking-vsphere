@@ -491,9 +491,15 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                         in_port=self.phys_ofports[phys_net],
                         actions="normal")
             # Ingress FLOWs.
+            # NOTE: Forward the traffic that is coming on in_port to
+            # self.phys_ofports[phys_net] directly instead of
+            # forwarding it to NORMAL flow for the physical bridge.
+            # This would prevent the bridge from learning the VM MAC
+            # from the physical interface, which causes issues when
+            # VM moves from one node to another node.
             br.add_flow(priority=2,
                         in_port=eth_ofport,
-                        actions="normal")
+                        actions=self.phys_ofports[phys_net])
             self.int_br.add_flow(priority=2,
                                  in_port=self.int_ofports[phys_net],
                                  actions="output:%s" % self.patch_sec_ofport)
