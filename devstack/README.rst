@@ -92,10 +92,10 @@
      # For Example:
      # VMWARE_DVS_ENABLE_SG=True
 
-     # Set the fireall driver
+     # Set the firewall driver
      VMWARE_DVS_FW_DRIVER=
      # For Example:
-     # VMWARE_DVS_FW_DRIVER=networking_vsphere.agent.firewalls.vcenter_firewall.DVSFirwallDriver
+     # VMWARE_DVS_FW_DRIVER=networking_vsphere.agent.firewalls.vcenter_firewall.DVSFirewallDriver
 
      # For OVSvAPP (but not for VMware DVS) we have to disable the Neutron L2 agent.
      # OVSvApp solution does not use the Neutron L2 agent, instead uses a
