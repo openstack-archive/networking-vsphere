@@ -170,7 +170,7 @@ class DVSControllerTestCase(DVSControllerBaseTestCase):
         self.assertIs(self.connection, self.controller.connection)
 
     def test__get_net_name(self):
-        expect = self.dvs_name + fake_network['id']
+        expect = self.dvs_name + '-' + fake_network['id']
         self.assertEqual(expect, self.controller._get_net_name(fake_network))
 
     @mock.patch('networking_vsphere.utils.dvs_util.DVSController.'

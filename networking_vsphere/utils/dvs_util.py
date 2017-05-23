@@ -404,7 +404,7 @@ class DVSController(object):
         # TODO(dbogun): check network['bridge'] generation algorithm our
         # must match it
 
-        return self.dvs_name + network['id']
+        return self.dvs_name + '-' + network['id']
 
     @staticmethod
     def _get_object_by_type(results, type_value):
