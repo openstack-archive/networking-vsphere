@@ -28,6 +28,9 @@ agent_opts = [
     cfg.IntOpt('polling_interval', default=2,
                help=_("The number of seconds the agent will wait between "
                       "polling for local device changes.")),
+    cfg.IntOpt('report_interval',
+               default=30,
+               help='Seconds between agents reporting state to server.'),
 ]
 
 vmware_opts = [

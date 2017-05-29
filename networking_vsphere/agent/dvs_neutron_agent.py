@@ -24,6 +24,7 @@ from oslo_log import log as logging
 import oslo_messaging
 from oslo_service import loopingcall
 
+from neutron_lib import constants as n_const
 from neutron_lib import context
 from neutron_lib.utils import helpers
 
@@ -31,7 +32,6 @@ from neutron.agent.common import polling
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.common import config as common_config
-from neutron.common import constants as n_const
 from neutron.common import topics
 from neutron.common import utils
 
