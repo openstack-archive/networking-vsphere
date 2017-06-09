@@ -166,6 +166,8 @@ class VMwareDVSMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             sleep(2)
 
     def _check_net_type(self, network_context):
+        if not network_context.network_segments:
+            return False
         network_type = network_context.network_segments[0]['network_type']
         return network_type == constants.TYPE_VLAN
 
