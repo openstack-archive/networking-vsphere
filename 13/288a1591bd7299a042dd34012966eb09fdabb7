@@ -1,0 +1,10 @@
+Code-Review+1: Adolfo Duarte <adolfo.duarte@suse.com>
+Code-Review+2: Swaminathan Vasudevan <SVasudevan@suse.com>
+Code-Review+2: Raghuveer Shenoy <rshenoy@hpe.com>
+Workflow+1: Raghuveer Shenoy <rshenoy@hpe.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 18 Jul 2017 03:44:24 +0000
+Reviewed-on: https://review.openstack.org/472753
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
