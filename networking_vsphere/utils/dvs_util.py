@@ -601,7 +601,7 @@ class DVSControllerWithCache(DVSController):
         raise exceptions.PortGroupNotFound(pg_name=pg_name)
 
     def _increase_ports_on_portgroup(self, port_group):
-        pg_name = next((name for name, pg in six.iteritems(self._pg_cache)
+        pg_name = next((name for name, pg in (self._pg_cache).items()
                         if pg.get('pg_key') == port_group.value), None)
         prev_status = self._pg_cache.get(pg_name, {}).get('status')
         self._wait_port_group_stable_status(pg_name)
@@ -627,7 +627,7 @@ class DVSControllerWithCache(DVSController):
         })
 
     def _lookup_unbound_port(self, port_group):
-        pg_name = next((name for name, pg in six.iteritems(self._pg_cache)
+        pg_name = next((name for name, pg in (self._pg_cache).items()
                         if pg.get('pg_key') == port_group.value), None)
         self._wait_port_group_stable_status(pg_name)
 
