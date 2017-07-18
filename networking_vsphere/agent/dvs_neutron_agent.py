@@ -15,7 +15,6 @@
 
 import itertools
 import signal
-import six
 import sys
 import time
 
@@ -86,7 +85,7 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             cfg.CONF.ML2_VMWARE, pg_cache=True)
         uplink_map = dvs_util.create_uplink_map_from_config(
             cfg.CONF.ML2_VMWARE, self.network_map)
-        for phys, dvs in six.iteritems(self.network_map):
+        for phys, dvs in (self.network_map).items():
             if phys in uplink_map:
                 dvs.load_uplinks(phys, uplink_map[phys])
         self.updated_ports = set()

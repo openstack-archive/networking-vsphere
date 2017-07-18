@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import six
-
 
 class VCCache(object):
 
@@ -103,7 +101,7 @@ class VCCache(object):
     @classmethod
     def get_cluster_id_for_path(cls, cluster_path):
         cluster_id = None
-        for temp_id, temp_path in six.iteritems(cls.cluster_id_to_path):
+        for temp_id, temp_path in (cls.cluster_id_to_path).items():
             if cluster_path == temp_path:
                 cluster_id = temp_id
                 break

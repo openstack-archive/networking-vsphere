@@ -21,7 +21,6 @@ from oslo_utils import importutils
 from pprint import pformat
 
 import netaddr
-import six
 import threading
 import time
 
@@ -280,7 +279,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             sg_datalock.release()
 
     def _remove_device_pending_rules(self, deleted_dev, deleted_dev_group):
-        for port, rules in six.iteritems(self.pending_rules_dict):
+        for port, rules in (self.pending_rules_dict).items():
             lst = []
             prules = self.pending_rules_dict.get(port)
             if prules[ADD_KEY] is not None:
@@ -297,7 +296,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
 
     def _remove_device_remote_rules(self, deleted_dev,
                                     deleted_dev_group):
-        for ngroup, rules in six.iteritems(self.sgid_remote_rules_dict):
+        for ngroup, rules in (self.sgid_remote_rules_dict).items():
             if ngroup == deleted_dev_group:
                 continue
             removed_rules = []
@@ -309,7 +308,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                         removed_rules.append(ex_rule)
             devs_list = self.sgid_devices_dict.get(ngroup)
             if devs_list is not None:
-                for dev, ports_list in six.iteritems(devs_list):
+                for dev, ports_list in (devs_list).items():
                     for port_id in ports_list:
                         prules = self.pending_rules_dict.get(port_id)
                         if prules is None:
@@ -321,8 +320,8 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
     def _remove_from_sgid_device_map(self, deleted_dev, deleted_dev_group, ip,
                                      port_id, remove_list):
         for group, devices_dict in \
-                six.iteritems(self.sgid_devices_dict):
-            for ip, ports_list in six.iteritems(devices_dict):
+                (self.sgid_devices_dict).items():
+            for ip, ports_list in (devices_dict).items():
                 if port_id in ports_list:
                     deleted_dev = ip
                     deleted_dev_group = group
@@ -778,7 +777,7 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
             # of device as new device after it is deleted (may be on the
             # refresh list and will get added back without this check)
             del_ports = []
-            for port, ptime in six.iteritems(self.deleted_devices_dict):
+            for port, ptime in (self.deleted_devices_dict).items():
                 if int(t1 - ptime) > DELETE_TIMEOUT_INTERVAL:
                     del_ports.append(port)
             for port in del_ports:
@@ -793,11 +792,11 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
     def remove_devices_from_sg_map(self, devices):
         sg_datalock.acquire()
         try:
-            for group, sg_devices in six.iteritems(self.sgid_devices_dict):
+            for group, sg_devices in (self.sgid_devices_dict).items():
                 for device in devices:
                     deleted_dev = None
                     if device in sg_devices.values():
-                        for dev, port in six.iteritems(sg_devices):
+                        for dev, port in (sg_devices).items():
                             if device == port:
                                 deleted_dev = dev
                                 break

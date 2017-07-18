@@ -14,7 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-import six
 
 from networking_vsphere._i18n import _
 
@@ -136,7 +135,7 @@ class OVSvAppClusterShow(extension.ClientExtensionShow, OVSvAppCluster):
             if data[self.resource] == {}:
                 raise Exception()
             if self.resource in data:
-                for k, v in six.iteritems(data[self.resource]):
+                for k, v in (data[self.resource]).items():
                     if isinstance(v, list):
                         value = ""
                         for _item in v:
@@ -156,4 +155,4 @@ class OVSvAppClusterShow(extension.ClientExtensionShow, OVSvAppCluster):
                                   'vcenter_id': vcenter_id})
             raise exceptions.NeutronClientException(
                 message=not_found_message, status_code=404)
-        return zip(*sorted(six.iteritems(data[self.resource])))
+        return zip(*sorted((data[self.resource]).items()))

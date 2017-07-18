@@ -20,7 +20,6 @@ sudo pip install pyvmomi
 """
 import atexit
 import netaddr
-import six
 import subprocess
 import time
 
@@ -452,7 +451,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                     'port_range_max': port_range_max,
                     'remote_group_id': remote_group_id,
                     'remote_ip_prefix': remote_ip_prefix}
-        for key, value in six.iteritems(expected):
+        for key, value in (expected).items():
             self.assertEqual(value, sec_group_rule[key],
                              "Field %s of the created security group "
                              "rule does not match with %s." %

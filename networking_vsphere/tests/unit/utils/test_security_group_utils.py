@@ -15,7 +15,6 @@
 
 import mock
 from neutron.tests import base
-import six
 
 from networking_vsphere.common import constants as dvs_const
 from networking_vsphere.tests.unit.utils import test_dvs_util
@@ -81,7 +80,7 @@ class TrafficRuleBuilderTestCase(TrafficRuleBuilderBaseTestCase):
         self.assertEqual('0', qualifier.destinationAddress.prefixLength)
 
     def test_build_ethertype_protocol(self):
-        for name, rfc in six.iteritems(dvs_const.PROTOCOL):
+        for name, rfc in (dvs_const.PROTOCOL).items():
             builder = self._create_builder(protocol=name)
             rule = builder.build(self.sequence)
             qualifier = rule.qualifier[0]
