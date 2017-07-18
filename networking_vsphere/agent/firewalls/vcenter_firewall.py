@@ -85,7 +85,7 @@ class PortQueue(object):
 
     # Todo: add roundrobin for active DVS. SlOPS
     def get_update_tasks(self, number=5):
-        for dvs, tasks in six.iteritems(self.update_store):
+        for dvs, tasks in (self.update_store).items():
             if tasks:
                 ret = tasks[:number]
                 self.update_store[dvs] = tasks[number:]
@@ -94,7 +94,7 @@ class PortQueue(object):
 
     def get_remove_tasks(self):
         ret = []
-        for dvs, tasks in six.iteritems(self.remove_store):
+        for dvs, tasks in (self.remove_store).items():
             for task in tasks:
                 key = task.get('binding:vif_details', {}).get('dvs_port_key')
                 if dvs.check_free(key):

@@ -21,7 +21,6 @@ import mock
 from oslo_config import cfg
 from oslo_messaging import conffixture as messaging_conffixture
 from oslotest import base
-import six
 
 from networking_vsphere.common import config as ovsvapp_config
 
@@ -73,7 +72,7 @@ class TestCase(base.BaseTestCase):
         """Override flag variables for a test."""
         group = kw.pop('group', None)
         module = kw.pop('module', None)
-        for k, v in six.iteritems(kw):
+        for k, v in (kw).items():
             if module:
                 CONF.import_opt(k, module, group)
             CONF.set_override(k, v, group)
