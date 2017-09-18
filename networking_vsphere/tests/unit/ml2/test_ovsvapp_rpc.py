@@ -33,7 +33,7 @@ from networking_vsphere.ml2 import ovsvapp_rpc
 
 from sqlalchemy.orm import exc as sa_exc
 
-cfg.CONF.import_group('ml2', 'neutron.plugins.ml2.config')
+cfg.CONF.import_group('ml2', 'neutron.conf.plugins.ml2.config')
 
 FAKE_CLUSTER_ID = 'fake_cluster_id'
 FAKE_VCENTER = 'fake_vcenter'
