@@ -69,7 +69,7 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             'agent_type': 'DVS agent',
             'start_flag': True}
 
-        report_interval = cfg.CONF.DVS_AGENT.report_interval
+        report_interval = cfg.CONF.AGENT.report_interval
 
         self.polling_interval = polling_interval
         # Security group agent support
