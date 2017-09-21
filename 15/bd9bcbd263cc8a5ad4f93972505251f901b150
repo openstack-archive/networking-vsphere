@@ -1,0 +1,9 @@
+Code-Review+2: Swaminathan Vasudevan <SVasudevan@suse.com>
+Workflow+1: Adolfo Duarte <adolfo.duarte@suse.com>
+Code-Review+2: Adolfo Duarte <adolfo.duarte@suse.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 21 Sep 2017 19:18:02 +0000
+Reviewed-on: https://review.openstack.org/504933
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
