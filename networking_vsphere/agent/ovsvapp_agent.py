@@ -25,6 +25,7 @@ import oslo_messaging
 from oslo_service import loopingcall
 import six
 
+from neutron_lib import constants as p_const
 from neutron_lib import context
 from neutron_lib.utils import helpers
 
@@ -32,7 +33,6 @@ from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
-from neutron.plugins.common import constants as p_const
 from neutron.plugins.common import utils as p_utils
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ovs_const  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa

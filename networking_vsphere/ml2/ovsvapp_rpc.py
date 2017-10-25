@@ -29,7 +29,6 @@ from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.db import models_v2
 from neutron.db import securitygroups_rpc_base as sg_rpc_base
-from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import db
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2 import driver_context
@@ -265,7 +264,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
         for port in ports:
             network = self.plugin.get_network(rpc_context, port['network_id'])
             port['network_type'] = network['provider:network_type']
-            if network['provider:network_type'] == p_const.TYPE_VXLAN:
+            if network['provider:network_type'] == common_const.TYPE_VXLAN:
                 retry_count = 3
                 while retry_count > 0:
                     sleep = False
@@ -298,7 +297,7 @@ class OVSvAppServerRpcCallback(plugin_rpc.RpcCallbacks):
                 updated_port = self.plugin.update_port(rpc_context, port_id,
                                                        new_port)
                 updated_ports.add(updated_port['id'])
-                if port['network_type'] == p_const.TYPE_VXLAN:
+                if port['network_type'] == common_const.TYPE_VXLAN:
                     time.sleep(1)
                     new_status = (common_const.PORT_STATUS_BUILD
                                   if port['admin_state_up'] else

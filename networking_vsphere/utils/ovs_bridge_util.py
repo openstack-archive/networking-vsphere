@@ -15,7 +15,8 @@
 
 from oslo_log import log
 
-from neutron.plugins.common import constants as p_const
+from neutron_lib import constants as p_const
+
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ovs_const  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_int  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl import br_phys  # noqa

@@ -17,7 +17,6 @@ import six
 from time import sleep
 
 from neutron.agent import securitygroups_rpc
-from neutron.plugins.common import constants
 from neutron.plugins.ml2 import driver_api
 from neutron.plugins.ml2.drivers import mech_agent
 from neutron_lib.api.definitions import portbindings
@@ -78,7 +77,7 @@ class VMwareDVSMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
 
     def get_allowed_network_types(self, agent):
         return (agent['configurations'].get('tunnel_types', []) +
-                [constants.TYPE_VLAN])
+                [n_const.TYPE_VLAN])
 
     def get_mappings(self, agent):
         return agent['configurations'].get('bridge_mappings', {})
@@ -169,7 +168,7 @@ class VMwareDVSMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         if not network_context.network_segments:
             return False
         network_type = network_context.network_segments[0]['network_type']
-        return network_type == constants.TYPE_VLAN
+        return network_type == n_const.TYPE_VLAN
 
     def _get_security_group_info(self, context):
         current_security_group = list(set(context.current['security_groups']))

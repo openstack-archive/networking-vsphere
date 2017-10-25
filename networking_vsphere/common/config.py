@@ -15,7 +15,7 @@
 
 from oslo_config import cfg
 
-from neutron.plugins.common import constants as p_const
+from neutron_lib import constants as p_const
 
 # vCenter server and ESX host related config read from ovsvapp_agent.ini.
 VMWARE_OPTS = [

@@ -21,6 +21,7 @@ import time
 import logging
 from oslo_config import cfg
 
+from neutron_lib import constants as p_const
 from neutron_lib.utils import helpers
 
 from networking_vsphere.agent import ovsvapp_agent
@@ -31,7 +32,6 @@ from networking_vsphere.tests.unit.drivers import fake_manager
 from networking_vsphere.utils import resource_util
 
 from neutron.agent.common import ovs_lib
-from neutron.plugins.common import constants as p_const
 from neutron.plugins.common import utils as p_utils
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager

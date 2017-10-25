@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron.plugins.common import constants as p_const
+from neutron_lib import constants as p_const
 
 from networking_vsphere.common import model
 from networking_vsphere.tests import base

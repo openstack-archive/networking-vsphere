@@ -16,8 +16,8 @@
 
 import mock
 
-from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ovs_const  # noqa
+from neutron_lib import constants as p_const
 
 from networking_vsphere.tests import base
 from networking_vsphere.utils import ovs_bridge_util as ovsvapp_br

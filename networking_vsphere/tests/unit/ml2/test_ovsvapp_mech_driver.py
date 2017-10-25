@@ -19,7 +19,6 @@ import mock
 
 from neutron_lib.api.definitions import portbindings
 
-from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api as api
 from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
 # TODO(romilg): Revisit to minimize dependency on ML2 tests.
@@ -71,10 +70,10 @@ router_port_ipv6 = {'id': 'fake_id',
                     'network_id': 'net_id',
                     'fixed_ips': [{'ip_address': 'FE80::0202:B3FF:FE1E:8329'}]}
 
-vlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VLAN,
+vlan_segment = {api.NETWORK_TYPE: n_const.TYPE_VLAN,
                 api.SEGMENTATION_ID: 1234}
 
-vxlan_segment = {api.NETWORK_TYPE: p_const.TYPE_VXLAN,
+vxlan_segment = {api.NETWORK_TYPE: n_const.TYPE_VXLAN,
                  api.SEGMENTATION_ID: 1234}
 
 

@@ -17,7 +17,7 @@
 import copy
 import mock
 
-from neutron.plugins.common import constants as p_const
+from neutron_lib import constants as p_const
 
 from networking_vsphere.common import constants
 from networking_vsphere.common import error

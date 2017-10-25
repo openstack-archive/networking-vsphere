@@ -24,11 +24,9 @@ from oslo_utils import timeutils
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron import manager
-from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import mech_agent
 from neutron_lib.api.definitions import portbindings
-from neutron_lib import constants as common_const
 from neutron_lib import constants as n_const
 from neutron_lib import context as neutron_context
 
@@ -59,14 +57,14 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         self._start_rpc_listeners()
         self._plugin = None
         self._pool = None
-        self.supported_network_types = [p_const.TYPE_VLAN, p_const.TYPE_VXLAN]
+        self.supported_network_types = [n_const.TYPE_VLAN, n_const.TYPE_VXLAN]
         LOG.info(_LI("Successfully initialized OVSvApp Mechanism driver."))
         if cfg.CONF.OVSVAPP.enable_ovsvapp_monitor:
             self._start_ovsvapp_monitor()
 
     def get_allowed_network_types(self, agent):
         return (agent['configurations'].get('tunnel_types', []) +
-                [p_const.TYPE_VLAN])
+                [n_const.TYPE_VLAN])
 
     def get_mappings(self, agent):
         return agent['configurations'].get('bridge_mappings', {})
@@ -148,12 +146,12 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             LOG.exception(_LE("Failed to notify agent to delete port group."))
 
     def _check_and_fire_provider_update(self, port):
-        if port['device_owner'] == common_const.DEVICE_OWNER_DHCP:
+        if port['device_owner'] == n_const.DEVICE_OWNER_DHCP:
             self.notifier.enhanced_sg_provider_updated(self.context,
                                                        port['network_id'])
         # For IPv6, provider rule need to be updated in case router
         # interface is created or updated after VM port is created.
-        elif port['device_owner'] == common_const.DEVICE_OWNER_ROUTER_INTF:
+        elif port['device_owner'] == n_const.DEVICE_OWNER_ROUTER_INTF:
             if any(netaddr.IPAddress(fixed_ip['ip_address']).version == 6
                    for fixed_ip in port['fixed_ips']):
                 self.notifier.enhanced_sg_provider_updated(self.context,
