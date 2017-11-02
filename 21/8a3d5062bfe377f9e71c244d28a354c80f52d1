@@ -1,0 +1,9 @@
+Verified+1: Jenkins
+Code-Review+2: Adolfo Duarte <adolfo.duarte@suse.com>
+Workflow+1: Adolfo Duarte <adolfo.duarte@suse.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Thu, 02 Nov 2017 05:59:02 +0000
+Reviewed-on: https://review.openstack.org/448732
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/ocata
