@@ -364,7 +364,7 @@ class OVSVAPPTestJSON(manager.ESXNetworksTestJSON):
         server_id = self._create_server_with_sec_group(
             name, net_id, group_create_body['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
-        deviceport = self.admin_manager.ports_client.list_ports(
+        deviceport = self.os_admin.ports_client.list_ports(
             device_id=server_id)
         body = self._associate_floating_ips(
             port_id=deviceport['ports'][0]['id'])

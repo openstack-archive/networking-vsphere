@@ -36,11 +36,11 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], server_id))
-        device_port = self.admin_manager.ports_client.list_ports(
+        device_port = self.os_admin.ports_client.list_ports(
             device_id=server_id)
         binding_host = device_port['ports'][0]['binding:host_id']
         mac_addr = device_port['ports'][0]['mac_address']
-        network = self.admin_manager.networks_client.show_network(self.network[
+        network = self.os_admin.networks_client.show_network(self.network[
                                                                   'id'])
         segment_id = network['network']['provider:segmentation_id']
         host_dic = self._get_host_name(server_id)
@@ -453,11 +453,11 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         serverid = self._create_server_with_sec_group(
             name, net_id, group_create_body_update['security_group']['id'])
         self.assertTrue(self.verify_portgroup(self.network['id'], serverid))
-        device_port = self.admin_manager.ports_client.list_ports(
+        device_port = self.os_admin.ports_client.list_ports(
             device_id=serverid)
         binding_host = device_port['ports'][0]['binding:host_id']
         mac_addr = device_port['ports'][0]['mac_address']
-        network = self.admin_manager.networks_client.show_network(self.network[
+        network = self.os_admin.networks_client.show_network(self.network[
                                                                   'id'])
         segment_id = network['network']['provider:segmentation_id']
         host_dic = self._get_host_name(serverid)
@@ -472,7 +472,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
         self._dump_flows_on_br_sec_for_icmp_type(vapp_ipadd, 'icmp',
                                                  segment_id, mac_addr, '8',
                                                  net_id)
-        body = self.admin_manager.network_agents_client.list_agents(
+        body = self.os_admin.network_agents_client.list_agents(
             agent_type='OVSvApp Agent')
         agents = body['agents']
         vapp_ipadd_of_host = ""
@@ -501,7 +501,7 @@ class OVSvAppSecurityGroupTestJSON(manager.ESXNetworksTestJSON):
             name, self.network['id'],
             group_create_body_update['security_group']['id'])
         net_id = self.network['id']
-        device_port = self.admin_manager.ports_client.list_ports(
+        device_port = self.os_admin.ports_client.list_ports(
             device_id=server_id)
         binding_host = device_port['ports'][0]['binding:host_id']
         host_dic = self._get_host_name(server_id)
