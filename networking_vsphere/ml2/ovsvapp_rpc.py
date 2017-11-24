@@ -30,12 +30,12 @@ from neutron.common import topics
 from neutron.db import models_v2
 from neutron.db import securitygroups_rpc_base as sg_rpc_base
 from neutron.plugins.ml2 import db
-from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2 import driver_context
 from neutron.plugins.ml2 import managers
 from neutron.plugins.ml2 import rpc as plugin_rpc
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as common_const
+from neutron_lib.plugins.ml2 import api
 
 LOG = log.getLogger(__name__)
 
