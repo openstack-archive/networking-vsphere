@@ -24,7 +24,7 @@ from oslo_utils import timeutils
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron import manager
-from neutron.plugins.ml2 import driver_api as api
+from neutron_lib.plugins.ml2 import api
 from neutron.plugins.ml2.drivers import mech_agent
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as n_const
