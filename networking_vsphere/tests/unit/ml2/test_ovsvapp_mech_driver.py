@@ -18,8 +18,8 @@
 import mock
 
 from neutron_lib.api.definitions import portbindings
+from neutron_lib.plugins.ml2 import api
 
-from neutron.plugins.ml2 import driver_api as api
 from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
 # TODO(romilg): Revisit to minimize dependency on ML2 tests.
 
