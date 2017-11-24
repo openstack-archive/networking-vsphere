@@ -17,9 +17,9 @@ import six
 from time import sleep
 
 from neutron.agent import securitygroups_rpc
-from neutron.plugins.ml2 import driver_api
 from neutron.plugins.ml2.drivers import mech_agent
 from neutron_lib.api.definitions import portbindings
+from neutron_lib.plugins.ml2 import api
 from neutron_lib import constants as n_const
 from neutron_lib import context
 from oslo_log import log
@@ -121,7 +121,7 @@ class VMwareDVSMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             })
             for segment in context.network.network_segments:
                 context.set_binding(
-                    segment[driver_api.ID],
+                    segment[api.ID],
                     self.vif_type,
                     vif_details,
                     status=n_const.PORT_STATUS_ACTIVE)
