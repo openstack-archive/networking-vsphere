@@ -1,4 +1,5 @@
 # Copyright (c) 2015 Hewlett-Packard Development Company, L.P.
+# (c) Copyright 2017-2018 SUSE LLC
 #
 # All Rights Reserved.
 #
@@ -122,3 +123,13 @@ RESOURCE_IN_USE = "is in use."
 # EPHEMERAL ports
 MIN_EPHEMERAL_PORT = 32768
 MAX_EPHEMERAL_PORT = 65535
+
+VLAN_TYPE_TRUNK = 'trunk'
+VLAN_TYPE_VLAN = 'vlan'
+VIM_API_RETRY_COUNT = 10
+VIM_TASK_POLL_INTERVAL = 0.1
+VIM_MAX_OBJETS = 100
+
+# Minimum supported esxi version.
+# WARNING: Not sure if 6.0 is the lowest we can go. Before HOS 5 it was 5.1
+MIN_SUPPORTED_VERSION = '6.0'
