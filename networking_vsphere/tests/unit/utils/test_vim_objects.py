@@ -15,8 +15,10 @@
 #
 
 from mock import MagicMock
+from mock import mock
 from mock import patch
 
+import networking_vsphere
 from networking_vsphere.common import constants as const
 from networking_vsphere.utils import vim_objects
 from oslotest import base
@@ -72,3 +74,174 @@ class TestVcenterProxy(TestBase):
             'HostSystem',
             const.VIM_MAX_OBJETS
         )
+
+
+class TestDistributedVirtualSwitch(TestBase):
+    def setUp(self):
+        super(TestDistributedVirtualSwitch, self).setUp()
+        self.sut = vim_objects.DistributedVirtualSwitch(
+            'test_dvs',
+            vcenter_ip='127.0.0.1',
+            vcenter_port=443,
+            vcenter_password='test',
+            host_names=[],
+            pnic_devices=[
+                'vmnic1',
+                'vmnic2']
+        )
+        self.sut.host_names = ['HostSystem1', 'HostSystem2']
+        self.sut.connect_to_vcenter()
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    @mock.patch.object(networking_vsphere.utils.vim_objects. VcenterProxy,
+                       'get_used_pnics_keys_in_host')
+    @mock.patch.object(networking_vsphere.utils.vim_objects. VcenterProxy,
+                       'get_all_pnic_keys_in_host')
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_mob_by_name')
+    def test_create_spec(self, mocked_get_by_name, mocked_all_keys,
+                         mocked_used_keys,
+                         mocked_get_type):
+        key1 = 'key-vim.host.PhysicalNic-vmnic1'
+        key2 = 'key-vim.host.PhysicalNic-vmnic2'
+        key3 = 'key-vim.host.PhysicalNic-vmnic3'
+        mocked_all_keys.return_value = {key1, key2, key3}
+        mocked_used_keys.return_value = {key2}
+        mocked_result = MagicMock()
+        mocked_get_type.return_value = mocked_result
+        mocked_host = MagicMock()
+        mocked_host.obj = MagicMock()
+        mocked_get_by_name.return_value = MagicMock()
+        self.sut.hosts = [mocked_host]
+        self.assertEqual(self.sut.create_spec, mocked_result)
+        for _type in [
+            'DVSCreateSpec',
+            'DistributedVirtualSwitchProductSpec',
+            'VMwareDVSConfigSpec',
+            'ConfigSpecOperation',
+            'DistributedVirtualSwitchHostMemberPnicBacking',
+            'DistributedVirtualSwitchHostMemberPnicSpec',
+            'DVSNameArrayUplinkPortPolicy'
+        ]:
+            mocked_get_type.assert_any_call(_type)
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    @mock.patch.object(networking_vsphere.utils.vim_objects. VcenterProxy,
+                       'get_used_pnics_keys_in_host')
+    @mock.patch.object(networking_vsphere.utils.vim_objects. VcenterProxy,
+                       'get_all_pnic_keys_in_host')
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_mob_by_name')
+    def test_config_spec(self, mocked_get_mob_by_name, mocked_all_keys,
+                         mocked_used_keys,
+                         mocked_get_type):
+        key1 = 'key-vim.host.PhysicalNic-vmnic1'
+        key2 = 'key-vim.host.PhysicalNic-vmnic2'
+        key3 = 'key-vim.host.PhysicalNic-vmnic3'
+        mocked_all_keys.return_value = {key1, key2, key3}
+        mocked_used_keys.return_value = {key2}
+        mocked_result = MagicMock()
+        mocked_get_type.return_value = mocked_result
+        mocked_host = MagicMock()
+        mocked_host.obj = MagicMock()
+        mocked_get_mob_by_name.return_value = MagicMock()
+        self.sut.hosts = [mocked_host]
+        spec = self.sut.config_spec
+        self.assertEqual(spec, mocked_result)
+        for _type in [
+            'VMwareDVSConfigSpec',
+            'ConfigSpecOperation',
+            'DistributedVirtualSwitchHostMemberPnicBacking',
+            'DistributedVirtualSwitchHostMemberPnicSpec',
+            'DVSNameArrayUplinkPortPolicy'
+        ]:
+            mocked_get_type.assert_any_call(_type)
+            self.assertEqual(spec.name, self.sut.name)
+            self.assertEqual(spec.description, self.sut.description)
+            self.assertEqual(spec.maxPorts, self.sut.max_ports)
+            self.assertEqual(spec.maxMtu, self.sut.max_mtu)
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    @mock.patch.object(networking_vsphere.utils.vim_objects. VcenterProxy,
+                       'get_used_pnics_keys_in_host')
+    @mock.patch.object(networking_vsphere.utils.vim_objects. VcenterProxy,
+                       'get_all_pnic_keys_in_host')
+    def test_list_of_member_hosts_specs(self, mocked_all_keys,
+                                        mocked_used_keys,
+                                        mocked_get_type):
+        key1 = 'key-vim.host.PhysicalNic-vmnic1'
+        key2 = 'key-vim.host.PhysicalNic-vmnic2'
+        key3 = 'key-vim.host.PhysicalNic-vmnic3'
+        mocked_all_keys.return_value = {key1, key2, key3}
+        mocked_used_keys.return_value = {key2}
+        mocked_result = MagicMock()
+        mocked_host = MagicMock()
+        mocked_host.obj = MagicMock()
+        self.sut.hosts = [mocked_host]
+
+        mocked_get_type.return_value = mocked_result
+        results = self.sut.list_of_host_member_config_specs
+        self.assertEqual(len(results),
+                         len(self.sut.hosts)
+                         )
+        for _type in [
+            'ConfigSpecOperation',
+            'DistributedVirtualSwitchHostMemberPnicBacking',
+            'DistributedVirtualSwitchHostMemberPnicSpec',
+        ]:
+            mocked_get_type.assert_any_call(_type)
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    def test_host_member_pnic_backing(self, mocked_get_type):
+        mocked_result = MagicMock()
+        mocked_result.__len__.return_value = 1
+        mocked_get_type.return_value = mocked_result
+        results = self.sut.host_member_pnic_backing(['vmnic1'])
+
+        for _type in [
+            'DistributedVirtualSwitchHostMemberPnicBacking',
+            'DistributedVirtualSwitchHostMemberPnicSpec',
+        ]:
+            mocked_get_type.assert_any_call(_type)
+
+        self.assertEqual(len(results), 1)
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    def test_host_member_pnic_spec(self, mocked_get_type):
+        mocked_result = MagicMock()
+        mocked_result.__len__.return_value = 1
+        mocked_get_type.return_value = mocked_result
+        results = self.sut.host_member_pnic_spec(['vmnic1'])
+        self.assertEqual(len(results), 1)
+        mocked_get_type.assert_any_call(
+            'DistributedVirtualSwitchHostMemberPnicSpec')
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    def test_uplink_port_policy(self, mocked_get_type):
+        mocked_result = MagicMock()
+        mocked_result.__len__.return_value = 1
+        mocked_get_type.return_value = mocked_result
+        results = self.sut.uplink_port_policy
+        self.assertEqual(len(results), 1)
+        mocked_get_type.assert_any_call('DVSNameArrayUplinkPortPolicy')
+        self.assertEqual(len(results.uplinkPortName),
+                         len(self.sut.pnic_devices))
+
+    def test_uplink_port_names(self):
+        self.assertEqual(self.sut.uplink_port_names,
+                         ['dvUplink0', 'dvUplink1'])
+        self.sut.pnic_devices = []
+        self.assertEqual(self.sut.uplink_port_names, ['dvUplink'])
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_mob_by_name')
+    def test_datacenter(self, mocked_get_mob_by_name):
+        self.assertIsNotNone(self.sut.datacenter)
+        mocked_get_mob_by_name.assert_called_with('Datacenter',
+                                                  self.sut.datacenter_name)
