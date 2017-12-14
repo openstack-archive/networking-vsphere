@@ -169,7 +169,7 @@ class DistributedVirtualSwitch(VcenterProxy):
                  cluster_name=None,
                  **kwargs):
         super(DistributedVirtualSwitch, self).__init__(dvs_name, **kwargs)
-        self.type = 'dvSwitch'
+        self.type = 'dvSwitch' #TODO(aduarte) what is this used for?
         if pnic_devices is None:
             pnic_devices = []
         self.pnic_devices = {"key-vim.host.PhysicalNic-" + device
