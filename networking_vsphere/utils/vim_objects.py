@@ -300,3 +300,124 @@ class DistributedVirtualSwitch(NetServicesMxin, VcenterProxy):
 
         except Exception as e:
             return e
+
+
+class DVSPortGroup(VcenterProxy):
+
+    def __init__(self, name,
+                 vlan_type=None,
+                 vlan_id=None,
+                 vlan_range_start=0,
+                 vlan_range_end=4094,
+                 switch_name=None,
+                 nic_teaming=None,
+                 description=None,
+                 allow_promiscuous=False,
+                 forged_transmits=False,
+                 auto_expand=True,
+                 **kwargs):
+        super(DVSPortGroup, self).__init__(name, **kwargs)
+        self.vlan_type = vlan_type
+        self.vlan_id = vlan_id
+        self.vlan_range_start = vlan_range_start
+        self.vlan_range_end = vlan_range_end
+        self.switch_name = switch_name
+        self.nic_teaming = nic_teaming
+        self.description = description
+        self.allow_promiscuous = allow_promiscuous
+        self.forged_transmits = forged_transmits
+        self.auto_expand = auto_expand
+        if self.nic_teaming is None:
+            self.nic_teaming = {'notify_switches': True,
+                                'network_failover_detection': True,
+                                'load_balancing': 'loadbalance_srcid',
+                                'active_nics': []}
+
+    @property
+    def config_spec(self):
+        spec = self.get_type('DVPortgroupConfigSpec')
+        spec.name = self.name
+        spec.description = self.description
+        spec.autoExpand = True
+        spec.type = self.get_type(
+            'DistributedVirtualPortgroupPortgroupType').earlyBinding
+        spec.defaultPortConfig = self.dvs_port_settings
+        return spec
+
+    @property
+    def dvs_port_settings(self):
+        port_settings = self.get_type('VMwareDVSPortSetting')
+        port_settings.vlan = self.vlan_spec
+        port_settings.vlan.vlanId = self.vlan_spec_id
+        port_settings.vlan.inherited = False
+        port_settings.securityPolicy = self.security_policy
+        port_settings.uplinkTeamingPolicy = self.uplink_teaming_policy
+        return port_settings
+
+    @property
+    def vlan_spec(self):
+        if self.vlan_type == const.VLAN_TYPE_TRUNK:
+            return self.get_type('VmwareDistributedVirtualSwitchTrunkVlanSpec')
+        return self.get_type('VmwareDistributedVirtualSwitchVlanIdSpec')
+
+    @property
+    def vlan_spec_id(self):
+        if str(self.vlan_type).lower() == str(const.VLAN_TYPE_TRUNK).lower():
+            vlan_range = self.get_type('NumericRange')
+            vlan_range.start = self.vlan_range_start
+            vlan_range.end = self.vlan_range_end
+            return vlan_range
+
+        if self.vlan_id is None:
+            return 0
+        return self.vlan_id
+
+    @property
+    def security_policy(self):
+        policy = self.get_type('DVSSecurityPolicy')
+        policy.inherited = False
+        policy.allowPromiscuous = self.get_type('BoolPolicy')
+        policy.allowPromiscuous.inherited = False
+        policy.allowPromiscuous.value = self.allow_promiscuous
+        policy.forgedTransmits = self.get_type('BoolPolicy')
+        policy.forgedTransmits.inherited = False
+        policy.forgedTransmits.value = self.forged_transmits
+        return policy
+
+    @property
+    def uplink_teaming_policy(self):
+        policy = self.get_type('VmwareUplinkPortTeamingPolicy')
+        policy.inherited = False
+
+        policy.notifySwitches = self.get_type('BoolPolicy')
+        policy.notifySwitches.inherited = False
+        policy.notifySwitches.value = self.nic_teaming['notify_switches']
+
+        policy.failureCriteria = self.get_type('DVSFailureCriteria')
+        policy.failureCriteria.inherited = False
+        policy.failureCriteria.checkBeacon = self.get_type('BoolPolicy')
+        policy.failureCriteria.checkBeacon.inherited = False
+        policy.failureCriteria.checkBeacon.value = self.nic_teaming[
+            'network_failover_detection']
+
+        policy.policy.inherited = False
+        policy.policy.value = self.nic_teaming['load_balancing']
+
+        policy.uplinkPortOrder = self.get_type('VMwareUplinkPortOrderPolicy')
+        policy.uplinkPortOrder.activeUplinkPort = self.nic_teaming[
+            'active_nics']
+
+        return policy
+
+    def create_on_dvs(self):
+        dvs = self.get_mob_by_name('DistributedVirtualSwitch',
+                                   self.switch_name)
+        task = self.session.invoke_api(self.session.vim,
+                                       'AddDVPortgroup_Task',
+                                       dvs.obj,
+                                       spec=self.config_spec)
+        try:
+            self.session.wait_for_task(task)
+
+        except Exception as e:
+            return e
