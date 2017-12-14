@@ -88,7 +88,7 @@ class VcenterProxy(object):
                                        self.session.vim,
                                        moref,
                                        property_name
-                                       )[0]
+                                       )
 
     @staticmethod
     def make_moref(value, type_):
@@ -118,7 +118,7 @@ class VcenterProxy(object):
         :param host: host
         :return: returns a list of pnic mobs
         """
-        return self.get_property(host.obj, "config.network.pnic")
+        return self.get_property(host.obj, "config.network.pnic")[0]
 
     def get_used_pnics_keys_in_host(self, host):
         """Returns keys pointing to used pnics in host
