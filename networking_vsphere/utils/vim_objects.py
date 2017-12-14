@@ -88,7 +88,7 @@ class VcenterProxy(object):
                                        self.session.vim,
                                        moref,
                                        property_name
-                                       )[0]
+                                       )
 
     @staticmethod
     def make_moref(value, type_):
@@ -118,7 +118,7 @@ class VcenterProxy(object):
         :param host: host
         :return: returns a list of pnic mobs
         """
-        return self.get_property(host.obj, "config.network.pnic")
+        return self.get_property(host.obj, "config.network.pnic")[0]
 
     def get_used_pnics_keys_in_host(self, host):
         """Returns keys pointing to used pnics in host
@@ -141,7 +141,7 @@ class VcenterProxy(object):
         :param host:
         :return: a set of keys pointing to all pnics on host
         """
-        return {pnic.key for pnic in self.get_host_pnics(host)}
+        return {pnic.key for pnic in self.get_host_pnics(host) if host}
 
     def get_free_pnics_keys_in_host(self, host):
         """Returns keys pointing to free pnics in host
@@ -172,8 +172,8 @@ class DistributedVirtualSwitch(VcenterProxy):
         self.type = 'dvSwitch'
         if pnic_devices is None:
             pnic_devices = []
-        self.pnic_devices = {"key-vim.host.PhysicalNic-" + device
-                             for device in pnic_devices}
+        self.pnic_keys = {"key-vim.host.PhysicalNic-" + device
+                          for device in pnic_devices}
         self.max_mtu = max_mtu
         self.host_names = host_names
         self.description = description
@@ -217,7 +217,8 @@ class DistributedVirtualSwitch(VcenterProxy):
     def list_of_host_member_config_specs(self):
         if self.hosts is None:
             return []
-        return [self.host_member_config_spec_for(host) for host in self.hosts]
+        return [self.host_member_config_spec_for(host) for host in self.hosts
+                if host]
 
     def host_member_config_spec_for(self, host):
         spec = self.get_type("DistributedVirtualSwitchHostMemberConfigSpec")
@@ -234,7 +235,9 @@ class DistributedVirtualSwitch(VcenterProxy):
     def get_available_pnic_devices(self, host):
         _free = self.get_free_pnics_keys_in_host(host)
 
-        return _free.intersection(self.pnic_devices)
+        _available_keys = _free.intersection(self.pnic_keys)
+        return [_key.replace("key-vim.host.PhysicalNic-", "")
+                for _key in _available_keys]
 
     def host_member_pnic_backing(self, p_devices):
         pnic_backing = self.get_type(
@@ -256,9 +259,9 @@ class DistributedVirtualSwitch(VcenterProxy):
 
     @property
     def uplink_port_names(self):
-        if self.pnic_devices:
+        if self.pnic_keys:
             return [''.join(['dvUplink', str(c)]) for c, nic in
-                    enumerate(self.pnic_devices)]
+                    enumerate(self.pnic_keys)]
         return ['dvUplink']
 
     @property
