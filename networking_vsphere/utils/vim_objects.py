@@ -88,7 +88,7 @@ class VcenterProxy(object):
                                        self.session.vim,
                                        moref,
                                        property_name
-                                       )[0]
+                                       )
 
     @staticmethod
     def make_moref(value, type_):
@@ -118,7 +118,7 @@ class VcenterProxy(object):
         :param host: host
         :return: returns a list of pnic mobs
         """
-        return self.get_property(host.obj, "config.network.pnic")
+        return self.get_property(host.obj, "config.network.pnic")[0]
 
     def get_used_pnics_keys_in_host(self, host):
         """Returns keys pointing to used pnics in host
@@ -141,7 +141,7 @@ class VcenterProxy(object):
         :param host:
         :return: a set of keys pointing to all pnics on host
         """
-        return {pnic.key for pnic in self.get_host_pnics(host)}
+        return {pnic.key for pnic in self.get_host_pnics(host) if host}
 
     def get_free_pnics_keys_in_host(self, host):
         """Returns keys pointing to free pnics in host
@@ -217,7 +217,8 @@ class DistributedVirtualSwitch(VcenterProxy):
     def list_of_host_member_config_specs(self):
         if self.hosts is None:
             return []
-        return [self.host_member_config_spec_for(host) for host in self.hosts]
+        return [self.host_member_config_spec_for(host) for host in self.hosts
+                if host]
 
     def host_member_config_spec_for(self, host):
         spec = self.get_type("DistributedVirtualSwitchHostMemberConfigSpec")
