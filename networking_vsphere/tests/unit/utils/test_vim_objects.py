@@ -245,3 +245,171 @@ class TestDistributedVirtualSwitch(TestBase):
         self.assertIsNotNone(self.sut.datacenter)
         mocked_get_mob_by_name.assert_called_with('Datacenter',
                                                   self.sut.datacenter_name)
+
+
+class TestDVSPortGroup(TestBase):
+    def setUp(self):
+        super(TestDVSPortGroup, self).setUp()
+        self.sut = vim_objects.DVSPortGroup('test_dvs_pg',
+                                            vlan_type=None,
+                                            vlan_id=None,
+                                            vlan_range_start=0,
+                                            vlan_range_end=4094,
+                                            dvs_name=None,
+                                            nic_teaming=None,
+                                            description=None,
+                                            allow_promiscuous=False,
+                                            forged_transmits=False,
+                                            auto_expand=True
+                                            )
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    def test_config_spec(self, mocked_get_type):
+        mocked_result = MagicMock()
+        mocked_get_type.return_value = mocked_result
+        self.assertEqual(self.sut.config_spec, mocked_result)
+        for _type in [
+            'DVPortgroupConfigSpec',
+            'DistributedVirtualPortgroupPortgroupType',
+            'VMwareDVSPortSetting',
+            'DVSSecurityPolicy',
+            'BoolPolicy',
+            'VmwareUplinkPortTeamingPolicy',
+            'DVSFailureCriteria',
+            'VMwareUplinkPortOrderPolicy'
+        ]:
+            mocked_get_type.assert_any_call(_type)
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    def test_dvs_port_settings(self, mocked_get_type):
+        mocked_result = MagicMock()
+        mocked_get_type.return_value = mocked_result
+        self.assertEqual(self.sut.dvs_port_settings, mocked_result)
+        for _type in [
+            'VMwareDVSPortSetting',
+            'DVSSecurityPolicy',
+            'BoolPolicy',
+            'VmwareUplinkPortTeamingPolicy',
+            'DVSFailureCriteria',
+            'VMwareUplinkPortOrderPolicy'
+        ]:
+            mocked_get_type.assert_any_call(_type)
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    def test_vlan_spec(self, mocked_get_type):
+        mocked_result = MagicMock()
+        mocked_result.__len__.return_value = 1
+        mocked_get_type.return_value = mocked_result
+
+        self.sut.vlan_type = None
+        self.assertEqual(len(self.sut.vlan_spec), 1)
+        mocked_get_type.assert_called_with(
+            'VmwareDistributedVirtualSwitchVlanIdSpec')
+
+        self.sut.vlan_type = 'vlan'
+        self.assertEqual(len(self.sut.vlan_spec), 1)
+        mocked_get_type.assert_called_with(
+            'VmwareDistributedVirtualSwitchVlanIdSpec')
+
+        self.sut.vlan_type = 'trunk'
+        self.assertEqual(len(self.sut.vlan_spec), 1)
+        mocked_get_type.assert_called_with(
+            'VmwareDistributedVirtualSwitchTrunkVlanSpec')
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    def test_vlan_spec_id(self, mocked_get_type):
+        mocked_result = MagicMock()
+        mocked_get_type.return_value = mocked_result
+
+        self.sut.vlan_type = None
+        self.sut.vlanid = None
+        self.assertEqual(self.sut.vlan_spec_id, 0)
+        mocked_get_type.assert_not_called()
+        mocked_get_type.reset_mock()
+
+        self.sut.vlan_type = 'vlan'
+        self.sut.vlan_id = None
+        self.assertEqual(self.sut.vlan_spec_id, 0)
+        mocked_get_type.assert_not_called()
+        mocked_get_type.reset_mock()
+
+        self.sut.vlan_type = 'trunk'
+        self.sut.vlan_id = None
+        results = self.sut.vlan_spec_id
+        mocked_get_type.assert_called_with('NumericRange')
+        self.assertEqual(results.start,
+                         self.sut.vlan_range_start)
+        self.assertEqual(results.end,
+                         self.sut.vlan_range_end)
+        mocked_get_type.reset_mock()
+
+        self.sut.vlan_type = None
+        self.sut.vlan_id = 1
+        self.assertEqual(self.sut.vlan_spec_id, 1)
+        mocked_get_type.assert_not_called()
+        mocked_get_type.reset_mock()
+
+        self.sut.vlan_type = 'vlan'
+        self.sut.vlan_id = 1
+        self.assertEqual(self.sut.vlan_spec_id, 1)
+        mocked_get_type.assert_not_called()
+        mocked_get_type.reset_mock()
+
+        self.sut.vlan_type = 'trunk'
+        self.sut.vlan_id = 1
+        results = self.sut.vlan_spec_id
+        mocked_get_type.assert_called_with('NumericRange')
+        self.assertEqual(results.start,
+                         self.sut.vlan_range_start)
+        self.assertEqual(results.end,
+                         self.sut.vlan_range_end)
+        mocked_get_type.reset_mock()
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    def test_security_policy(self, mocked_get_type):
+        mocked_result = MagicMock()
+        mocked_get_type.return_value = mocked_result
+        results = self.sut.security_policy
+        self.assertEqual(results, mocked_result)
+        for _type in [
+            'DVSSecurityPolicy',
+            'BoolPolicy'
+        ]:
+            mocked_get_type.assert_any_call(_type)
+
+        self.assertEqual(results.allowPromiscuous.value,
+                         self.sut.allow_promiscuous)
+        self.assertEqual(results.forgedTransmits.value,
+                         self.sut.forged_transmits)
+
+    @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
+                       'get_type')
+    def test_uplink_teaming_policy(self, mocked_get_type):
+        mocked_result = MagicMock()
+        mocked_get_type.return_value = mocked_result
+        self.assertEqual(len(self.sut.uplink_teaming_policy.
+                             uplinkPortOrder.activeUplinkPort), 0)
+
+        self.sut.nic_teaming['active_nics'] = ['vmnic1', 'vmnic2']
+        results = self.sut.uplink_teaming_policy
+        self.assertEqual(results, mocked_result)
+        for _type in [
+            'VmwareUplinkPortTeamingPolicy',
+            'BoolPolicy',
+            'DVSFailureCriteria',
+            'VMwareUplinkPortOrderPolicy'
+        ]:
+            mocked_get_type.assert_any_call(_type)
+
+        self.assertEqual(len(results.uplinkPortOrder.activeUplinkPort), 2)
+        self.assertEqual(results.policy.value,
+                         self.sut.nic_teaming['load_balancing'])
+        self.assertEqual(results.failureCriteria.checkBeacon.value,
+                         self.sut.nic_teaming['network_failover_detection'])
+        self.assertEqual(results.notifySwitches.value,
+                         self.sut.nic_teaming['notify_switches'])
