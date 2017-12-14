@@ -81,14 +81,14 @@ class VcenterProxy(object):
                                        'get_object_properties',
                                        self.session.vim,
                                        mob.obj,
-                                       [])
+                                       [])[0][1]
 
     def get_property(self, moref, property_name):
         return self.session.invoke_api(vim_util, 'get_object_property',
                                        self.session.vim,
                                        moref,
                                        property_name
-                                       )[0]
+                                       )
 
     @staticmethod
     def make_moref(value, type_):
@@ -170,11 +170,17 @@ class DistributedVirtualSwitch(VcenterProxy):
                  **kwargs):
         super(DistributedVirtualSwitch, self).__init__(dvs_name, **kwargs)
         self.type = 'dvSwitch'
-        if pnic_devices is None:
-            pnic_devices = []
-        self.pnic_devices = {"key-vim.host.PhysicalNic-" + device
-                             for device in pnic_devices}
+        self.pnic_devices = pnic_devices
+        if self.pnic_devices is None:
+            self.pnic_keys = set([])
+        else:
+            self.pnic_keys = {"key-vim.host.PhysicalNic-" + device
+                              for device in pnic_devices}
         self.max_mtu = max_mtu
+        if host_names is None:
+            self.host_names = set([])
+        else:
+            self.host_names = set(host_names)
         self.host_names = host_names
         self.description = description
         self.max_ports = max_ports
@@ -186,10 +192,10 @@ class DistributedVirtualSwitch(VcenterProxy):
 
         # Lets get hosts ready
         if self.session is None or len(self.host_names) == 0:
-            self.hosts = []
+            self.hosts = set([])
         else:
-            self.hosts = [self.get_mob_by_name("HostSystem", host_name)
-                          for host_name in self.host_names]
+            self.hosts = {self.get_mob_by_name("HostSystem", host_name)
+                          for host_name in self.host_names}
 
     @property
     def create_spec(self):
@@ -234,7 +240,7 @@ class DistributedVirtualSwitch(VcenterProxy):
     def get_available_pnic_devices(self, host):
         _free = self.get_free_pnics_keys_in_host(host)
 
-        return _free.intersection(self.pnic_devices)
+        return _free.intersection(self.pnic_keys)
 
     def host_member_pnic_backing(self, p_devices):
         pnic_backing = self.get_type(
@@ -256,9 +262,9 @@ class DistributedVirtualSwitch(VcenterProxy):
 
     @property
     def uplink_port_names(self):
-        if self.pnic_devices:
+        if self.pnic_keys:
             return [''.join(['dvUplink', str(c)]) for c, nic in
-                    enumerate(self.pnic_devices)]
+                    enumerate(self.pnic_keys)]
         return ['dvUplink']
 
     @property

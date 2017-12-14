@@ -231,12 +231,12 @@ class TestDistributedVirtualSwitch(TestBase):
         self.assertEqual(len(results), 1)
         mocked_get_type.assert_any_call('DVSNameArrayUplinkPortPolicy')
         self.assertEqual(len(results.uplinkPortName),
-                         len(self.sut.pnic_devices))
+                         len(self.sut.pnic_keys))
 
     def test_uplink_port_names(self):
         self.assertEqual(self.sut.uplink_port_names,
                          ['dvUplink0', 'dvUplink1'])
-        self.sut.pnic_devices = []
+        self.sut.pnic_keys = []
         self.assertEqual(self.sut.uplink_port_names, ['dvUplink'])
 
     @mock.patch.object(networking_vsphere.utils.vim_objects.VcenterProxy,
