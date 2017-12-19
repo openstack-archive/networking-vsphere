@@ -221,6 +221,9 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
                         )
                     else:
                         LOG.info(_LI("NO RULES CHANGED for Port %s"), port_id)
+                        # The port update event may be from allowed address
+                        # pairs.
+                        self.firewall.refresh_aap_flows(port_sg_rules[port_id])
 
     def _process_port_set(self, devices, update=False):
         dev_list = list(devices)

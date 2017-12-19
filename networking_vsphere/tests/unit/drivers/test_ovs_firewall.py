@@ -590,3 +590,18 @@ class TestOVSFirewallDriver(base.TestCase):
             canary_flow = self.ovs_firewall.check_ovs_firewall_restart()
             self.assertTrue(mock_dump_flow.called)
             self.assertFalse(canary_flow)
+
+    def test_refresh_aap_flows(self):
+        port_with_app = copy.deepcopy(fake_port)
+        key = "allowed_address_pairs"
+        port_with_app[key] = [{'ip_address': '10.0.0.2',
+                               'mac_address': 'aa:bb:cc:dd:ee:aa'},
+                              {'ip_address': '10.0.0.3',
+                               'mac_address': 'aa:bb:cc:dd:ee:ab'}]
+        with mock.patch.object(self.ovs_firewall, '_get_port_vlan',
+                               return_value=100), \
+                mock.patch.object(self.ovs_firewall.sg_br, 'deferred',
+                                  return_value=self.mock_br), \
+                mock.patch.object(self.mock_br, 'add_flow') as mock_add_flow:
+            self.ovs_firewall.refresh_aap_flows(self.mock_br, port_with_app)
+            self.assertEqual(2, mock_add_flow.call_count)

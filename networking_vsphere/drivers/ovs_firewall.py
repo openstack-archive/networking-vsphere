@@ -402,6 +402,12 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                           "port: %s."), port['id'])
             return
         if isinstance(port.get('allowed_address_pairs'), list):
+            LOG.info(_LI("Refreshing allowed address pairs for port %s"),
+                     port['id'])
+            sec_br.delete_flows(table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
+                                cookie="%s/-1" %
+                                self.get_cookie('addr_' + port['id']),
+                                dl_vlan=vlan)
             for addr_pair in port['allowed_address_pairs']:
                 if netaddr.IPNetwork(addr_pair["ip_address"]).version == 4:
                     ap_proto = "ip"
@@ -409,16 +415,15 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     ap_proto = "ipv6"
                 sec_br.add_flow(priority=ovsvapp_const.SG_RULES_PRI,
                                 table=ovsvapp_const.SG_DEFAULT_TABLE_ID,
-                                cookie=self.get_cookie(port['id']),
-                                dl_dst=port["mac_address"],
-                                in_port=self.patch_ofport,
+                                cookie=self.get_cookie('addr_' + port['id']),
+                                in_port=self.phy_ofport,
                                 dl_src=addr_pair["mac_address"],
                                 dl_vlan=vlan,
                                 proto=ap_proto,
                                 nw_src=addr_pair["ip_address"],
                                 actions="resubmit(,%s),output:%s" %
                                 (ovsvapp_const.SG_IP_TABLE_ID,
-                                 self.phy_ofport))
+                                 self.patch_ofport))
 
     def _get_net_prefix_len(self, ip_prefix):
         if ip_prefix:
@@ -773,3 +778,12 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             except Exception:
                 LOG.exception(_LE("OVSF unable to remove flows for port: "
                                   "%s."), port_id)
+
+    def refresh_aap_flows(self, port):
+        try:
+            with self.sg_br.deferred(full_ordered=True, order=(
+                    'del', 'mod', 'add')) as deferred_br:
+                self._setup_aap_flows(deferred_br, port)
+        except Exception:
+            LOG.exception(_LE("Unable to Refresh allowed address pair "
+                              "flows for %s."), port['id'])
