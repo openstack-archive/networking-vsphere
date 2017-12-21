@@ -63,7 +63,10 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         image_info = images.VMwareImage.from_image(context,
                                                    instance.image_ref,
                                                    image_meta)
-        self._create_virtual_nic(instance, image_info, network_info, vm_ref)
+        extra_specs = self.ovsvapp_vmops._get_extra_specs(instance.flavor,
+                                                          image_meta)
+        self._create_virtual_nic(instance, image_info, network_info, vm_ref,
+                                 extra_specs)
         self._power_on_vm(instance, vm_ref)
 
     def network_binding_host_id(self, context, instance):
@@ -103,7 +106,8 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         """
         return instance['node'].partition('.')[0]
 
-    def _create_virtual_nic(self, instance, image_info, network_info, vm_ref):
+    def _create_virtual_nic(self, instance, image_info, network_info, vm_ref,
+                            extra_specs):
         if network_info is None:
             return
         vif_model = image_info.vif_model
@@ -139,7 +143,8 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
         vif_spec_list = []
         for vif_info in vif_infos:
             vif_spec = vm_util._create_vif_spec(self.client_factory,
-                                                vif_info)
+                                                vif_info,
+                                                extra_specs.vif_limits)
             vif_spec_list.append(vif_spec)
 
         config_spec.deviceChange = vif_spec_list
