@@ -40,9 +40,6 @@ PROTOCOLS = {constants.PROTO_NAME_TCP: constants.PROTO_NAME_TCP,
 ETHERTYPE = {constants.IPv4: "ip",
              constants.IPv6: "ipv6"}
 
-INGRESS_DIRECTION = 'ingress'
-EGRESS_DIRECTION = 'egress'
-
 sg_conf = cfg.CONF.SECURITYGROUP
 
 PORT_KEYS = ['security_group_source_groups',
@@ -443,7 +440,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
     def _do_flows_action_on_sec_br(self, sec_br, port, flow,
                                    direction, flows_action):
-        if direction == EGRESS_DIRECTION:
+        if direction == constants.EGRESS_DIRECTION:
             for ip in port['fixed_ips']:
                 if flows_action == 'add':
                     sec_br.add_flow(priority=ovsvapp_const.SG_DEFAULT_PRI,
@@ -477,7 +474,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     if flow.get('cookie'):
                         del flow['cookie']
                     sec_br.delete_flows(**flow)
-        elif direction == INGRESS_DIRECTION:
+        elif direction == constants.INGRESS_DIRECTION:
                 flow['table'] = ovsvapp_const.SG_DEFAULT_TABLE_ID
                 if flows_action == 'add':
                     LOG.debug("OVSF adding flow: %s", flow)
@@ -569,11 +566,11 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             if len(protocols) > 1:
                 flow["nw_proto"] = protocols[1]
             # set source and destination params and action for the flow.
-            if direction == INGRESS_DIRECTION:
+            if direction == constants.INGRESS_DIRECTION:
                 flow["dl_dst"] = port["mac_address"]
                 flow["in_port"] = self.patch_ofport
                 action = ingress_action
-            elif direction == EGRESS_DIRECTION:
+            elif direction == constants.EGRESS_DIRECTION:
                 flow["dl_src"] = port["mac_address"]
                 flow["in_port"] = self.phy_ofport
                 action = egress_action
