@@ -1879,6 +1879,13 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                  net_id)
         self.sg_agent.sg_provider_updated(net_id)
 
+    def security_groups_member_updated(self, context, **kwargs):
+        """Callback for security groups member update."""
+        security_groups = kwargs.get('security_groups', [])
+        LOG.debug("Security group member updated on remote: %s",
+                  security_groups)
+        self.sg_agent.security_groups_member_updated(security_groups)
+
 
 class RpcPluginApi(agent_rpc.PluginApi):
 
