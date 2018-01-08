@@ -38,6 +38,7 @@ from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
 
 NETWORK_ID = 'fake_net_id'
 VNIC_ADDED = 'VNIC_ADDED'
+FAKE_SECURITY_GROUPS_MEMBER = 'fake_sec_groups_member'
 FAKE_DEVICE_ID = 'fake_device_id'
 FAKE_PORT_ID = 'fake_port_id'
 FAKE_VM = 'fake_vm'
@@ -2306,6 +2307,17 @@ class TestOVSvAppAgent(base.TestCase):
             self.agent.enhanced_sg_provider_updated(FAKE_CONTEXT, **kwargs)
             self.assertTrue(log_info.called)
             mock_sg_provider_updated.assert_called_with(NETWORK_ID)
+
+    def test_security_groups_member_updated(self):
+        kwargs = {'security_groups': FAKE_SECURITY_GROUPS_MEMBER}
+        with mock.patch.object(self.LOG, 'debug') as log_debug, \
+                mock.patch.object(self.agent.sg_agent,
+                                  "security_groups_member_updated"
+                                  ) as mock_sg_member_updated:
+            self.agent.security_groups_member_updated(FAKE_CONTEXT, **kwargs)
+            self.assertTrue(log_debug.called)
+            mock_sg_member_updated.assert_called_with(
+                FAKE_SECURITY_GROUPS_MEMBER)
 
     def test_check_network_support_vlan_exception(self):
         port1 = self._build_port(FAKE_PORT_1)

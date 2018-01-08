@@ -1879,6 +1879,9 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                  net_id)
         self.sg_agent.sg_provider_updated(net_id)
 
+    def security_groups_member_updated(self, context, **kwargs):
+        pass
+
 
 class RpcPluginApi(agent_rpc.PluginApi):
 
