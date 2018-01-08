@@ -102,13 +102,6 @@
      # OVSvApp Agent to program OVS on each ESX host.
      disable_service q-agt
 
-     # Provide to enable Fault Tolerance for OVSvApp.
-     ENABLE_OVSVAPP_MONITOR=
-     # Set this flag in ml2_conf.ini on neutron-server
-     # For Example:
-     # [OVSVAPP]
-     # enable_ovsvapp_monitor=True
-
 5.  Add the following required flags in local.conf to enable the vSphere Compute VCDriver::
 
      VIRT_DRIVER=vsphere

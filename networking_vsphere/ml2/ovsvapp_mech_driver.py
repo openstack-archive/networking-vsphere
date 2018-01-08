@@ -17,7 +17,6 @@
 import eventlet
 eventlet.monkey_patch()
 import netaddr
-from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import timeutils
 
@@ -34,7 +33,6 @@ from networking_vsphere._i18n import _LE, _LI
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.db import ovsvapp_db
 from networking_vsphere.ml2 import ovsvapp_rpc
-from networking_vsphere.monitor import ovsvapp_monitor
 
 LOG = log.getLogger(__name__)
 
@@ -59,8 +57,6 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         self._pool = None
         self.supported_network_types = [n_const.TYPE_VLAN, n_const.TYPE_VXLAN]
         LOG.info(_LI("Successfully initialized OVSvApp Mechanism driver."))
-        if cfg.CONF.OVSVAPP.enable_ovsvapp_monitor:
-            self._start_ovsvapp_monitor()
 
     def get_allowed_network_types(self, agent):
         return (agent['configurations'].get('tunnel_types', []) +
@@ -93,10 +89,6 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         self.conn = n_rpc.create_connection()
         self.conn.create_consumer(self.topic, self.endpoints, fanout=False)
         return self.conn.consume_in_threads()
-
-    def _start_ovsvapp_monitor(self):
-        self.ovsvapp_monitor = ovsvapp_monitor.AgentMonitor()
-        self.ovsvapp_monitor.initialize_thread(self.notifier)
 
     def _get_ovsvapp_agent_from_cluster(self, context, cluster_id):
         chosen_agent = None

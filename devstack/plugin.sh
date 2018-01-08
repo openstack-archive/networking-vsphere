@@ -75,11 +75,6 @@ function configure_vmware_dvs_config {
     iniset /$NOVA_CONF DEFAULT host $VMWAREAPI_CLUSTER
 }
 
-function configure_ovsvapp_monitoring {
-   echo "Configuring ml2_conf.ini for OVSvApp Monitoring"
-   iniset /$Q_PLUGIN_CONF_FILE ovsvapp enable_ovsvapp_monitor $ENABLE_OVSVAPP_MONITOR
-}
-
 function configure_ovsvapp_compute_driver {
     echo "Configuring Nova VCDriver for OVSvApp"
     cp $OVSVAPP_VCDRIVER $NOVA_VCDRIVER
@@ -179,7 +174,6 @@ if is_service_enabled ovsvapp-server; then
         install_ovsvapp_dependency
         install_networking_vsphere
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
-        configure_ovsvapp_monitoring
         run_ovsvapp_alembic_migration
     elif [[ "$1" == "stack" && "$2" == "post-extra" ]]; then
         # no-op

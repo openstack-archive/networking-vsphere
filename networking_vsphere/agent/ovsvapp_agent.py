@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import logging
 import threading
 import time
 import uuid
@@ -45,7 +44,6 @@ from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import error
 from networking_vsphere.common import model
 from networking_vsphere.common import utils
-from networking_vsphere.monitor import monitor
 from networking_vsphere.utils import ovs_bridge_util as ovsvapp_br
 from networking_vsphere.utils import resource_util
 
@@ -89,7 +87,6 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.conf = cfg.CONF
         self.esx_hostname = CONF.VMWARE.esx_hostname
         self.vcenter_id = CONF.VMWARE.vcenter_id
-        self.monitoring_ip = CONF.OVSVAPP.monitoring_ip
         self.esx_maintenance_mode = CONF.VMWARE.esx_maintenance_mode
         if not self.vcenter_id:
             self.vcenter_id = CONF.VMWARE.vcenter_ip
@@ -145,8 +142,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                                'tunnel_types': self.tunnel_types,
                                'cluster_id': self.cluster_id,
                                'vcenter_id': self.vcenter_id,
-                               'esx_host_name': self.esx_hostname,
-                               'monitoring_ip': self.monitoring_ip},
+                               'esx_host_name': self.esx_hostname},
             'agent_type': ovsvapp_const.AGENT_TYPE_OVSVAPP,
             'start_flag': True}
         self.veth_mtu = CONF.OVSVAPP.veth_mtu
@@ -180,14 +176,9 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.check_and_remove_stale_patch_ports()
         self.setup_rpc()
         defer_apply = CONF.SECURITYGROUP.defer_apply
-        self.monitor_log = self.initiate_monitor_log()
-        if self.monitor_log:
-            self.monitor_log.warning(_LW("ovs: pending"))
         self.sg_agent = sgagent.OVSvAppSecurityGroupAgent(self.context,
                                                           self.ovsvapp_sg_rpc,
                                                           defer_apply)
-        if self.monitor_log:
-            self.monitor_log.info(_LI("ovs: ok"))
 
     def check_and_remove_stale_patch_ports(self):
         req_ports = [cfg.CONF.OVS.int_peer_patch_port,
@@ -256,15 +247,6 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                     br1 = ovs_lib.OVSBridge(phys_br_name)
                     br1.delete_port(phys_net)
                     phys_br.add_port(phys_net)
-
-    def initiate_monitor_log(self):
-        try:
-            logger = logging.getLogger('monitor')
-            logger.addHandler(logging.FileHandler(monitor.LOG_FILE_PATH))
-            return logger
-        except Exception:
-            LOG.error(_LE("Could not get handle for %s."),
-                      monitor.LOG_FILE_PATH)
 
     def check_ovsvapp_agent_restart(self):
         # Check for the canary flow OVS Neutron Agent adds a canary table flow
@@ -742,8 +724,6 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         try:
             LOG.info(_LI("RPC get_ports_details_list is called with "
                          "port_ids: %s."), devices)
-            if self.monitor_log:
-                self.monitor_log.warning(_("ovs: pending"))
             cnt = 0
             pending_ports = devices
             processed_ports = []
@@ -804,8 +784,6 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                         if port_id in self.vnic_info:
                             self.vnic_info.pop(port_id)
                         self.sg_agent.remove_devices_filter(port_id)
-            if self.monitor_log:
-                self.monitor_log.info(_LI("ovs: ok"))
         except Exception as e:
             LOG.exception(_LE("RPC get_ports_details_list failed %s."), e)
             # Process the ports again in the next iteration.
@@ -852,11 +830,7 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         if device_list:
             LOG.info(_LI("Going to update firewall for ports: "
                          "%s."), device_list)
-            if self.monitor_log:
-                self.monitor_log.warning(_("ovs: pending"))
             self.sg_agent.refresh_firewall(device_list)
-            if self.monitor_log:
-                self.monitor_log.info(_("ovs: ok"))
         t1 = time.time()
         for port, ptime in six.iteritems(self.refresh_devices_to_filter):
             if int(t1 - ptime) > REFRESH_INTERVAL_DELAY:
@@ -875,8 +849,6 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         the flows related to Tenant VMs.
         """
         try:
-            if self.monitor_log:
-                self.monitor_log.warning(_LW("ovs: broken"))
             self.setup_integration_br()
             self.setup_security_br()
             if p_const.TYPE_VLAN in self.tenant_network_types:
@@ -903,8 +875,6 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.refresh_firewall_required = True
             finally:
                 ovsvapplock.release()
-            if self.monitor_log:
-                self.monitor_log.info(_LI("ovs: ok"))
             LOG.info(_LI("Finished resetting the bridges post ovs restart."))
         except Exception:
             LOG.exception(_LE("Exception encountered while mitigating the ovs "
@@ -951,14 +921,10 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         # Case where sgagent's devices_to_refilter is having some
         # entries or global_refresh_firewall flag is set to True.
         if self.sg_agent.firewall_refresh_needed():
-            if self.monitor_log:
-                self.monitor_log.warning(_("ovs: pending"))
             LOG.info(_LI("Starting refresh_port_filters."))
             self.sg_agent.refresh_port_filters(
                 self.cluster_host_ports, self.cluster_other_ports)
             LOG.info(_LI("Finished refresh_port_filters."))
-            if self.monitor_log:
-                self.monitor_log.info(_LI("ovs: ok"))
 
     def check_for_updates(self):
         while self.run_check_for_updates:
