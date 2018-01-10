@@ -103,6 +103,8 @@
      disable_service q-agt
 
      # Provide to enable Fault Tolerance for OVSvApp.
+     # DEPRECATED: This config option is deprecated and  will be removed in
+     # the next release.
      ENABLE_OVSVAPP_MONITOR=
      # Set this flag in ml2_conf.ini on neutron-server
      # For Example:
