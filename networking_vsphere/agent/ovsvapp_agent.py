@@ -89,6 +89,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         self.conf = cfg.CONF
         self.esx_hostname = CONF.VMWARE.esx_hostname
         self.vcenter_id = CONF.VMWARE.vcenter_id
+        # DEPRECATED: This config option is deprecated and will be
+        # removed in the next release
         self.monitoring_ip = CONF.OVSVAPP.monitoring_ip
         self.esx_maintenance_mode = CONF.VMWARE.esx_maintenance_mode
         if not self.vcenter_id:

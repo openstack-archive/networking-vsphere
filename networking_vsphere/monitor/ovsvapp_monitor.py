@@ -37,14 +37,20 @@ LOG = log.getLogger(__name__)
 DEFAULT_MONITOR_INTERVAL = 10
 
 # OVSvApp Fault Management config read from neutron.conf.
+# DEPRECATED: This option is deprecated and will be removed in the
+# next release
 OVSVAPP_MONITOR_OPTS = [
     cfg.BoolOpt('enable_ovsvapp_monitor', default=False,
-                help=_('To monitor the OVSvApp Agents.'))
+                deprecated_for_removal=True,
+                help=_('To monitor the OVSvApp Agents. Deprecated, to be'
+                       'removed in the next release'))
 ]
 
 cfg.CONF.register_opts(OVSVAPP_MONITOR_OPTS, "OVSVAPP")
 
 
+# DEPRECATED: AgentMonitor is deprecated and will be removed in the next
+# release.
 class AgentMonitor(agents_db.AgentDbMixin, common_db_mixin.CommonDbMixin):
     """OVSvApp agent monitor class.
 
