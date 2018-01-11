@@ -410,7 +410,7 @@ class OVSvAppAgent(agent.Agent,
     def set_openflow_version(self, bridge):
         try:
             if bridge is not None:
-                bridge.set_protocols(
+                bridge.add_protocols(
                     ["OpenFlow%d" % i for i in range(10, 15)])
         except RuntimeError as e:
             LOG.error(_LE("Unable to set openflow version: %s"), e)
