@@ -1,0 +1,10 @@
+Code-Review+1: Ihar Hrachyshka <ihrachys@redhat.com>
+Code-Review+2: Raghuveer Shenoy <rshenoy@hpe.com>
+Workflow+1: Raghuveer Shenoy <rshenoy@hpe.com>
+Code-Review+2: Swaminathan Vasudevan <SVasudevan@suse.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Fri, 12 Jan 2018 20:38:07 +0000
+Reviewed-on: https://review.openstack.org/532834
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
