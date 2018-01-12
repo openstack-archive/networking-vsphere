@@ -101,6 +101,8 @@ TUNNEL_BRIDGE=${TUNNEL_BRIDGE:-br-tun}
 SECURITY_BRIDGE=${SECURITY_BRIDGE:-br-sec}
 
 # Provide to enable Fault Tolerance for OVSvApp.
+# DEPRECATED: This config option is deprecated and will be removed
+# in the next release
 ENABLE_OVSVAPP_MONITOR=${ENABLE_OVSVAPP_MONITOR:-False}
 
 # The name of the VMware vSphere cluster.
