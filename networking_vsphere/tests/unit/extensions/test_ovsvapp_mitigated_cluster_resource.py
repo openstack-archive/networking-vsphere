@@ -38,7 +38,7 @@ class OVSvAppMitigatedClusterDBTestCase(testlib_api.SqlTestCase):
 
     def _create_ovsvapp_mitigated_cluster(self, ovsvapp_mitigated_cluster):
         """Create mitigated_cluster helper method."""
-        session = db_api.get_session()
+        session = db_api.get_writer_session()
         db_entry_dict = ovsvapp_mitigated_cluster['ovsvapp_mitigated_cluster']
         db_entry = {'vcenter_id': db_entry_dict['vcenter_id'],
                     'cluster_id': db_entry_dict['cluster_id'],

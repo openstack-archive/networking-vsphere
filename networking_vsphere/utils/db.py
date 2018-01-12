@@ -21,7 +21,7 @@ from networking_vsphere.common import constants
 
 def get_agent_by_host(agent_host):
     """Return a L2 agent on the host."""
-    session = db_api.get_session()
+    session = db_api.get_writer_session()
     with session.begin(subtransactions=True):
         query = session.query(agents_db.Agent)
         agent = query.filter(

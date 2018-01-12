@@ -56,7 +56,7 @@ def _generate_vcenter_cluster_allocations(session, vcenter, cluster):
 def _initialize_lvids_for_cluster(port_info):
     vcenter = port_info['vcenter_id']
     cluster = port_info['cluster_id']
-    session = db_api.get_session()
+    session = db_api.get_writer_session()
     with session.begin(subtransactions=True):
         try:
             (session.query(models.ClusterVNIAllocations).
@@ -126,7 +126,7 @@ def _try_to_obtain_local_vlan(session, port_info, assign):
 
 def get_local_vlan(port_info, assign=True):
     lvid = None
-    session = db_api.get_session()
+    session = db_api.get_writer_session()
     res_keys = ['vcenter_id', 'cluster_id', 'network_id']
     res = dict((k, port_info[k]) for k in res_keys)
     with session.begin(subtransactions=True):
@@ -170,7 +170,7 @@ def get_local_vlan(port_info, assign=True):
 
 def check_to_reclaim_local_vlan(port_info):
     lvid = -1
-    session = db_api.get_session()
+    session = db_api.get_writer_session()
     with session.begin(subtransactions=True):
         res_keys = ['vcenter_id', 'cluster_id', 'network_id']
         res = dict((k, port_info[k]) for k in res_keys)
@@ -201,7 +201,7 @@ def check_to_reclaim_local_vlan(port_info):
 
 
 def release_local_vlan(net_info):
-    session = db_api.get_session()
+    session = db_api.get_writer_session()
     with session.begin(subtransactions=True):
         res_keys = ['vcenter_id', 'cluster_id', 'network_id']
         res = dict((k, net_info[k]) for k in res_keys)
@@ -231,7 +231,7 @@ def release_local_vlan(net_info):
 
 
 def get_stale_local_vlans_for_network(network_id):
-    session = db_api.get_session()
+    session = db_api.get_writer_session()
     vcenter_clusters = None
     with session.begin(subtransactions=True):
         try:
@@ -256,7 +256,7 @@ def get_stale_local_vlans_for_network(network_id):
 
 
 def update_and_get_cluster_lock(vcenter_id, cluster_id):
-    session = db_api.get_session()
+    session = db_api.get_writer_session()
     with session.begin(subtransactions=True):
         try:
             query = session.query(models.OVSvAppClusters)
@@ -294,7 +294,7 @@ def update_and_get_cluster_lock(vcenter_id, cluster_id):
 
 
 def release_cluster_lock(vcenter_id, cluster_id):
-    session = db_api.get_session()
+    session = db_api.get_writer_session()
     with session.begin(subtransactions=True):
         try:
             query = session.query(models.OVSvAppClusters)
@@ -309,7 +309,7 @@ def release_cluster_lock(vcenter_id, cluster_id):
 
 
 def reset_cluster_threshold(vcenter_id, cluster_id):
-    session = db_api.get_session()
+    session = db_api.get_writer_session()
     with session.begin(subtransactions=True):
         try:
             query = session.query(models.OVSvAppClusters)
@@ -330,7 +330,7 @@ def reset_cluster_threshold(vcenter_id, cluster_id):
 
 
 def set_cluster_threshold(vcenter_id, cluster_id):
-    session = db_api.get_session()
+    session = db_api.get_writer_session()
     with session.begin(subtransactions=True):
         try:
             query = session.query(models.OVSvAppClusters)
