@@ -8,7 +8,7 @@
 
      > cat local.conf
      [[local|localrc]]
-     enable_plugin networking-vsphere http://git.openstack.org/openstack/networking-vsphere
+     enable_plugin networking-vsphere https://git.openstack.org/cgit/openstack/networking-vsphere
 
 
 3. Specify the preferred Networking-vSphere ML2 MechanismDriver in local.conf::
