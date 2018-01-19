@@ -24,6 +24,8 @@ from oslo_log import log as logging
 import oslo_messaging
 from oslo_service import loopingcall
 
+from neutron_lib.agent import constants as a_const
+from neutron_lib import constants as n_const
 from neutron_lib import context
 from neutron_lib.utils import helpers
 
@@ -31,7 +33,6 @@ from neutron.agent.common import polling
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.common import config as common_config
-from neutron.common import constants as n_const
 from neutron.common import topics
 from neutron.common import utils
 
@@ -212,7 +213,7 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             agent_status = self.state_rpc.report_state(self.context,
                                                        self.agent_state,
                                                        True)
-            if agent_status == n_const.AGENT_REVIVED:
+            if agent_status == a_const.AGENT_REVIVED:
                 LOG.info(_LI('Agent has just revived. Do a full sync.'))
             self.agent_state.pop('start_flag', None)
         except Exception:
