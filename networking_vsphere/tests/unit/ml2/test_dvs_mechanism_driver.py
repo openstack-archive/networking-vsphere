@@ -70,6 +70,31 @@ class VMwareDVSMechanismDriverTestCase(base.BaseTestCase):
             cast_mock.assert_called_once_with(
                 context.current, context.network_segments[0])
 
+#    @mock.patch('neutron_lib.plugins.directory.get_plugin',
+#                return_value=mock.Mock())
+    def test__handle_segment_delete_with_vlan_network(self):
+        segment = self._create_segment_dict(network_id='_dummy_port_id_')
+        network = self._create_network_dict()
+        plugin = mock.MagicMock()
+        plugin.get_network = mock.MagicMock(return_value=network)
+        with mock.patch('neutron_lib.plugins.directory.get_plugin',
+            return_value=plugin):
+            with mock.patch('networking_vsphere.common.dvs_agent_rpc_api.'
+                            'DVSClientAPI.delete_network_cast') as cast_mock:
+                self.driver._handle_segment_delete(segment=segment,
+                                                   resource=None, event=None,
+                                                   trigger=None, context=None)
+            cast_mock.assert_called_once_with(network, segment)
+
+    def test__handle_segment_delete_without_network(self):
+        segment = self._create_segment_dict()
+        with mock.patch('networking_vsphere.common.dvs_agent_rpc_api.'
+                        'DVSClientAPI.delete_network_cast') as cast_mock:
+            self.driver._handle_segment_delete(segment=segment, resource=None,
+                                               event=None, trigger=None,
+                                               context=None)
+            self.assertEqual(cast_mock.call_count, 0)
+
     def test_update_network_precommit(self):
         context = self._create_network_context()
         self.driver.network_map = {}
@@ -217,6 +242,18 @@ class VMwareDVSMechanismDriverTestCase(base.BaseTestCase):
             'status': status,
             'security_group_rules': [CONSTANT_SG_RULE],
             'binding:vif_details': {'dvs_port_key': '_dummy_dvs_port_key_'}
+        }
+
+    def _create_segment_dict(self, network_type='vlan', network_id=None):
+        return {
+            'id': '_dummy_port_id_%s' % id({}),
+            'network_id': network_id,
+            'network_type': network_type
+        }
+
+    def _create_network_dict(self):
+        return {
+            'id': '_dummy_port_id_%s' % id({})
         }
 
     def _create_network_context(self, network_type='vlan'):
