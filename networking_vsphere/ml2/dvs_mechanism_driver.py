@@ -19,8 +19,12 @@ from time import sleep
 from neutron.agent import securitygroups_rpc
 from neutron.plugins.ml2.drivers import mech_agent
 from neutron_lib.api.definitions import portbindings
+from neutron_lib.callbacks import events
+from neutron_lib.callbacks import registry
+from neutron_lib.callbacks import resources
 from neutron_lib import constants as n_const
 from neutron_lib import context
+from neutron_lib.plugins import directory
 from neutron_lib.plugins.ml2 import api
 from oslo_log import log
 
@@ -59,6 +63,7 @@ def port_belongs_to_vmware(func):
     return _port_belongs_to_vmware
 
 
+@registry.has_registry_receivers
 class VMwareDVSMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
     """Ml2 Mechanism driver for vmware dvs."""
 
@@ -88,6 +93,16 @@ class VMwareDVSMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             self.dvs_notifier.create_network_cast(context.current,
                                                   context.network_segments[0])
             # need to wait for agents. Cast message
+            sleep(2)
+
+    @registry.receives(resources.SEGMENT, [events.PRECOMMIT_DELETE])
+    def _handle_segment_delete(self, resource, event, trigger, context,
+                               segment, for_net_delete=False):
+        if segment['network_type'] == n_const.TYPE_VLAN and \
+                segment['network_id']:
+            plugin = directory.get_plugin()
+            network = plugin.get_network(context, segment['network_id'])
+            self.dvs_notifier.delete_network_cast(network, segment)
             sleep(2)
 
     def update_network_precommit(self, context):
