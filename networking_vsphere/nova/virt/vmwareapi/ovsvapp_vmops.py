@@ -1,4 +1,5 @@
 # Copyright (c) 2015 Hewlett-Packard Development Company, L.P.
+# Copyright (c) 2018 SUSE LLC
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -36,7 +37,7 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info, block_device_info=None,
-              power_on=False):
+              power_on=True):
 
         LOG.info(_LI("Inside OVSvApp VMOps spawn method."))
         client_factory = self._session.vim.client.factory
