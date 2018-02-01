@@ -1,0 +1,8 @@
+Code-Review+2: Swaminathan Vasudevan <SVasudevan@suse.com>
+Workflow+1: Swaminathan Vasudevan <SVasudevan@suse.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Thu, 01 Feb 2018 17:56:15 +0000
+Reviewed-on: https://review.openstack.org/539462
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/pike
