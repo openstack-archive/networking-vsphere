@@ -28,6 +28,7 @@ from neutron_lib import context
 from neutron_lib.utils import helpers
 
 from neutron.agent.common import polling
+from neutron.agent.l2 import l2_agent_extensions_manager as ext_manager
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.common import config as common_config
@@ -57,21 +58,10 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
     target = oslo_messaging.Target(version='1.2')
 
     def __init__(self, vsphere_hostname, vsphere_login, vsphere_password,
-                 bridge_mappings, polling_interval):
+                 bridge_mappings, polling_interval, conf=None):
         super(DVSAgent, self).__init__()
 
-        self.agent_state = {
-            'binary': 'neutron-dvs-agent',
-            'host': cfg.CONF.host,
-            'topic': n_const.L2_AGENT_TOPIC,
-            'configurations': {'bridge_mappings': bridge_mappings,
-                               'vsphere_hostname': vsphere_hostname},
-            'agent_type': 'DVS agent',
-            'start_flag': True}
-
-        report_interval = cfg.CONF.AGENT.report_interval
-
-        self.polling_interval = polling_interval
+        self.conf = conf or cfg.CONF
         # Security group agent support
         self.context = context.get_admin_context_without_session()
         self.sg_plugin_rpc = sg_rpc.SecurityGroupServerRpcApi(topics.PLUGIN)
@@ -81,6 +71,22 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         self.setup_rpc()
         self.run_daemon_loop = True
         self.iter_num = 0
+
+        self.init_extension_manager(self.connection)
+
+        self.agent_state = {
+            'binary': 'neutron-dvs-agent',
+            'host': cfg.CONF.host,
+            'topic': n_const.L2_AGENT_TOPIC,
+            'configurations': {'bridge_mappings': bridge_mappings,
+                               'vsphere_hostname': vsphere_hostname,
+                               'extensions': self.ext_manager.names()},
+            'agent_type': 'DVS agent',
+            'start_flag': True}
+
+        report_interval = cfg.CONF.AGENT.report_interval
+
+        self.polling_interval = polling_interval
 
         self.network_map = dvs_util.create_network_map_from_config(
             cfg.CONF.ML2_VMWARE, pg_cache=True)
@@ -107,6 +113,12 @@ class DVSAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             heartbeat = loopingcall.FixedIntervalLoopingCall(
                 self._report_state)
             heartbeat.start(interval=report_interval)
+
+    def init_extension_manager(self, connection):
+        ext_manager.register_opts(self.conf)
+        self.ext_manager = (
+            ext_manager.L2AgentExtensionsManager(self.conf))
+        self.ext_manager.initialize(connection, "dvs")
 
     @dvs_util.wrap_retry
     def create_network_precommit(self, current, segment):

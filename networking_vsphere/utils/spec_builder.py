@@ -51,6 +51,19 @@ class SpecBuilder(object):
     def port_setting(self):
         return self.factory.create('ns0:VMwareDVSPortSetting')
 
+    def shaping_policy(self):
+        shaping_policy = self.factory.create('ns0:DVSTrafficShapingPolicy')
+        shaping_policy.inherited = '0'
+        shaping_policy.enabled.inherited = '0'
+        shaping_policy.enabled.value = '1'
+        shaping_policy.averageBandwidth.inherited = '0'
+        shaping_policy.averageBandwidth.value = '10000'
+        shaping_policy.peakBandwidth.inherited = '0'
+        shaping_policy.peakBandwidth.value = '10000'
+        shaping_policy.burstSize.inherited = '0'
+        shaping_policy.burstSize.value = '10000'
+        return shaping_policy
+
     def filter_policy(self, rules):
         filter_policy = self.factory.create('ns0:DvsFilterPolicy')
         if rules:

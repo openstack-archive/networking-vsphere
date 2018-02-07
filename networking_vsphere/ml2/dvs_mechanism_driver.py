@@ -31,6 +31,9 @@ from networking_vsphere.common import exceptions
 from networking_vsphere.common import vmware_conf as config
 from networking_vsphere.utils import db
 
+from networking_vsphere.services.qos.drivers.dvs import \
+    driver as dvs_qos_driver
+
 CONF = config.CONF
 LOG = log.getLogger(__name__)
 
@@ -74,6 +77,7 @@ class VMwareDVSMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             dvs_const.AGENT_TYPE_DVS,
             self.vif_type,
             self.vif_details)
+        dvs_qos_driver.register()
 
     def get_allowed_network_types(self, agent):
         return (agent['configurations'].get('tunnel_types', []) +
