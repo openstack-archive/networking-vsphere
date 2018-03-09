@@ -19,7 +19,6 @@ from neutron_lib.api import extensions as api_extensions
 from neutron_lib.api import validators
 
 from neutron.api import extensions
-from neutron.api.v2 import attributes
 from neutron.api.v2 import resource_helper
 
 from networking_vsphere._i18n import _
@@ -89,7 +88,6 @@ class Ovsvapp_cluster(api_extensions.ExtensionDescriptor):
         """Returns Ext Resources."""
         plural_mappings = resource_helper.build_plural_mappings(
             {}, RESOURCE_ATTRIBUTE_MAP)
-        attributes.PLURALS.update(plural_mappings)
         resources = resource_helper.build_resource_info(
             plural_mappings,
             RESOURCE_ATTRIBUTE_MAP,
