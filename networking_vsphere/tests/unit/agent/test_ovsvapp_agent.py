@@ -148,7 +148,8 @@ class TestOVSvAppAgentRestart(base.TestCase):
     @mock.patch('neutron.common.config.setup_logging')
     @mock.patch('neutron.agent.ovsdb.api.from_config')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.RpcPluginApi')
-    @mock.patch('neutron.agent.securitygroups_rpc.SecurityGroupServerRpcApi')
+    @mock.patch('neutron.api.rpc.handlers.securitygroups_rpc.'
+                'SecurityGroupServerRpcApi')
     @mock.patch('neutron.agent.rpc.PluginReportStateAPI')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.OVSvAppPluginApi')
     @mock.patch('neutron_lib.context.get_admin_context_without_session')
@@ -304,7 +305,8 @@ class TestOVSvAppAgent(base.TestCase):
     @mock.patch('neutron.common.config.setup_logging')
     @mock.patch('neutron.agent.ovsdb.api.from_config')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.RpcPluginApi')
-    @mock.patch('neutron.agent.securitygroups_rpc.SecurityGroupServerRpcApi')
+    @mock.patch('neutron.api.rpc.handlers.securitygroups_rpc.'
+                'SecurityGroupServerRpcApi')
     @mock.patch('neutron.agent.rpc.PluginReportStateAPI')
     @mock.patch('networking_vsphere.agent.ovsvapp_agent.OVSvAppPluginApi')
     @mock.patch('neutron_lib.context.get_admin_context_without_session')
