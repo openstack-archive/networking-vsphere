@@ -14,7 +14,7 @@
 #    under the License.
 
 from neutron.common import rpc as n_rpc
-from neutron.common import topics
+from neutron_lib.agent import topics
 import oslo_messaging
 
 from networking_vsphere.common import constants as dvs_const

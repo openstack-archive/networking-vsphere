@@ -29,11 +29,11 @@ from neutron_lib.utils import helpers
 
 from neutron.agent.common import polling
 from neutron.agent import rpc as agent_rpc
-from neutron.agent import securitygroups_rpc as sg_rpc
+from neutron.api.rpc.handlers import securitygroups_rpc as sg_rpc
 from neutron.common import config as common_config
 from neutron.common import constants as n_const
-from neutron.common import topics
 from neutron.common import utils
+from neutron_lib.agent import topics
 
 from networking_vsphere.agent.firewalls import dvs_securitygroup_rpc as dvs_rpc
 from networking_vsphere.common import constants as dvs_const
