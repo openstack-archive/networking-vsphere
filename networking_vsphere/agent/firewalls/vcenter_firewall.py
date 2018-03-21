@@ -275,9 +275,6 @@ class DVSFirewallDriver(firewall.FirewallDriver):
     def update_security_group_rules(self, sg_id, sg_rules):
         pass
 
-    def security_groups_provider_updated(self):
-        LOG.info(_LI("Ignoring default security_groups_provider_updated RPC."))
-
     def update_security_group_members(self, sg_id, sg_members):
         pass
 
