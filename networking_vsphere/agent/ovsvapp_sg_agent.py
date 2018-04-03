@@ -83,6 +83,9 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self.global_refresh_firewall = False
         self._use_enhanced_rpc = None
 
+    def security_groups_rule_updated(self, security_groups):
+        pass
+
     def security_groups_member_updated(self, security_groups):
         pass
 
