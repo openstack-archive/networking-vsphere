@@ -1873,6 +1873,22 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 LOG.debug("Ignoring the device_update RPC as it is for "
                           "a different host")
 
+    def security_groups_member_updated(self, context, **kwargs):
+        """Callback for security group member updated RPC."""
+        security_groups = kwargs.get('security_groups', [])
+        LOG.info(_LI("Received security_groups_member_updated RPC for "
+                     "security group %s"),
+                 security_groups)
+        self.sg_agent.security_groups_member_updated(security_groups)
+
+    def security_groups_rule_updated(self, context, **kwargs):
+        """Callback from security groups rule updated RPC."""
+        security_groups = kwargs.get('security_groups', [])
+        LOG.info(_LI("Received security_groups_rule_updated RPC for "
+                     "security group %s"),
+                 security_groups)
+        self.sg_agent.security_groups_rule_updated(security_groups)
+
     def enhanced_sg_provider_updated(self, context, **kwargs):
         """Callback for security group provider update."""
         net_id = kwargs.get('network_id', [])
