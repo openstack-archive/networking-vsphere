@@ -539,6 +539,26 @@ class OVSvAppAgentNotifyAPI(object):
                    network_info=network_info, host=host,
                    cluster_id=cluster_id)
 
+    def security_groups_member_updated(self, context, security_groups):
+        sg_topic = ovsvapp_const.OVSVAPP + '_' + topics.SECURITY_GROUP
+        cctxt = self.client.prepare(
+            topic=topics.get_topic_name(self.topic,
+                                        sg_topic,
+                                        topics.UPDATE),
+            fanout=True)
+        cctxt.cast(context, 'security_groups_member_updated',
+                   security_groups=security_groups)
+
+    def security_groups_rule_updated(self, context, security_groups):
+        sg_topic = ovsvapp_const.OVSVAPP + '_' + topics.SECURITY_GROUP
+        cctxt = self.client.prepare(
+            topic=topics.get_topic_name(self.topic,
+                                        sg_topic,
+                                        topics.UPDATE),
+            fanout=True)
+        cctxt.cast(context, 'security_groups_rule_updated',
+                   security_groups=security_groups)
+
     def enhanced_sg_provider_updated(self, context, network_id):
         sg_topic = ovsvapp_const.OVSVAPP + '_' + topics.SECURITY_GROUP
         cctxt = self.client.prepare(
