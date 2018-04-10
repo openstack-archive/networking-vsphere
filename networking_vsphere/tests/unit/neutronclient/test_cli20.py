@@ -46,6 +46,7 @@ class CLITestV20Base(neutron_test_cli20.CLITestV20Base):
         super(CLITestV20Base, self).setUp()
         self.client = ovsvappclient.Client(token=TOKEN,
                                            endpoint_url=self.endurl)
+        self.mox = mox.Mox()
 
     def _test_create_resource(self, resource, cmd, name, myid, args,
                               position_names, position_values,
