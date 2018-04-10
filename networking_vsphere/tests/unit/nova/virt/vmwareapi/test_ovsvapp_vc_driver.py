@@ -21,7 +21,6 @@ from oslo_concurrency import lockutils
 from oslo_config import fixture as config_fixture
 from oslo_utils import uuidutils
 from oslo_vmware import vim_util as vutil
-from oslotest import moxstubout
 
 from networking_vsphere.nova.virt.vmwareapi import ovsvapp_vc_driver
 
@@ -143,8 +142,6 @@ class OVSvAppVCDriverTestCase(test.TestCase):
         self.vnc_host = 'ha-host'
         self.conn = ovsvapp_vc_driver.OVSvAppVCDriver(None)
         self.node_name = self.conn._nodename
-        mox_fixture = self.useFixture(moxstubout.MoxStubout())
-        self.mox = mox_fixture.mox
 
     def _get_network_info(self, network_id=NETWORK_NAME):
         """Gets network_info from the test utils and then change the network id
