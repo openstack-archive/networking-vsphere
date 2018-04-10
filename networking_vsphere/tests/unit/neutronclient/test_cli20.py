@@ -11,7 +11,8 @@
 #    under the License.
 #
 
-from mox3 import mox
+import mock
+
 from neutronclient import shell as neutronshell
 from neutronclient.tests.unit import test_cli20 as neutron_test_cli20
 from neutronclient.v2_0 import client as ovsvappclient
@@ -40,6 +41,10 @@ class MyUrlComparator(neutron_test_cli20.MyUrlComparator):
     pass
 
 
+class ContainsKeyValue(neutron_test_cli20.ContainsKeyValue):
+    pass
+
+
 class CLITestV20Base(neutron_test_cli20.CLITestV20Base):
 
     def setUp(self, plurals=None):
@@ -52,9 +57,6 @@ class CLITestV20Base(neutron_test_cli20.CLITestV20Base):
                               tenant_id=None, tags=None, admin_state_up=True,
                               extra_body=None, cmd_resource=None,
                               parent_id=None, **kwargs):
-        self.mox.StubOutWithMock(cmd, "get_client")
-        self.mox.StubOutWithMock(self.client.httpclient, "request")
-        cmd.get_client().MultipleTimes().AndReturn(self.client)
         if not cmd_resource:
             cmd_resource = resource
         body = {resource: {}, }
@@ -70,27 +72,32 @@ class CLITestV20Base(neutron_test_cli20.CLITestV20Base):
         # url method body
         resource_plural = self.client.get_resource_plural(cmd_resource)
         path = getattr(self.client, resource_plural + "_path")
-        mox_body = MyComparator(body, self.client)
-        self.client.httpclient.request(
-            end_url(path), 'POST',
-            body=mox_body,
-            headers=mox.ContainsKeyValue(
-                'X-Auth-Token', TOKEN)).AndReturn((MyResp(200), resstr))
-        self.mox.ReplayAll()
+        mock_body = MyComparator(body, self.client)
+
         cmd_parser = cmd.get_parser('create_' + resource)
-        neutronshell.run_command(cmd, cmd_parser, args)
-        self.mox.VerifyAll()
-        self.mox.UnsetStubs()
-        _str = self.fake_stdout.make_string()
-        self.assertIn(myid, _str)
-        if name:
-            self.assertIn(name, _str)
+
+        resp = (MyResp(200), resstr)
+
+        with mock.patch.object(cmd, "get_client",
+                               return_value=self.client), \
+                mock.patch.object(self.client.httpclient, "request",
+                                  return_value=resp) as mock_request:
+
+            neutronshell.run_command(cmd, cmd_parser, args)
+
+            _str = self.fake_stdout.make_string()
+            self.assertIn(myid, _str)
+            if name:
+                self.assertIn(name, _str)
+
+            mock_request.asswert_called_once_with(
+                MyUrlComparator(end_url(path), self.client),
+                'PUT',
+                body=mock_body,
+                headers=ContainsKeyValue({'X-Auth-Token': TOKEN}))
 
     def _test_update_resource(self, resource, cmd, myid, args, extrafields,
                               cmd_resource=None, parent_id=None):
-        self.mox.StubOutWithMock(cmd, "get_client")
-        self.mox.StubOutWithMock(self.client.httpclient, "request")
-        cmd.get_client().MultipleTimes().AndReturn(self.client)
         if not cmd_resource:
             cmd_resource = resource
 
@@ -101,21 +108,22 @@ class CLITestV20Base(neutron_test_cli20.CLITestV20Base):
             path = path % (parent_id, myid)
         else:
             path = path % extrafields['vcenter_id']
-        mox_body = MyComparator(body, self.client)
+        mock_body = MyComparator(body, self.client)
 
-        self.client.httpclient.request(
-            MyUrlComparator(end_url(path),
-                            self.client),
-            'PUT',
-            body=mox_body,
-            headers=mox.ContainsKeyValue(
-                'X-Auth-Token', TOKEN)).AndReturn((MyResp(204), None))
-        self.mox.ReplayAll()
         cmd_parser = cmd.get_parser("update_" + cmd_resource)
-        neutronshell.run_command(cmd, cmd_parser, args)
-        self.mox.VerifyAll()
-        self.mox.UnsetStubs()
-        _str = self.fake_stdout.make_string()
-        # Delete a given vcenter cluster with given details
-        # will return nothing
-        self.assertEqual(_str, '')
+
+        resp = (MyResp(204), None)
+        with mock.patch.object(cmd, "get_client",
+                               return_value=self.client), \
+                mock.patch.object(self.client.httpclient, "request",
+                                  return_value=resp) as mock_request:
+
+            neutronshell.run_command(cmd, cmd_parser, args)
+            _str = self.fake_stdout.make_string()
+            self.assertEqual(_str, '')
+
+            mock_request.asswert_called_once_with(
+                MyUrlComparator(end_url(path), self.client),
+                'PUT',
+                body=mock_body,
+                headers=ContainsKeyValue({'X-Auth-Token': TOKEN}))
