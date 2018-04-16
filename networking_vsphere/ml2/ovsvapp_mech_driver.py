@@ -23,14 +23,15 @@ from oslo_utils import timeutils
 
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
-from neutron import manager
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api as api
+
 from neutron.plugins.ml2.drivers import mech_agent
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as common_const
 from neutron_lib import constants as n_const
 from neutron_lib import context as neutron_context
+from neutron_lib.plugins import directory
 
 from networking_vsphere._i18n import _LE, _LI
 from networking_vsphere.common import constants as ovsvapp_const
@@ -54,7 +55,9 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         super(OVSvAppAgentMechanismDriver, self).__init__(
             ovsvapp_const.AGENT_TYPE_OVSVAPP,
             portbindings.VIF_TYPE_OTHER,
-            {portbindings.CAP_PORT_FILTER: True})
+            {portbindings.CAP_PORT_FILTER: True},
+            supported_vnic_types=[portbindings.VNIC_NORMAL])
+
         self.context = neutron_context.get_admin_context()
         self._start_rpc_listeners()
         self._plugin = None
@@ -74,7 +77,7 @@ class OVSvAppAgentMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
     @property
     def plugin(self):
         if self._plugin is None:
-            self._plugin = manager.NeutronManager.get_plugin()
+            self._plugin = directory.get_plugin()
         return self._plugin
 
     @property
