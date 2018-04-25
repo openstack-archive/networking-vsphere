@@ -1,0 +1,10 @@
+Code-Review+1: zhongshengping <chdzsp@163.com>
+Code-Review+2: stephen-ma <sma@suse.com>
+Code-Review+1: pippo <huang.zhiping@99cloud.net>
+Workflow+1: stephen-ma <sma@suse.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Wed, 25 Apr 2018 14:30:01 +0000
+Reviewed-on: https://review.openstack.org/555938
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
