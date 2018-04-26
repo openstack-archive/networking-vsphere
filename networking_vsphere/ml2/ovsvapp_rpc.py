@@ -564,6 +564,17 @@ class OVSvAppAgentNotifyAPI(object):
         cctxt.cast(context, 'security_groups_rule_updated',
                    security_groups=security_groups)
 
+    def security_groups_provider_updated(self, context,
+                                         devices_to_update=None):
+        sg_topic = ovsvapp_const.OVSVAPP + '_' + topics.SECURITY_GROUP
+        cctxt = self.client.prepare(
+            topic=topics.get_topic_name(self.topic,
+                                        sg_topic,
+                                        topics.UPDATE),
+            fanout=True)
+        cctxt.cast(context, 'security_groups_provider_updated',
+                   devices_to_update=devices_to_update)
+
     def enhanced_sg_provider_updated(self, context, network_id):
         sg_topic = ovsvapp_const.OVSVAPP + '_' + topics.SECURITY_GROUP
         cctxt = self.client.prepare(
