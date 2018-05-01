@@ -1,0 +1,11 @@
+Code-Review+1: Ritesh Anand <ritesh.anand@suse.com>
+Code-Review+1: Antonio Ojea <itsuugo@gmail.com>
+Code-Review+2: Swaminathan Vasudevan <SVasudevan@suse.com>
+Code-Review+2: stephen-ma <sma@suse.com>
+Workflow+1: Swaminathan Vasudevan <SVasudevan@suse.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Tue, 01 May 2018 17:30:23 +0000
+Reviewed-on: https://review.openstack.org/565408
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
