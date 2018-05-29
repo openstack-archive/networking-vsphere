@@ -45,7 +45,7 @@ class VMwareDVSMechanismDriverTestCase(base.BaseTestCase):
         self.dvs_notifier = mock.Mock()
         self.driver.network_map = {'physnet1': mock.Mock()}
 
-    @mock.patch('neutron.db.api.get_writer_session')
+    @mock.patch('neutron_lib.db.api.get_writer_session')
     @mock.patch('networking_vsphere.utils.dvs_util.'
                 'create_network_map_from_config', return_value='network_map')
     def test_initialize(self, create_network_map_from_config, get_session):

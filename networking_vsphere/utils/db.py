@@ -14,7 +14,7 @@
 #    under the License.
 
 from neutron.db import agents_db
-from neutron.db import api as db_api
+from neutron_lib.db import api as db_api
 
 from networking_vsphere.common import constants
 
