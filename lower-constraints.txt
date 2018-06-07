@@ -127,6 +127,7 @@ sqlparse==0.2.4
 statsd==3.2.2
 stevedore==1.28.0
 suds-jurko==0.6
+stestr==1.0.0
 Tempita==0.5.2
 tenacity==4.9.0
 testrepository==0.0.18
