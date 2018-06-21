@@ -522,13 +522,17 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 LOG.error(_LE("Tunneling cannot be enabled without a valid "
                               "local_ip."))
                 raise SystemExit(1)
+
+            existing_bridges = (ovs_lib.BaseOVS()).get_bridges()
+
             if not self.tun_br:
                 self.tun_br = self.br_tun_cls(CONF.OVSVAPP.tunnel_bridge)
             if self.tun_br is not None:
                 self.set_openflow_version(self.tun_br)
             self.agent_state['configurations']['tunneling_ip'] = self.local_ip
             self.agent_state['configurations']['l2_population'] = self.l2_pop
-            if not self.ovsvapp_agent_restarted:
+            if not (self.ovsvapp_agent_restarted
+                    and CONF.OVSVAPP.tunnel_bridge not in existing_bridges):
                 self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
                 self.setup_tunnel_br_flows()
                 self._add_rarp_flow_to_int_br()

@@ -194,6 +194,7 @@ class TestOVSvAppAgentRestart(base.TestCase):
         self.agent.run_refresh_firewall_loop = False
         self.LOG = ovsvapp_agent.LOG
         self.agent.monitor_log = logging.getLogger('monitor')
+        self.agent.agent_state = {'configurations': {'l2_population': False}}
 
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge')
     def test_reconfigure_interface(self, mock_ovs_bridge):
@@ -297,6 +298,35 @@ class TestOVSvAppAgentRestart(base.TestCase):
             self.assertTrue(mock_port_attributes.called)
             self.assertTrue(mock_delete_port.called)
             self.assertTrue(mock_int_del_port.called)
+
+    @mock.patch('neutron.agent.ovsdb.api.from_config')
+    def test_setup_ovs_bridges_vxlan_restart(self, mock_ovsdb_api):
+        self.agent.local_ip = "10.10.10.10"
+        bridge_tunnel = 'br-tunnel'
+        cfg.CONF.set_override('tunnel_bridge',
+                              bridge_tunnel, 'OVSVAPP')
+        self.agent.tun_br = mock.Mock()
+        self.agent.int_br = mock.Mock()
+        self.agent.tenant_network_types = [p_const.TYPE_VXLAN]
+        self.agent.l2_pop = False
+        with mock.patch.object(self.agent, 'setup_tunnel_br'
+                               ) as mock_setup_tunnel_br, \
+                mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'
+                                  ) as mock_rarp_flow, \
+                mock.patch.object(ovs_lib.BaseOVS,
+                                  "get_bridges",
+                                  return_value=['br-eth1']
+                                  ), \
+                mock.patch.object(self.agent, 'recover_tunnel_bridge'
+                                  ) as mock_recover_tunnel_bridge, \
+                mock.patch.object(self.agent, 'setup_tunnel_br_flows'
+                                  ) as mock_setup_tunnel_br_flows:
+            self.agent.ovsvapp_agent_restarted = True
+            self.agent.setup_ovs_bridges()
+            mock_setup_tunnel_br.assert_called_with(bridge_tunnel)
+            self.assertTrue(mock_setup_tunnel_br_flows.called)
+            self.assertTrue(mock_rarp_flow.called)
+            self.assertFalse(mock_recover_tunnel_bridge.called)
 
 
 class TestOVSvAppAgent(base.TestCase):
@@ -636,7 +666,8 @@ class TestOVSvAppAgent(base.TestCase):
             self.assertTrue(mock_setup_tunnel_br_flows.called)
             self.assertTrue(mock_rarp_flow.called)
 
-    def test_setup_ovs_bridges_vxlan_ofport(self):
+    @mock.patch('neutron.agent.ovsdb.api.from_config')
+    def test_setup_ovs_bridges_vxlan_ofport(self, mock_ovsdb_api):
         cfg.CONF.set_override('tenant_network_types',
                               "vxlan", 'OVSVAPP')
         cfg.CONF.set_override('local_ip',
@@ -654,6 +685,9 @@ class TestOVSvAppAgent(base.TestCase):
                                   "add_patch_port",
                                   return_value=6), \
                 mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'), \
+                mock.patch.object(ovs_lib.BaseOVS,
+                                  "get_bridges",
+                                  return_value=['br-eth1', 'tunnel_bridge']), \
                 mock.patch.object(self.agent, 'setup_tunnel_br_flows'
                                   ) as mock_setup_tunnel_br_flows:
             self.agent.setup_ovs_bridges()
@@ -733,6 +767,9 @@ class TestOVSvAppAgent(base.TestCase):
                                   ) as mock_remove_device, \
                 mock.patch.object(self.agent.monitor_log, "warning"
                                   ) as monitor_warning, \
+                mock.patch.object(ovs_lib.BaseOVS,
+                                  "get_bridges",
+                                  return_value=[]), \
                 mock.patch.object(self.agent.monitor_log, "info"
                                   ) as monitor_info:
             self.agent.mitigate_ovs_restart()
