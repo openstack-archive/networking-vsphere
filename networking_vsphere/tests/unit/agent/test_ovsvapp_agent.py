@@ -298,6 +298,25 @@ class TestOVSvAppAgentRestart(base.TestCase):
             self.assertTrue(mock_delete_port.called)
             self.assertTrue(mock_int_del_port.called)
 
+    def test_setup_ovs_bridges_vxlan_restart(self, mock_ovsdb_api):
+        self.agent.local_ip = "10.10.10.10"
+        self.agent.tenant_network_types = [p_const.TYPE_VXLAN]
+        with mock.patch.object(self.agent, 'setup_tunnel_br'
+                               ) as mock_setup_tunnel_br, \
+                mock.patch.object(self.agent, '_add_rarp_flow_to_int_br'
+                                  ) as mock_rarp_flow, \
+                mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
+                           'get_bridges',
+                           return_value=['br-eth1']) as mock_get_bridges, \
+                mock.patch.object(self.agent, 'setup_tunnel_br_flows'
+                                  ) as mock_setup_tunnel_br_flows:
+            self.agent.ovsvapp_agent_restarted = True
+            self.agent.setup_ovs_bridges()
+            mock_setup_tunnel_br.assert_called_with(self.br_tun)
+            self.assertTrue(mock_setup_tunnel_br_flows.called)
+            self.assertTrue(mock_rarp_flow.called)
+
+
 
 class TestOVSvAppAgent(base.TestCase):
 

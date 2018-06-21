@@ -507,6 +507,10 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
     def setup_ovs_bridges(self):
         LOG.info(_LI("Network type supported by agent: %s."),
                  self.tenant_network_types)
+
+        ovs = ovs_lib.BaseOVS
+        existing_ovs_bridges = set(ovs.get_bridges())
+
         if p_const.TYPE_VLAN in self.tenant_network_types:
             if not self.ovsvapp_agent_restarted:
                 self.setup_physical_bridges(self.bridge_mappings)
@@ -528,7 +532,8 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
                 self.set_openflow_version(self.tun_br)
             self.agent_state['configurations']['tunneling_ip'] = self.local_ip
             self.agent_state['configurations']['l2_population'] = self.l2_pop
-            if not self.ovsvapp_agent_restarted:
+            if not (self.ovsvapp_agent_restarted and
+                    self.tun_br not in existing_ovs_bridges):
                 self.setup_tunnel_br(CONF.OVSVAPP.tunnel_bridge)
                 self.setup_tunnel_br_flows()
                 self._add_rarp_flow_to_int_br()
