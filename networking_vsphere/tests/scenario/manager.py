@@ -33,7 +33,6 @@ from tempest import exceptions
 from tempest.lib.common import rest_client
 from tempest.lib.common import ssh
 from tempest.lib.common.utils import data_utils
-from tempest.lib.common.utils import misc as misc_utils
 from tempest.lib.common.utils import test_utils
 from tempest.lib import exceptions as lib_exc
 from tempest import manager
@@ -418,7 +417,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
                             'timeout': timeout})
                 message += ' Current status: %s.' % server_status
                 message += ' Current task state: %s.' % task_state
-                caller = misc_utils.find_test_caller()
+                caller = test_utils.find_test_caller()
                 if caller:
                     message = '(%s) %s' % (caller, message)
                 raise lib_exc.TimeoutException(message)
@@ -539,7 +538,7 @@ class ESXNetworksTestJSON(base.BaseAdminNetworkTest,
         except Exception as e:
             message = ('Initializing SSH connection to %(ip)s failed. '
                        'Error: %(error)s' % {'ip': ip, 'error': e})
-            caller = misc_utils.find_test_caller()
+            caller = test_utils.find_test_caller()
             if caller:
                 message = '(%s) %s' % (caller, message)
             LOG.exception(message)
