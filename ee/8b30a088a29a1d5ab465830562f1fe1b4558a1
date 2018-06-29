@@ -1,0 +1,8 @@
+Workflow+1: stephen-ma <sma@suse.com>
+Code-Review+2: stephen-ma <sma@suse.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Fri, 29 Jun 2018 14:54:40 +0000
+Reviewed-on: https://review.openstack.org/573044
+Project: openstack/networking-vsphere
+Branch: refs/heads/master
