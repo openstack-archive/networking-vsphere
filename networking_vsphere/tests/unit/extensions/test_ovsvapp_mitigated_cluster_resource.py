@@ -14,10 +14,11 @@
 #    under the License.
 
 
-from neutron.db import api as db_api
 from neutron.tests.unit import testlib_api
 from neutron_lib import context
 from neutron_lib import exceptions as exc
+from neutron_lib.db import api as db_api
+
 
 from networking_vsphere.db import ovsvapp_db
 from networking_vsphere.db import ovsvapp_models
