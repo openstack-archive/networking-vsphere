@@ -23,6 +23,7 @@ from oslo_config import cfg
 from oslo_log import log
 import oslo_messaging
 from oslo_service import loopingcall
+from osprofiler import profiler
 import six
 
 from neutron_lib.agent import topics
@@ -33,6 +34,7 @@ from neutron_lib.utils import helpers
 
 from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
+from neutron.api.rpc.handlers import securitygroups_rpc as sg_rpc
 from neutron.common import rpc as n_rpc
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ovs_const  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa
@@ -80,7 +82,10 @@ class PortInfo(object):
         self.network_type = network_type
 
 
-class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
+@profiler.trace_cls("rpc")
+class OVSvAppAgent(agent.Agent,
+                   ovs_agent.OVSNeutronAgent,
+                   sg_rpc.SecurityGroupAgentRpcCallbackMixin):
 
     """OVSvApp Agent."""
 
