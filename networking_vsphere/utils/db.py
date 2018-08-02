@@ -13,8 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron.db import api as db_api
 from neutron.db.models import agent as agents_db
+from neutron_lib.db import api as db_api
 
 from networking_vsphere.common import constants
 
