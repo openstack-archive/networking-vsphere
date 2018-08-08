@@ -395,7 +395,9 @@ class OVSvAppAgent(agent.Agent, ovs_agent.OVSNeutronAgent):
         # br-int patch port to br-sec.
         self.patch_sec_ofport = self.int_br.get_port_ofport(
             ovsvapp_const.INT_TO_SEC_PATCH)
-        if int(patch_sec_int_ofport) < 0 or int(self.patch_sec_ofport) < 0:
+        if patch_sec_int_ofport is None or self.patch_sec_ofport is None:
+            self.setup_security_br()
+        elif int(patch_sec_int_ofport) < 0 or int(self.patch_sec_ofport) < 0:
             LOG.error(_LE("Failed to find OVS patch port. Cannot have "
                           "Security enabled on this agent. "
                           "Terminating the agent!"))
