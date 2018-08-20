@@ -19,6 +19,8 @@ import sys
 import eventlet
 eventlet.monkey_patch()
 from neutron.common import config as common_config
+from neutron.common import utils as n_utils
+
 from oslo_config import cfg
 from oslo_log import log
 
@@ -41,6 +43,7 @@ def run():
         LOG.info(_LI("Loading agent: %s."), cfg.CONF.OVSVAPP.agent_driver)
         agent_obj = utils.load_object(cfg.CONF.OVSVAPP.agent_driver,
                                       agent.Agent)
+        n_utils.log_opt_values(LOG)
         agent_obj.start()
     except Exception as e:
         LOG.exception(_LE("Error in OVSvApp agent service."))
