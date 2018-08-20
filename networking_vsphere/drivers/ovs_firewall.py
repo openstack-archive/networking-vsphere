@@ -558,10 +558,12 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             # Fill the src and dest IPs match params.
             src_ip_prefixlen = self._get_net_prefix_len(src_ip_prefix)
             if src_ip_prefixlen > 0:
-                flow["nw_src"] = src_ip_prefix
+                _field = "ipv6_src" if ethertype == "IPv6" else "nw_src"
+                flow[_field] = src_ip_prefix
             dest_ip_prefixlen = self._get_net_prefix_len(dest_ip_prefix)
             if dest_ip_prefixlen > 0:
-                flow["nw_dst"] = dest_ip_prefix
+                _field = "ipv6_dst" if ethertype == "IPv6" else "nw_dst"
+                flow[_field] = dest_ip_prefix
             # Fill the protocol related  match params.
             protocols = self._get_protocol(ethertype, proto)
             protocol = protocols[0]
