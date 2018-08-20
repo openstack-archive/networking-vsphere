@@ -1,0 +1,9 @@
+Code-Review+2: stephen-ma <sma@suse.com>
+Code-Review+2: Swaminathan Vasudevan <SVasudevan@suse.com>
+Workflow+1: Swaminathan Vasudevan <SVasudevan@suse.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Mon, 20 Aug 2018 18:16:09 +0000
+Reviewed-on: https://review.openstack.org/593680
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/queens
