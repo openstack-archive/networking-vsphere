@@ -59,11 +59,11 @@ class DVSAgentTestCase(base.BaseTestCase):
     def test_look_up_dvs_failed(self):
         segment = {'network_type': constants.TYPE_VLAN,
                    'physical_network': 'wrong_network'}
-        self.assertRaisesRegexp(exceptions.NoDVSForPhysicalNetwork,
-                                "No dvs mapped for physical network: %s" %
-                                segment['physical_network'],
-                                self.agent._lookup_dvs_for_context,
-                                segment)
+        self.assertRaisesRegex(exceptions.NoDVSForPhysicalNetwork,
+                               "No dvs mapped for physical network: %s" %
+                               segment['physical_network'],
+                               self.agent._lookup_dvs_for_context,
+                               segment)
 
         segment = {'network_type': constants.TYPE_VLAN,
                    'physical_network': 'physnet1'}
