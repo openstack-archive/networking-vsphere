@@ -228,7 +228,8 @@ class TestVmwareDriver(base.TestCase):
         propFilterUpdate.objectSet = objectSet
         objectUpdate = fake_vmware_api.DataObject()
         objectUpdate.obj = (
-            fake_vmware_api._db_content["ClusterComputeResource"].values()[0])
+            list(fake_vmware_api._db_content[
+                 "ClusterComputeResource"].values())[0])
         objectUpdate.kind = "enter"
         changeSet = []
         objectUpdate.changeSet = changeSet
@@ -249,7 +250,7 @@ class TestVmwareDriver(base.TestCase):
         propFilterUpdate.objectSet = objectSet
         objectUpdate = fake_vmware_api.DataObject()
         objectUpdate.obj = (
-            fake_vmware_api._db_content["VirtualMachine"].values()[0])
+            list(fake_vmware_api._db_content["VirtualMachine"].values())[0])
         objectUpdate.kind = "modify"
         changeSet = []
         objectUpdate.changeSet = changeSet
@@ -273,7 +274,7 @@ class TestVmwareDriver(base.TestCase):
         propFilterUpdate.objectSet = objectSet
         objectUpdate = fake_vmware_api.DataObject()
         objectUpdate.obj = (
-            fake_vmware_api._db_content["VirtualMachine"].values()[0])
+            list(fake_vmware_api._db_content["VirtualMachine"].values())[0])
         objectUpdate.kind = "modify"
         changeSet = []
         objectUpdate.changeSet = changeSet
@@ -316,7 +317,7 @@ class TestVmwareDriver(base.TestCase):
         propFilterUpdate.objectSet = objectSet
         objectUpdate = fake_vmware_api.DataObject()
         objectUpdate.obj = (
-            fake_vmware_api._db_content["VirtualMachine"].values()[0])
+            list(fake_vmware_api._db_content["VirtualMachine"].values())[0])
         objectUpdate.kind = "leave"
         changeSet = []
         objectUpdate.changeSet = changeSet
@@ -335,7 +336,7 @@ class TestVmwareDriver(base.TestCase):
         propFilterUpdate.objectSet = objectSet
         objectUpdate = fake_vmware_api.DataObject()
         objectUpdate.obj = (
-            fake_vmware_api._db_content["VirtualMachine"].values()[0])
+            list(fake_vmware_api._db_content["VirtualMachine"].values())[0])
         objectUpdate.kind = "modify"
         changeSet = []
         objectUpdate.changeSet = changeSet
@@ -377,8 +378,10 @@ class TestVmwareDriver(base.TestCase):
     def test_post_delete_vm(self):
         uuid = fake_vmware_api.Constants.VM_UUID
         clus_mor = (
-            fake_vmware_api._db_content["ClusterComputeResource"].values()[0])
-        vm_mor = fake_vmware_api._db_content["VirtualMachine"].values()[0]
+            list(fake_vmware_api._db_content[
+                 "ClusterComputeResource"].values())[0])
+        vm_mor = list(fake_vmware_api._db_content[
+                      "VirtualMachine"].values())[0]
         VcCache.add_cluster_mor_for_vm(uuid, clus_mor)
         VcCache.add_vm_mor_for_uuid(uuid, vm_mor)
         vm_model = model.VirtualMachine(name=vm_mor.name,

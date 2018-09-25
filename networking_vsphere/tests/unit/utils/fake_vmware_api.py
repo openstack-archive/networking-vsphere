@@ -129,7 +129,7 @@ class ClusterComputeResource(ManagedObject):
 
     def __init__(self, **kwargs):
         super(ClusterComputeResource, self).__init__("ClusterComputeResource")
-        host = _db_content["HostSystem"].values()[0]
+        host = list(_db_content["HostSystem"].values())[0]
         host.set("parent", self)
         host_sytem = DataObject()
         host_sytem.ManagedObjectReference = [host]
@@ -153,14 +153,14 @@ class HostSystem(ManagedObject):
 
         if _db_content.get("HostNetworkSystem", None) is None:
             create_host_network_system()
-        host_net_key = _db_content["HostNetworkSystem"].keys()[0]
+        host_net_key = list(_db_content["HostNetworkSystem"].keys())[0]
         host_net_sys = _db_content["HostNetworkSystem"][host_net_key].value
         self.set("configManager.networkSystem", host_net_sys)
 
         if _db_content.get("Network", None) is None:
             create_network()
         net_ref = (_db_content["Network"]
-                   [_db_content["Network"].keys()[0]].obj)
+                   [list(_db_content["Network"].keys())[0]].obj)
         network_do = DataObject()
         network_do.ManagedObjectReference = [net_ref]
         self.set("network", network_do)
@@ -201,7 +201,7 @@ class VirtualMachine(ManagedObject):
         self.set('config.extraConfig["nvp.vm-uuid"]', extra_config_option)
         runtime = DataObject()
         host_ref = _db_content["HostSystem"][
-            _db_content["HostSystem"].keys()[0]]
+            (list(_db_content["HostSystem"].keys()))[0]]
         runtime.host = host_ref
         self.set("runtime", runtime)
         self.set("runtime.host", runtime.host)
@@ -224,7 +224,7 @@ class DistributedVirtualPortgroup(ManagedObject):
             "DistributedVirtualPortgroup")
         self.set("summary.name", Constants.PORTGROUP_NAME)
 
-        vm_ref = _db_content["VirtualMachine"].values()[0]
+        vm_ref = list(_db_content["VirtualMachine"].values())[0]
         vm_object = DataObject()
         vm_object.ManagedObjectReference = [vm_ref]
         self.set("vm", vm_object)
@@ -251,14 +251,14 @@ class DistributedVirtualSwitch(ManagedObject):
         super(DistributedVirtualSwitch, self).__init__(
             "DistributedVirtualSwitch")
         self.set("name", "test_dvs")
-        host_ref = _db_content["HostSystem"].values()[0]
+        host_ref = list(_db_content["HostSystem"].values())[0]
         dvs_host_member_config_info = DataObject()
         dvs_host_member_config_info.host = host_ref
         dvs_host_member = DataObject()
         dvs_host_member.config = dvs_host_member_config_info
         self.set("config.host", [[dvs_host_member]])
         self.set("uuid", "fake_dvs")
-        pg = _db_content["DistributedVirtualPortgroup"].values()[0]
+        pg = list(_db_content["DistributedVirtualPortgroup"].values())[0]
         pg_config = pg.config
         pg_config.distributedVirtualSwitch = self
         pg_object = DataObject()
@@ -272,7 +272,7 @@ class DistributedVirtualSwitch(ManagedObject):
         backing.port.switchUuid = self.uuid
         nic.macAddress = Constants.VM_MAC
         nic.backing = backing
-        vm = pg = _db_content["VirtualMachine"].values()[0]
+        vm = pg = list(_db_content["VirtualMachine"].values())[0]
         vm.get("config.hardware.device").VirtualDevice.append(nic)
 
 
@@ -425,7 +425,7 @@ class FakeVim(object):
 
     def _delete_port_group(self, method, *args, **kwargs):
         """Deletes a portgroup."""
-        pg_key = _db_content["DistributedVirtualPortgroup"].keys()[0]
+        pg_key = list(_db_content["DistributedVirtualPortgroup"].keys())[0]
         del _db_content["DistributedVirtualPortgroup"][pg_key]
         task_mdo = create_task(method, "success")
         return task_mdo.obj
@@ -450,12 +450,12 @@ class FakeVim(object):
     def _find_by_inventory_path(self, method, *args, **kwargs):
         path = kwargs.get("inventoryPath")
         try:
-            return _db_content[path].values()[0]
+            return list(_db_content[path].values())[0]
         except KeyError:
             return None
 
     def _reconfigure_dv_port_task(self, method, *args, **kwargs):
-        vds_ref = _db_content["DistributedVirtualSwitch"].values()[0]
+        vds_ref = list(_db_content["DistributedVirtualSwitch"].values())[0]
         specs = kwargs.get("port")
         for spec in specs:
             found = False

@@ -237,7 +237,7 @@ class TestVmwareNetworkUtil(base.TestCase):
 
     def test_get_unused_portgroup_names(self):
         dvp = 'DistributedVirtualPortgroup'
-        fake_api._db_content[dvp].values()[0].propSet[1].val = None
+        list(fake_api._db_content[dvp].values())[0].propSet[1].val = None
         self.assertTrue(network_util.get_unused_portgroup_names(self.session,
                                                                 "test_dvs"))
 
@@ -325,10 +325,10 @@ class TestVmwareNetworkUtil(base.TestCase):
         self.assertTrue(raised)
 
     def test_wait_until_dvs_portgroup_available(self):
-        vm_ref = fake_api._db_content["VirtualMachine"].values()[0].obj
-        hs_key = fake_api._db_content["HostSystem"].keys()[0]
-        dvs_key = fake_api._db_content[
-            "DistributedVirtualPortgroup"].keys()[0]
+        vm_ref = list(fake_api._db_content["VirtualMachine"].values())[0].obj
+        hs_key = list(fake_api._db_content["HostSystem"].keys())[0]
+        dvs_key = list(fake_api._db_content[
+            "DistributedVirtualPortgroup"].keys())[0]
         dvs_obj = fake_api._db_content[
             "DistributedVirtualPortgroup"][dvs_key].obj
         network_obj = fake_api.DataObject()
@@ -343,10 +343,10 @@ class TestVmwareNetworkUtil(base.TestCase):
             3))
 
     def test_wait_until_dvs_portgroup_unavailable(self):
-        vm_ref = fake_api._db_content["VirtualMachine"].values()[0].obj
-        hs_key = fake_api._db_content["HostSystem"].keys()[0]
-        dvs_key = fake_api._db_content[
-            "DistributedVirtualPortgroup"].keys()[0]
+        vm_ref = list(fake_api._db_content["VirtualMachine"].values())[0].obj
+        hs_key = list(fake_api._db_content["HostSystem"].keys())[0]
+        dvs_key = list(fake_api._db_content[
+            "DistributedVirtualPortgroup"].keys())[0]
         dvs_obj = fake_api._db_content["DistributedVirtualPortgroup"][
             dvs_key].obj
         network_obj = fake_api.DataObject()
@@ -396,38 +396,38 @@ class TestVmwareNetworkUtil(base.TestCase):
         self.assertTrue(raised)
 
     def test_enable_disable_port_of_vm_existing(self):
-        pg = fake_api._db_content[
-            "DistributedVirtualPortgroup"].values()[0]
+        pg = list(fake_api._db_content[
+            "DistributedVirtualPortgroup"].values())[0]
         backing = fake_api.DataObject()
         backing.port = fake_api.DataObject()
         backing.port.portgroupKey = pg.value
         backing.port.portKey = pg.portKeys[0]
-        backing.port.switchUuid = fake_api._db_content[
-            "DistributedVirtualPortgroup"].keys()[0]
-        vm_key = fake_api._db_content["VirtualMachine"].keys()[0]
+        backing.port.switchUuid = list(fake_api._db_content[
+            "DistributedVirtualPortgroup"].keys())[0]
+        vm_key = list(fake_api._db_content["VirtualMachine"].keys())[0]
         fake_api._db_content["VirtualMachine"][vm_key].propSet[
             6].val.VirtualDevice[0].backing = backing
         self.assertTrue(network_util.enable_disable_port_of_vm(
             self.session,
-            fake_api._db_content["VirtualMachine"].values()[0],
+            list(fake_api._db_content["VirtualMachine"].values())[0],
             "00:99:88:77:66:ab",
             True))
 
     def test_enable_disable_port_of_vm_non_existing(self):
-        pg = fake_api._db_content[
-            "DistributedVirtualPortgroup"].values()[0]
+        pg = list(fake_api._db_content[
+            "DistributedVirtualPortgroup"].values())[0]
         backing = fake_api.DataObject()
         backing.port = fake_api.DataObject()
         backing.port.portgroupKey = pg.value
         backing.port.portKey = pg.portKeys[0]
-        backing.port.switchUuid = fake_api._db_content[
-            "DistributedVirtualPortgroup"].keys()[0]
-        vm_key = fake_api._db_content["VirtualMachine"].keys()[0]
+        backing.port.switchUuid = list(fake_api._db_content[
+            "DistributedVirtualPortgroup"].keys())[0]
+        vm_key = list(fake_api._db_content["VirtualMachine"].keys())[0]
         fake_api._db_content["VirtualMachine"][vm_key].propSet[
             6].val.VirtualDevice[0].backing = backing
         self.assertFalse(network_util.enable_disable_port_of_vm(
             self.session,
-            fake_api._db_content["VirtualMachine"].values()[0],
+            list(fake_api._db_content["VirtualMachine"].values())[0],
             "11:99:88:77:66:ab",
             True))
 
