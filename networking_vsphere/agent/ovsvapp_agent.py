@@ -35,7 +35,7 @@ from neutron_lib.utils import helpers
 from neutron.agent.common import ovs_lib
 from neutron.agent import rpc as agent_rpc
 from neutron.api.rpc.handlers import securitygroups_rpc as sg_rpc
-from neutron.common import rpc as n_rpc
+# from neutron.common import rpc as n_rpc
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants as ovs_const  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent import ovs_neutron_agent as ovs_agent  # noqa
 from neutron.plugins.ml2.drivers.openvswitch.agent import vlanmanager
@@ -161,6 +161,7 @@ class OVSvAppAgent(agent.Agent,
         self.enable_tunneling = False
         self.tun_br = None
         self.tunnel_csum = CONF.OVSVAPP.tunnel_csum
+        self.tos = None
         bridge_classes = {'br_int': ovsvapp_br.OVSvAppIntegrationBridge,
                           'br_phys': ovsvapp_br.OVSvAppPhysicalBridge,
                           'br_tun': ovsvapp_br.OVSvAppTunnelBridge}
@@ -183,6 +184,12 @@ class OVSvAppAgent(agent.Agent,
             if "OVSFirewallDriver" in self.firewall_driver:
                 self.recover_security_br()
             self.ovsvapp_agent_restarted = True
+
+        # Stores the port IDs whose binding has been deactivated
+        self.deactivated_bindings = set()
+        # Stores the port IDs whose binding has been activated
+        self.activated_bindings = set()
+
         self.setup_ovs_bridges()
         self.check_and_remove_stale_patch_ports()
         self.setup_rpc()

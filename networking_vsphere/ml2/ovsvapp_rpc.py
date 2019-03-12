@@ -25,7 +25,7 @@ from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.common import utils as ovsvapp_utils
 from networking_vsphere.db import ovsvapp_db
 
-from neutron.common import rpc as n_rpc
+# from neutron.common import rpc as n_rpc
 from neutron.db import models_v2
 from neutron.db import securitygroups_rpc_base as sg_rpc_base
 from neutron.plugins.ml2 import db

@@ -21,7 +21,7 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import timeutils
 
-from neutron.common import rpc as n_rpc
+# from neutron.common import rpc as n_rpc
 
 from neutron.plugins.ml2.drivers import mech_agent
 from neutron_lib.agent import topics
