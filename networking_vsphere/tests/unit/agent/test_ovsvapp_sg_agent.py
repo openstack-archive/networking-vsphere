@@ -71,7 +71,7 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.create')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.set_secure_mode')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
-    @mock.patch('neutron.agent.ovsdb.api.from_config')
+    @mock.patch('neutron.agent.ovsdb.impl_idl.api_factory')
     def setUp(self, mock_ovsdb_api, mock_get_port_ofport,
               mock_set_secure_mode, mock_create_ovs_bridge,
               mock_setup_base_flows,
