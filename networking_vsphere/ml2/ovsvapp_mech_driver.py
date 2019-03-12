@@ -21,8 +21,6 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import timeutils
 
-from neutron.common import rpc as n_rpc
-
 from neutron.plugins.ml2.drivers import mech_agent
 from neutron_lib.agent import topics
 from neutron_lib.api.definitions import portbindings
@@ -30,6 +28,7 @@ from neutron_lib import constants as n_const
 from neutron_lib import context as neutron_context
 from neutron_lib.plugins import directory
 from neutron_lib.plugins.ml2 import api
+from neutron_lib import rpc as n_rpc
 
 from networking_vsphere._i18n import _LE, _LI
 from networking_vsphere.common import constants as ovsvapp_const
