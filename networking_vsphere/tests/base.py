@@ -18,15 +18,20 @@ import logging
 import eventlet
 import fixtures
 import mock
-from oslo_config import cfg
-from oslo_messaging import conffixture as messaging_conffixture
-from oslotest import base
 import six
 
 from networking_vsphere.common import config as ovsvapp_config
 
-from neutron.common import rpc as n_rpc
-from neutron.tests import fake_notifier
+from neutron_lib import fixture
+from neutron_lib import rpc as n_rpc
+from neutron_lib.tests.unit import fake_notifier
+
+from neutron.tests import tools
+
+from oslo_concurrency.fixture import lockutils
+from oslo_config import cfg
+from oslo_messaging import conffixture as messaging_conffixture
+from oslotest import base
 
 CONF = cfg.CONF
 eventlet.monkey_patch()
@@ -41,6 +46,9 @@ class TestCase(base.BaseTestCase):
         super(base.BaseTestCase, self).setUp()
         ovsvapp_config.register_options()
         self.setup_rpc_mocks()
+        self.useFixture(lockutils.ExternalLockFixture())
+        self.useFixture(fixture.APIDefinitionFixture())
+        self.useFixture(tools.WarningsFixture())
         self.mock = mock.Mock()
         self.logger = self.useFixture(fixtures.FakeLogger(name="neutron",
                                                           level=logging.INFO
@@ -51,7 +59,7 @@ class TestCase(base.BaseTestCase):
 
     def setup_rpc_mocks(self):
         # don't actually start RPC listeners when testing
-        mock.patch('neutron.common.rpc.Connection.consume_in_threads',
+        mock.patch('neutron_lib.rpc.Connection.consume_in_threads',
                    return_value=[]).start()
 
         self.useFixture(fixtures.MonkeyPatch(

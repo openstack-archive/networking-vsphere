@@ -13,6 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
+import fixtures
 import mock
 from oslo_config import cfg
 from oslo_utils import uuidutils
@@ -21,6 +23,9 @@ from networking_vsphere.agent import ovsvapp_sg_agent as sg_agent
 from networking_vsphere.common import constants as ovsvapp_const
 from networking_vsphere.drivers import ovs_firewall
 from networking_vsphere.tests import base
+
+from neutron_lib import rpc as lib_rpc
+
 
 cfg.CONF.import_group('AGENT', 'neutron.plugins.ml2.drivers.openvswitch.agent.'
                       'common.config')
@@ -53,6 +58,19 @@ fake_port = {'security_group_source_groups': 'abc',
                   "dest_ip_prefix": "170.1.1.0/22"}]}
 
 
+class RPCFixture(fixtures.Fixture):
+    def _setUp(self):
+        self.trans = copy.copy(lib_rpc.TRANSPORT)
+        self.noti_trans = copy.copy(lib_rpc.NOTIFICATION_TRANSPORT)
+        self.noti = copy.copy(lib_rpc.NOTIFIER)
+        self.addCleanup(self._reset_everything)
+
+    def _reset_everything(self):
+        lib_rpc.TRANSPORT = self.trans
+        lib_rpc.NOTIFICATION_TRANSPORT = self.noti_trans
+        lib_rpc.NOTIFIER = self.noti
+
+
 class FakeFirewall(ovs_firewall.OVSFirewallDriver):
     def __init__(self):
         self.filtered_ports = {}
@@ -71,12 +89,13 @@ class TestOVSvAppSecurityGroupAgent(base.TestCase):
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.create')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.set_secure_mode')
     @mock.patch('neutron.agent.common.ovs_lib.OVSBridge.get_port_ofport')
-    @mock.patch('neutron.agent.ovsdb.api.from_config')
+    @mock.patch('neutron.agent.ovsdb.impl_idl.api_factory')
     def setUp(self, mock_ovsdb_api, mock_get_port_ofport,
               mock_set_secure_mode, mock_create_ovs_bridge,
               mock_setup_base_flows,
               mock_check_ovs_firewall_restart, mock_mod_ovs_flow,
               mock_tcp_udp_learning_flows):
+        self.useFixture(RPCFixture())
         super(TestOVSvAppSecurityGroupAgent, self).setUp()
         self.context = mock.Mock()
         cfg.CONF.set_override('security_bridge_mapping',
