@@ -35,8 +35,7 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
                                            cluster, datastore_regex)
 
     def spawn(self, context, instance, image_meta, injected_files,
-              admin_password, network_info, block_device_info=None,
-              power_on=False):
+              admin_password, network_info, block_device_info=None):
 
         LOG.info(_LI("Inside OVSvApp VMOps spawn method."))
         client_factory = self._session.vim.client.factory
@@ -131,5 +130,4 @@ class OVSvAppVMOps(vmops.VMwareVMOps):
                                          vi.dc_info, vi.datastore,
                                          injected_files, admin_password,
                                          network_info)
-        if power_on:
-            vm_util.power_on_instance(self._session, instance, vm_ref=vm_ref)
+        vm_util.power_on_instance(self._session, instance, vm_ref=vm_ref)
