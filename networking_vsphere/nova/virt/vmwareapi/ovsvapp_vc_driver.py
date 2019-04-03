@@ -48,7 +48,8 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                                                 self._datastore_regex)
 
     def spawn(self, context, instance, image_meta, injected_files,
-              admin_password, network_info=None, block_device_info=None):
+              admin_password, allocations, network_info=None,
+              block_device_info=None):
         self.ovsvapp_vmops.spawn(context=context,
                                  instance=instance,
                                  image_meta=image_meta,
