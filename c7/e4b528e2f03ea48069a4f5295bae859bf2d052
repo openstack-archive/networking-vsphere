@@ -1,0 +1,9 @@
+Code-Review+2: Swaminathan Vasudevan <SVasudevan@suse.com>
+Code-Review+2: Adolfo Duarte <adolfo.duarte@suse.com>
+Workflow+1: stephen-ma <sma@suse.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Thu, 04 Apr 2019 23:00:05 +0000
+Reviewed-on: https://review.openstack.org/649874
+Project: openstack/networking-vsphere
+Branch: refs/heads/stable/rocky
