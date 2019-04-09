@@ -65,7 +65,6 @@ class OVSvAppVCDriver(vmware_driver.VMwareVCDriver):
                                                    instance.image_ref,
                                                    image_meta)
         self._create_virtual_nic(instance, image_info, network_info, vm_ref)
-        self._power_on_vm(instance, vm_ref)
 
     def network_binding_host_id(self, context, instance):
         """Get host ID to associate with network ports.
