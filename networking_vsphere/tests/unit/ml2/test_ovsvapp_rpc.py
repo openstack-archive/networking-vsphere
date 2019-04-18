@@ -318,6 +318,7 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
                   'vcenter_id': FAKE_VCENTER,
                   'cluster_id': FAKE_CLUSTER_ID}
         fake_port_db = mock.Mock()
+        fake_port_db.port_bindings = [mock.Mock()]
         fake_port_dict = {'id': FAKE_PORT_ID,
                           'fixed_ips': [{'subnet_id': FAKE_SUBNET_ID,
                                          'ip_address': FAKE_IP_ADDRESS}],
@@ -377,6 +378,7 @@ class OVSvAppServerRpcCallbackTest(test_rpc.RpcCallbacksTestCase):
                   'vcenter_id': FAKE_VCENTER,
                   'cluster_id': FAKE_CLUSTER_ID}
         fake_port_db = mock.Mock()
+        fake_port_db.port_bindings = [mock.Mock()]
         fake_port_dict = {'id': FAKE_PORT_ID,
                           'fixed_ips': [{'subnet_id': FAKE_SUBNET_ID,
                                          'ip_address': FAKE_IP_ADDRESS}],
