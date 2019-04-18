@@ -83,14 +83,9 @@ class OVSvAppSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpc):
         self.global_refresh_firewall = False
         self._use_enhanced_rpc = None
 
-    def security_groups_rule_updated(self, security_groups):
-        pass
-
-    def security_groups_member_updated(self, security_groups):
-        pass
-
-    def security_groups_provider_updated(self, port_ids_to_update):
-        pass
+    def _security_group_updated(self, security_groups, attribute, action_type):
+        LOG.info('Call ovsvapp_sg_agent _security_group_updated: %s', repr(security_groups))
+        super(OVSvAppSecurityGroupAgent, self)._security_group_updated(security_groups, attribute, action_type)
 
     def sg_provider_updated(self, net_id):
         devices = []
