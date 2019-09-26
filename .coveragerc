@@ -1,7 +1,0 @@
-[run]
-branch = True
-source = networking_vsphere
-omit = networking_vsphere/tests/*,networking_vsphere/openstack/*
-
-[report]
-ignore_errors = True
